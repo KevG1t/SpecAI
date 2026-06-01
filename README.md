@@ -10,13 +10,36 @@ Si querés configurar rápidamente las reglas base de IA en tu proyecto para que
 
 ## 🛠️ Instalación
 
-Para instalar SpecAI, la forma oficial y recomendada es a través de Go. Esto descarga, compila y coloca el binario listo para usar en tu máquina:
+### Instalación Rápida (Recomendada)
+
+La forma más sencilla de instalar SpecAI es usando nuestro script de instalación automática que detecta tu sistema operativo y arquitectura:
+
+```bash
+curl -fsSL https://kevg1t.github.io/SpecAI/install.sh | bash
+```
+
+Este script funciona en:
+- 🐧 **Linux** (x86_64, ARM64, ARM, i386)
+- 🍎 **macOS** (Intel y Apple Silicon)
+- 🪟 **Windows** (WSL recomendado)
+
+### Instalación Manual con Go
+
+Si preferís compilar desde el código fuente:
 
 ```bash
 go install github.com/KevG1t/SpecAI/cmd/specai@latest
 ```
 
-*(Asegurate de tener tu `GOPATH` configurado en el `PATH` de tu sistema para poder llamar al comando `specai` desde cualquier terminal).*
+*(Asegurate de tener tu `GOPATH` configurado en el `PATH` de tu sistema)*
+
+### Verificar Instalación
+
+Después de instalar, verificá que todo funcione:
+
+```bash
+specai --version
+```
 
 ---
 
