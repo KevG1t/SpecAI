@@ -1,0 +1,62 @@
+package screens
+
+import (
+	"github.com/KevG1t/SpecAI/internal/tui/styles"
+)
+
+type BackMsg struct{}
+
+type StartPipelineMsg struct {
+	Action string
+}
+
+type PipelineFinishedMsg struct {
+	Err error
+}
+
+func renderOptions(options []string, cursor int) string {
+	output := ""
+	for idx, option := range options {
+		if idx == cursor {
+			output += styles.SelectedStyle.Render(styles.Cursor+option) + "\n"
+		} else {
+			output += styles.UnselectedStyle.Render("  "+option) + "\n"
+		}
+	}
+
+	return output
+}
+
+func renderCheckbox(label string, checked bool, focused bool) string {
+	marker := "[ ]"
+	markerStyle := styles.UnselectedStyle
+	if checked {
+		marker = "[x]"
+		markerStyle = styles.SuccessStyle
+	}
+
+	prefix := "  "
+	if focused {
+		prefix = styles.Cursor
+		return styles.SelectedStyle.Render(prefix+markerStyle.Render(marker)+" "+label) + "\n"
+	}
+
+	return styles.UnselectedStyle.Render(prefix+markerStyle.Render(marker)+" "+label) + "\n"
+}
+
+func renderRadio(label string, selected bool, focused bool) string {
+	marker := "( )"
+	markerStyle := styles.UnselectedStyle
+	if selected {
+		marker = "(*)"
+		markerStyle = styles.SelectedStyle
+	}
+
+	prefix := "  "
+	if focused {
+		prefix = styles.Cursor
+		return styles.SelectedStyle.Render(prefix+markerStyle.Render(marker)+" "+label) + "\n"
+	}
+
+	return styles.UnselectedStyle.Render(prefix+markerStyle.Render(marker)+" "+label) + "\n"
+}
