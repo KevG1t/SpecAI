@@ -22,12 +22,10 @@ builds:
       - -s -w -X main.version={{.Version}}
 
 archives:
-  - formats:
-      - tar.gz
+  - format: tar.gz
     format_overrides:
       - goos: windows
-        formats:
-          - zip
+        format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
