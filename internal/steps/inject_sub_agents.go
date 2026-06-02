@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/model"
 	"github.com/spf13/afero"
 )
 
@@ -35,19 +34,14 @@ func (s *StepInjectSubAgents) filesystem() afero.Fs {
 // Run copies agent files from embedded FS to user directories based on selected IDEs.
 func (s *StepInjectSubAgents) Run() error {
 	for _, ide := range s.ctx.IDEs {
-		switch ide.AgentID() {
-		case model.AgentClaudeCode:
-			destDir := filepath.Join(s.ctx.HomeDir, ".claude", "agents")
-			if err := s.copyAgentFiles("claude/agents", destDir); err != nil {
-				return err
-			}
-		case model.AgentKiroIDE:
-			destDir := filepath.Join(s.ctx.HomeDir, ".kiro", "agents")
-			if err := s.copyAgentFiles("kiro/agents", destDir); err != nil {
-				return err
-			}
+		if !ide.SupportsSubAgents() {
+			continue
 		}
-		// Other agents have no sub-agent assets — intentional no-op.
+		srcDir := ide.EmbeddedSubAgentsDir()
+		destDir := ide.SubAgentsDir(s.ctx.HomeDir)
+		if err := s.copyAgentFiles(srcDir, destDir); err != nil {
+			return err
+		}
 	}
 	return nil
 }

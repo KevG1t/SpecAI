@@ -10,6 +10,7 @@ import (
 )
 
 // subAgentsStubIDE is a minimal IDEAdapter stub for inject_sub_agents tests.
+// New interface methods delegate to the real adapter so tests use real paths/flags.
 type subAgentsStubIDE struct {
 	agentID model.AgentID
 }
@@ -22,6 +23,30 @@ func (s subAgentsStubIDE) GlobalRulesDir(_ string) string  { return "" }
 func (s subAgentsStubIDE) GlobalSkillsDir(_ string) string { return "" }
 func (s subAgentsStubIDE) LocalRulesFile() string          { return "" }
 func (s subAgentsStubIDE) LocalSkillsDir() string          { return "" }
+
+func (s subAgentsStubIDE) real() system.IDEAdapter { return system.GetAdapterByAgentID(s.agentID) }
+
+func (s subAgentsStubIDE) SystemPromptStrategy() model.SystemPromptStrategy {
+	return s.real().SystemPromptStrategy()
+}
+func (s subAgentsStubIDE) MCPStrategy() model.MCPStrategy { return s.real().MCPStrategy() }
+func (s subAgentsStubIDE) SystemPromptFile(homeDir string) string {
+	return s.real().SystemPromptFile(homeDir)
+}
+func (s subAgentsStubIDE) SubAgentsDir(homeDir string) string    { return s.real().SubAgentsDir(homeDir) }
+func (s subAgentsStubIDE) EmbeddedSubAgentsDir() string          { return s.real().EmbeddedSubAgentsDir() }
+func (s subAgentsStubIDE) CommandsDir(homeDir string) string     { return s.real().CommandsDir(homeDir) }
+func (s subAgentsStubIDE) EmbeddedCommandsDir() string           { return s.real().EmbeddedCommandsDir() }
+func (s subAgentsStubIDE) SkillsDir(homeDir string) string       { return s.real().SkillsDir(homeDir) }
+func (s subAgentsStubIDE) SettingsPath(homeDir string) string    { return s.real().SettingsPath(homeDir) }
+func (s subAgentsStubIDE) MCPConfigPath(homeDir, serverName string) string {
+	return s.real().MCPConfigPath(homeDir, serverName)
+}
+func (s subAgentsStubIDE) SupportsSubAgents() bool    { return s.real().SupportsSubAgents() }
+func (s subAgentsStubIDE) SupportsSlashCommands() bool { return s.real().SupportsSlashCommands() }
+func (s subAgentsStubIDE) SupportsSkills() bool        { return s.real().SupportsSkills() }
+func (s subAgentsStubIDE) SupportsSystemPrompt() bool  { return s.real().SupportsSystemPrompt() }
+func (s subAgentsStubIDE) SupportsMCP() bool           { return s.real().SupportsMCP() }
 
 var _ system.IDEAdapter = subAgentsStubIDE{}
 

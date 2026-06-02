@@ -11,6 +11,7 @@ import (
 )
 
 // stubIDE is a minimal IDEAdapter for testing.
+// New interface methods delegate to the real adapter (via GetAdapterByAgentID) when available.
 type stubIDE struct {
 	name        string
 	rulesDir    string
@@ -27,6 +28,104 @@ func (s stubIDE) GlobalRulesDir(_ string) string  { return s.rulesDir }
 func (s stubIDE) GlobalSkillsDir(_ string) string { return s.skillsDir }
 func (s stubIDE) LocalRulesFile() string          { return "" }
 func (s stubIDE) LocalSkillsDir() string          { return "" }
+
+func (s stubIDE) real() system.IDEAdapter {
+	if a := system.GetAdapterByAgentID(s.agentID); a != nil {
+		return a
+	}
+	return nil
+}
+
+func (s stubIDE) SystemPromptStrategy() model.SystemPromptStrategy {
+	if r := s.real(); r != nil {
+		return r.SystemPromptStrategy()
+	}
+	return model.StrategyFileReplace
+}
+func (s stubIDE) MCPStrategy() model.MCPStrategy {
+	if r := s.real(); r != nil {
+		return r.MCPStrategy()
+	}
+	return model.StrategyMCPConfigFile
+}
+func (s stubIDE) SystemPromptFile(homeDir string) string {
+	if r := s.real(); r != nil {
+		return r.SystemPromptFile(homeDir)
+	}
+	return ""
+}
+func (s stubIDE) SubAgentsDir(homeDir string) string {
+	if r := s.real(); r != nil {
+		return r.SubAgentsDir(homeDir)
+	}
+	return ""
+}
+func (s stubIDE) EmbeddedSubAgentsDir() string {
+	if r := s.real(); r != nil {
+		return r.EmbeddedSubAgentsDir()
+	}
+	return ""
+}
+func (s stubIDE) CommandsDir(homeDir string) string {
+	if r := s.real(); r != nil {
+		return r.CommandsDir(homeDir)
+	}
+	return ""
+}
+func (s stubIDE) EmbeddedCommandsDir() string {
+	if r := s.real(); r != nil {
+		return r.EmbeddedCommandsDir()
+	}
+	return ""
+}
+func (s stubIDE) SkillsDir(homeDir string) string {
+	if r := s.real(); r != nil {
+		return r.SkillsDir(homeDir)
+	}
+	return ""
+}
+func (s stubIDE) SettingsPath(homeDir string) string {
+	if r := s.real(); r != nil {
+		return r.SettingsPath(homeDir)
+	}
+	return ""
+}
+func (s stubIDE) MCPConfigPath(homeDir string, serverName string) string {
+	if r := s.real(); r != nil {
+		return r.MCPConfigPath(homeDir, serverName)
+	}
+	return ""
+}
+func (s stubIDE) SupportsSubAgents() bool {
+	if r := s.real(); r != nil {
+		return r.SupportsSubAgents()
+	}
+	return false
+}
+func (s stubIDE) SupportsSlashCommands() bool {
+	if r := s.real(); r != nil {
+		return r.SupportsSlashCommands()
+	}
+	return false
+}
+func (s stubIDE) SupportsSkills() bool {
+	if r := s.real(); r != nil {
+		return r.SupportsSkills()
+	}
+	return true
+}
+func (s stubIDE) SupportsSystemPrompt() bool {
+	if r := s.real(); r != nil {
+		return r.SupportsSystemPrompt()
+	}
+	return true
+}
+func (s stubIDE) SupportsMCP() bool {
+	if r := s.real(); r != nil {
+		return r.SupportsMCP()
+	}
+	return true
+}
 
 var _ system.IDEAdapter = stubIDE{}
 

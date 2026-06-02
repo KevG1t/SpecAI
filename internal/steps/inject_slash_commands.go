@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/model"
 	"github.com/spf13/afero"
 )
 
@@ -38,21 +37,12 @@ func (s *StepInjectSlashCommands) filesystem() afero.Fs {
 
 func (s *StepInjectSlashCommands) Run() error {
 	for _, ide := range s.ctx.IDEs {
-		var assetDir string
-		var destDir string
-
-		switch ide.AgentID() {
-		case model.AgentClaudeCode:
-			assetDir = "claude/commands"
-			destDir = filepath.Join(s.ctx.HomeDir, ".claude", "commands")
-		case model.AgentOpenCode:
-			assetDir = "opencode/commands"
-			destDir = filepath.Join(s.ctx.HomeDir, ".config", "opencode", "commands")
-		default:
+		if !ide.SupportsSlashCommands() {
 			continue
 		}
-
-		if err := s.copyCommands(assetDir, destDir); err != nil {
+		srcDir := ide.EmbeddedCommandsDir()
+		destDir := ide.CommandsDir(s.ctx.HomeDir)
+		if err := s.copyCommands(srcDir, destDir); err != nil {
 			return err
 		}
 	}

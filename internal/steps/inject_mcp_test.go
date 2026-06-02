@@ -13,6 +13,7 @@ import (
 )
 
 // mcpStubIDE is a minimal IDEAdapter stub for inject_mcp tests.
+// New interface methods delegate to the real adapter so tests use real paths/strategies.
 type mcpStubIDE struct {
 	agentID model.AgentID
 }
@@ -25,6 +26,30 @@ func (m mcpStubIDE) GlobalRulesDir(_ string) string  { return "" }
 func (m mcpStubIDE) GlobalSkillsDir(_ string) string { return "" }
 func (m mcpStubIDE) LocalRulesFile() string          { return "" }
 func (m mcpStubIDE) LocalSkillsDir() string          { return "" }
+
+func (m mcpStubIDE) real() system.IDEAdapter { return system.GetAdapterByAgentID(m.agentID) }
+
+func (m mcpStubIDE) SystemPromptStrategy() model.SystemPromptStrategy {
+	return m.real().SystemPromptStrategy()
+}
+func (m mcpStubIDE) MCPStrategy() model.MCPStrategy { return m.real().MCPStrategy() }
+func (m mcpStubIDE) SystemPromptFile(homeDir string) string {
+	return m.real().SystemPromptFile(homeDir)
+}
+func (m mcpStubIDE) SubAgentsDir(homeDir string) string    { return m.real().SubAgentsDir(homeDir) }
+func (m mcpStubIDE) EmbeddedSubAgentsDir() string          { return m.real().EmbeddedSubAgentsDir() }
+func (m mcpStubIDE) CommandsDir(homeDir string) string     { return m.real().CommandsDir(homeDir) }
+func (m mcpStubIDE) EmbeddedCommandsDir() string           { return m.real().EmbeddedCommandsDir() }
+func (m mcpStubIDE) SkillsDir(homeDir string) string       { return m.real().SkillsDir(homeDir) }
+func (m mcpStubIDE) SettingsPath(homeDir string) string    { return m.real().SettingsPath(homeDir) }
+func (m mcpStubIDE) MCPConfigPath(homeDir, serverName string) string {
+	return m.real().MCPConfigPath(homeDir, serverName)
+}
+func (m mcpStubIDE) SupportsSubAgents() bool    { return m.real().SupportsSubAgents() }
+func (m mcpStubIDE) SupportsSlashCommands() bool { return m.real().SupportsSlashCommands() }
+func (m mcpStubIDE) SupportsSkills() bool        { return m.real().SupportsSkills() }
+func (m mcpStubIDE) SupportsSystemPrompt() bool  { return m.real().SupportsSystemPrompt() }
+func (m mcpStubIDE) SupportsMCP() bool           { return m.real().SupportsMCP() }
 
 var _ system.IDEAdapter = mcpStubIDE{}
 
