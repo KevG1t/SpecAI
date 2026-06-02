@@ -105,9 +105,9 @@ func TestWriteAndRead(t *testing.T) {
 }
 
 // TestPersonaRoundTrip verifies the Persona field round-trips through
-// Write/Read. Both `gentle-ai install` (CLI in run.go) and the TUI app
+// Write/Read. Both `specai install` (CLI in run.go) and the TUI app
 // (internal/app/app.go) write this field after a successful install so that
-// `gentle-ai sync` regenerates the persona the user actually selected — not a
+// `specai sync` regenerates the persona the user actually selected — not a
 // hard-coded default.
 func TestPersonaRoundTrip(t *testing.T) {
 	for _, persona := range []string{"gentleman", "neutral", "custom"} {
@@ -147,7 +147,7 @@ func TestPersonaBackwardCompat(t *testing.T) {
 	}
 }
 
-// TestWriteCreatesStateDir verifies that Write creates the .gentle-ai directory
+// TestWriteCreatesStateDir verifies that Write creates the .specai directory
 // when it does not exist yet.
 func TestWriteCreatesStateDir(t *testing.T) {
 	home := t.TempDir()
@@ -165,9 +165,81 @@ func TestWriteCreatesStateDir(t *testing.T) {
 func TestWriteStateFilePath(t *testing.T) {
 	home := t.TempDir()
 	got := Path(home)
-	want := filepath.Join(home, ".gentle-ai", "state.json")
+	want := filepath.Join(home, ".specai", "state.json")
 	if got != want {
 		t.Errorf("Path() = %q, want %q", got, want)
+	}
+}
+
+// TestMigrationFromLegacy verifies that Read copies .gentle-ai/state.json
+// to .specai/state.json when the destination is absent.
+func TestMigrationFromLegacy(t *testing.T) {
+	home := t.TempDir()
+	legacyDir := filepath.Join(home, legacyStateDir)
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll legacy: %v", err)
+	}
+	legacy := `{"installed_agents":["cursor"]}` + "\n"
+	if err := os.WriteFile(filepath.Join(legacyDir, stateFile), []byte(legacy), 0o644); err != nil {
+		t.Fatalf("WriteFile legacy: %v", err)
+	}
+
+	s, err := Read(home)
+	if err != nil {
+		t.Fatalf("Read() after migration error = %v", err)
+	}
+	if len(s.InstalledAgents) != 1 || s.InstalledAgents[0] != "cursor" {
+		t.Errorf("InstalledAgents = %v, want [cursor]", s.InstalledAgents)
+	}
+
+	// Legacy file must remain untouched.
+	if _, err := os.Stat(filepath.Join(legacyDir, stateFile)); err != nil {
+		t.Errorf("legacy state.json was removed: %v", err)
+	}
+
+	// .specai/state.json must now exist.
+	if _, err := os.Stat(Path(home)); err != nil {
+		t.Errorf(".specai/state.json not created: %v", err)
+	}
+}
+
+// TestMigrationSkippedWhenDestinationExists verifies that a pre-existing
+// .specai/state.json is not overwritten by a legacy migration.
+func TestMigrationSkippedWhenDestinationExists(t *testing.T) {
+	home := t.TempDir()
+
+	// Write current-format state.
+	if err := Write(home, InstallState{InstalledAgents: []string{"opencode"}}); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	// Write legacy state with different content.
+	legacyDir := filepath.Join(home, legacyStateDir)
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll legacy: %v", err)
+	}
+	legacy := `{"installed_agents":["cursor"]}` + "\n"
+	if err := os.WriteFile(filepath.Join(legacyDir, stateFile), []byte(legacy), 0o644); err != nil {
+		t.Fatalf("WriteFile legacy: %v", err)
+	}
+
+	s, err := Read(home)
+	if err != nil {
+		t.Fatalf("Read() error = %v", err)
+	}
+	// Should still read current-format content, not legacy.
+	if len(s.InstalledAgents) != 1 || s.InstalledAgents[0] != "opencode" {
+		t.Errorf("InstalledAgents = %v, want [opencode]", s.InstalledAgents)
+	}
+}
+
+// TestMigrationNoLegacy verifies that Read returns ErrNotExist when neither
+// .specai/state.json nor .gentle-ai/state.json exist.
+func TestMigrationNoLegacy(t *testing.T) {
+	home := t.TempDir()
+	_, err := Read(home)
+	if err == nil {
+		t.Fatal("Read() expected error when no state exists, got nil")
 	}
 }
 

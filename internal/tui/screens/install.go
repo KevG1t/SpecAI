@@ -9,18 +9,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type InstallState int
-
-const (
-	InstallStateConfirm InstallState = iota
-	InstallStateRunning
-	InstallStateResult
-)
-
 type InstallModel struct {
-	State     InstallState
-	Spinner   spinner.Model
-	Err       error
+	Started bool
+	Done    bool
+	Err     error
+	Spinner spinner.Model
+	Steps   []string
+	Status  map[string]string
 }
 
 func NewInstallModel() InstallModel {
@@ -29,8 +24,8 @@ func NewInstallModel() InstallModel {
 	s.Style = styles.WarningStyle
 
 	return InstallModel{
-		State:   InstallStateConfirm,
 		Spinner: s,
+		Status:  make(map[string]string),
 	}
 }
 
@@ -43,27 +38,33 @@ func (m InstallModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "q":
-			if m.State == InstallStateConfirm || m.State == InstallStateResult {
+			if !m.Started || m.Done {
 				return m, func() tea.Msg { return BackMsg{} }
 			}
 		case "enter":
-			if m.State == InstallStateConfirm {
-				m.State = InstallStateRunning
+			if !m.Started {
+				m.Started = true
 				return m, tea.Batch(m.Spinner.Tick, func() tea.Msg { return StartPipelineMsg{Action: "Install"} })
-			} else if m.State == InstallStateResult {
+			} else if m.Done {
 				return m, func() tea.Msg { return BackMsg{} }
 			}
 		}
 	case PipelineFinishedMsg:
-		m.State = InstallStateResult
+		m.Done = true
 		m.Err = msg.Err
 		return m, nil
 	case spinner.TickMsg:
-		if m.State == InstallStateRunning {
+		if m.Started && !m.Done {
 			var cmd tea.Cmd
 			m.Spinner, cmd = m.Spinner.Update(msg)
 			return m, cmd
 		}
+	case ProgressMsg:
+		if _, exists := m.Status[msg.TaskName]; !exists {
+			m.Steps = append(m.Steps, msg.TaskName)
+		}
+		m.Status[msg.TaskName] = msg.Status
+		return m, nil
 	}
 	return m, nil
 }
@@ -74,24 +75,7 @@ func (m InstallModel) View() string {
 	b.WriteString(styles.TitleStyle.Render("Install SpecAI Globally"))
 	b.WriteString("\n\n")
 
-	switch m.State {
-	case InstallStateRunning:
-		b.WriteString(styles.WarningStyle.Render(fmt.Sprintf("%s  Instalando configuración global...", m.Spinner.View())))
-		b.WriteString("\n\n")
-		b.WriteString(styles.HelpStyle.Render("Por favor espera..."))
-	case InstallStateResult:
-		if m.Err != nil {
-			b.WriteString(styles.ErrorStyle.Render("✗ Falla en la instalación"))
-			b.WriteString("\n\n")
-			b.WriteString(styles.SubtextStyle.Render(m.Err.Error()))
-		} else {
-			b.WriteString(styles.SuccessStyle.Render("✓ Instalación completada exitosamente"))
-			b.WriteString("\n\n")
-			b.WriteString(styles.SubtextStyle.Render("Las reglas globales y los skills han sido inyectados."))
-		}
-		b.WriteString("\n\n")
-		b.WriteString(styles.HelpStyle.Render("enter: volver al menú • esc: atrás"))
-	case InstallStateConfirm:
+	if !m.Started {
 		b.WriteString(styles.UnselectedStyle.Render("Esta operación instalará SpecAI de forma global en tu entorno."))
 		b.WriteString("\n")
 		b.WriteString(styles.UnselectedStyle.Render("Detectará todos tus IDEs y configurará los dotfiles globales."))
@@ -99,7 +83,42 @@ func (m InstallModel) View() string {
 		b.WriteString(styles.HeadingStyle.Render("Presiona Enter para instalar"))
 		b.WriteString("\n\n")
 		b.WriteString(styles.HelpStyle.Render("enter: confirmar • esc: atrás"))
+		return b.String()
+	}
+
+	for _, step := range m.Steps {
+		b.WriteString(m.renderStep(step) + "\n")
+	}
+
+
+	if !m.Done {
+		b.WriteString("\n")
+		b.WriteString(styles.HelpStyle.Render("Por favor espera..."))
+	} else {
+		b.WriteString("\n")
+		if m.Err != nil {
+			b.WriteString(styles.ErrorStyle.Render("✗ Falla en la instalación"))
+			b.WriteString("\n\n")
+			b.WriteString(styles.SubtextStyle.Render(m.Err.Error()))
+		} else {
+			b.WriteString(styles.SuccessStyle.Render("✓ Instalación completada exitosamente"))
+		}
+		b.WriteString("\n\n")
+		b.WriteString(styles.HelpStyle.Render("enter: volver al menú • esc: atrás"))
 	}
 
 	return b.String()
+}
+
+func (m InstallModel) renderStep(step string) string {
+	status := m.Status[step]
+	icon := " "
+	if status == "running" {
+		icon = m.Spinner.View()
+	} else if status == "succeeded" {
+		icon = styles.SuccessStyle.Render("✓")
+	} else if status == "failed" {
+		icon = styles.ErrorStyle.Render("✗")
+	}
+	return fmt.Sprintf("%s %s", icon, step)
 }

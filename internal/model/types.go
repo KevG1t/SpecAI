@@ -34,7 +34,7 @@ const (
 type ComponentID string
 
 const (
-	ComponentEngram             ComponentID = "engram"
+	ComponentSDDMemory          ComponentID = "sdd-memory"
 	ComponentSDD                ComponentID = "sdd"
 	ComponentSkills             ComponentID = "skills"
 	ComponentContext7           ComponentID = "context7"
@@ -55,11 +55,11 @@ const (
 	UninstallModeCleanInstall UninstallMode = "clean-install"
 )
 
-type EngramUninstallScope string
+type SDDMemoryUninstallScope string
 
 const (
-	EngramUninstallScopeGlobal  EngramUninstallScope = "global"
-	EngramUninstallScopeProject EngramUninstallScope = "project"
+	SDDMemoryUninstallScopeGlobal  SDDMemoryUninstallScope = "global"
+	SDDMemoryUninstallScopeProject SDDMemoryUninstallScope = "project"
 )
 
 type SkillID string
@@ -100,7 +100,7 @@ const (
 type SystemPromptStrategy int
 
 const (
-	// StrategyMarkdownSections uses <!-- gentle-ai:ID --> markers to inject sections
+	// StrategyMarkdownSections uses <!-- specai:ID --> markers to inject sections
 	// into an existing file without clobbering user content (Claude Code CLAUDE.md).
 	StrategyMarkdownSections SystemPromptStrategy = iota
 	// StrategyFileReplace replaces the entire system prompt file (OpenCode AGENTS.md).
@@ -166,7 +166,7 @@ type OpenCodeCommunityPluginID string
 
 const (
 	OpenCodePluginSubAgentStatusline OpenCodeCommunityPluginID = "sub-agent-statusline"
-	OpenCodePluginSDDEngramManage    OpenCodeCommunityPluginID = "sdd-engram-plugin"
+	OpenCodePluginSDDMemoryManage    OpenCodeCommunityPluginID = "sdd-engram-plugin"
 	OpenCodePluginGentleLogo         OpenCodeCommunityPluginID = "gentle-logo"
 )
 

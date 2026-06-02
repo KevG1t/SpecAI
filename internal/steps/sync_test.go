@@ -5,18 +5,23 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/KevG1t/SpecAI/internal/model"
 	"github.com/KevG1t/SpecAI/internal/system"
 	"github.com/KevG1t/SpecAI/internal/templates"
 )
 
 // stubIDE is a minimal IDEAdapter for testing.
 type stubIDE struct {
-	name      string
-	rulesDir  string
-	skillsDir string
+	name        string
+	rulesDir    string
+	skillsDir   string
+	agentID     model.AgentID
+	assetFolder string
 }
 
 func (s stubIDE) Name() string                    { return s.name }
+func (s stubIDE) AgentID() model.AgentID          { return s.agentID }
+func (s stubIDE) AssetFolder() string             { return s.assetFolder }
 func (s stubIDE) ConfigDir(_ string) string       { return "" }
 func (s stubIDE) GlobalRulesDir(_ string) string  { return s.rulesDir }
 func (s stubIDE) GlobalSkillsDir(_ string) string { return s.skillsDir }
