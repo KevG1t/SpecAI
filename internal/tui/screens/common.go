@@ -6,12 +6,47 @@ import (
 
 type BackMsg struct{}
 
+type InstallState int
+
+const (
+	InstallStateConfirm InstallState = iota
+	InstallStateRunning
+	InstallStateResult
+)
+
 type StartPipelineMsg struct {
 	Action string
 }
 
+// FailedStep holds the step name and a truncated error message for display.
+type FailedStep struct {
+	StepName string
+	Err      string
+}
+
+// MissingDep holds a dependency name that was expected but not found.
+type MissingDep struct {
+	Name string
+}
+
+// CompletePayload carries post-install summary data used by the completion screen.
+type CompletePayload struct {
+	ConfiguredAgents    int
+	InstalledComponents int
+	FailedSteps         []FailedStep
+	RollbackPerformed   bool
+	MissingDeps         []MissingDep
+}
+
 type PipelineFinishedMsg struct {
-	Err error
+	Err     error
+	Payload *CompletePayload // nil means legacy behavior (no completion screen)
+}
+
+type ProgressMsg struct {
+	TaskName string
+	Status   string
+	Progress float64
 }
 
 func renderOptions(options []string, cursor int) string {

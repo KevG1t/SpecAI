@@ -1,32 +1,36 @@
 package tui
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/KevG1t/SpecAI/internal/model"
 	"github.com/KevG1t/SpecAI/internal/tui/screens"
 )
 
 func TestTUIAsyncUpdates(t *testing.T) {
-	// GIVEN the TUI is on the loading screen
+	// GIVEN the TUI is on the welcome screen
 	m := NewMainModel()
 
-	// Simulate selecting an option (e.g., Install)
+	// Simulate selecting "Install" — should now go to ScreenAgentSelect first.
 	msg := screens.OptionSelectedMsg{Option: "Install"}
-	newModel, cmd := m.Update(msg)
+	newModel, _ := m.Update(msg)
 	m = newModel.(MainModel)
 
-	if m.currentScreen != ScreenLoading {
-		t.Fatalf("expected screen to be ScreenLoading, got %v", m.currentScreen)
+	if m.currentScreen != ScreenAgentSelect {
+		t.Fatalf("expected screen to be ScreenAgentSelect after Install, got %v", m.currentScreen)
 	}
 
-	if cmd == nil {
-		t.Fatal("expected tea.Cmd to start pipeline and wait for progress")
+	// Simulate agent selection → should move to ScreenInstall
+	agentMsg := screens.AgentsSelectedMsg{Agents: []model.AgentID{model.AgentClaudeCode}}
+	newModel, _ = m.Update(agentMsg)
+	m = newModel.(MainModel)
+
+	if m.currentScreen != ScreenInstall {
+		t.Fatalf("expected screen to be ScreenInstall after AgentsSelectedMsg, got %v", m.currentScreen)
 	}
 
-	// WHEN the pipeline emits a progress event
-	// Let's manually inject a ProgressMsg as if the channel yielded it
-	progressMsg := ProgressMsg{
+	// Simulate pipeline progress to ensure it doesn't crash MainModel.
+	progressMsg := screens.ProgressMsg{
 		TaskName: "Validando OS",
 		Status:   "En progreso",
 		Progress: 50.0,
@@ -35,25 +39,65 @@ func TestTUIAsyncUpdates(t *testing.T) {
 	newModel, _ = m.Update(progressMsg)
 	m = newModel.(MainModel)
 
-	// THEN the TUI receives it as a tea.Msg and updates the loading screen message without blocking the UI thread
 	if m.latestProg.TaskName != "Validando OS" {
 		t.Fatalf("expected latestProg.TaskName to be 'Validando OS', got %v", m.latestProg.TaskName)
 	}
 
-	view := m.View()
-	if !strings.Contains(view, "Validando OS") {
-		t.Fatalf("expected view to contain 'Validando OS', got: %s", view)
-	}
-	if !strings.Contains(view, "En progreso") {
-		t.Fatalf("expected view to contain 'En progreso', got: %s", view)
-	}
-
-	// Test PipelineDoneMsg
-	doneMsg := PipelineDoneMsg{Error: nil}
+	// Test PipelineFinishedMsg without payload (legacy behavior — no screen transition).
+	doneMsg := screens.PipelineFinishedMsg{Err: nil}
 	newModel, _ = m.Update(doneMsg)
 	m = newModel.(MainModel)
 
-	if m.currentScreen != ScreenWelcome {
-		t.Fatalf("expected screen to be ScreenWelcome after done, got %v", m.currentScreen)
+	// PipelineFinishedMsg without Payload must NOT transition to ScreenComplete.
+	if m.currentScreen == ScreenComplete {
+		t.Fatalf("PipelineFinishedMsg without Payload must not transition to ScreenComplete")
 	}
 }
+
+// TestTUIModel_PipelineFinishedMsg_WithPayload_ShowsCompleteScreen verifies that a
+// PipelineFinishedMsg carrying a non-nil CompletePayload transitions to ScreenComplete.
+func TestTUIModel_PipelineFinishedMsg_WithPayload_ShowsCompleteScreen(t *testing.T) {
+	m := NewMainModel()
+
+	payload := &screens.CompletePayload{
+		ConfiguredAgents:    2,
+		InstalledComponents: 4,
+	}
+	msg := screens.PipelineFinishedMsg{Err: nil, Payload: payload}
+	newModel, _ := m.Update(msg)
+	m = newModel.(MainModel)
+
+	if m.currentScreen != ScreenComplete {
+		t.Fatalf("expected ScreenComplete after PipelineFinishedMsg with Payload, got %v", m.currentScreen)
+	}
+
+	view := m.View()
+	if view == "" {
+		t.Fatal("ScreenComplete view must not be empty")
+	}
+}
+
+
+func TestTUIModel_AgentsSelectedMsg_PopulatesIDEs(t *testing.T) {
+	m := NewMainModel()
+
+	// Simulate Install option selected → goes to AgentSelect screen
+	msg := screens.OptionSelectedMsg{Option: "Install"}
+	newModel, _ := m.Update(msg)
+	m = newModel.(MainModel)
+
+	// Now simulate AgentsSelectedMsg with 2 agents
+	selectedAgents := []model.AgentID{model.AgentClaudeCode, model.AgentCursor}
+	agentMsg := screens.AgentsSelectedMsg{Agents: selectedAgents}
+	newModel, _ = m.Update(agentMsg)
+	m = newModel.(MainModel)
+
+	// ctx.IDEs should have exactly 2 adapters matching the selected agents
+	if m.installCtx == nil {
+		t.Fatal("installCtx should not be nil after AgentsSelectedMsg")
+	}
+	if len(m.installCtx.IDEs) != 2 {
+		t.Errorf("installCtx.IDEs has %d adapters, want 2", len(m.installCtx.IDEs))
+	}
+}
+

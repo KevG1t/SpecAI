@@ -36,7 +36,7 @@ func TestStepInstallUpdates_NoUpdatesAvailable(t *testing.T) {
 				Status: update.UpToDate,
 			},
 			{
-				Tool:   update.ToolInfo{Name: "engram", InstallMethod: update.InstallBinary},
+				Tool:   update.ToolInfo{Name: "sdd-memory", InstallMethod: update.InstallBinary},
 				Status: update.NotInstalled,
 			},
 		},
@@ -62,7 +62,7 @@ func TestStepInstallUpdates_SkipsOpenCodePlugin(t *testing.T) {
 			},
 			{
 				Tool: update.ToolInfo{
-					Name:          "opencode-sdd-engram-manage",
+					Name:          "opencode-sdd-memory-manage",
 					InstallMethod: update.InstallOpenCodePlugin,
 					NpmPackage:    "opencode-sdd-engram-manage",
 				},
@@ -151,11 +151,11 @@ func TestRunUpgrade_GoInstall_MissingImportPath(t *testing.T) {
 func TestRunUpgrade_BinaryReturnsDescriptiveError(t *testing.T) {
 	result := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
+			Name:          "sdd-memory",
 			InstallMethod: update.InstallBinary,
 		},
 		Status:     update.UpdateAvailable,
-		ReleaseURL: "https://github.com/Gentleman-Programming/engram/releases/tag/v1.0.0",
+		ReleaseURL: "https://github.com/KevG1t/sdd-memory/releases/tag/v1.0.0",
 	}
 
 	err := runUpgrade(result)

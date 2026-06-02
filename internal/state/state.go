@@ -2,11 +2,13 @@ package state
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 )
 
-const stateDir = ".gentle-ai"
+const stateDir = ".specai"
+const legacyStateDir = ".gentle-ai"
 const stateFile = "state.json"
 
 // ModelAssignmentState is the JSON-serialisable form of a provider+model pair
@@ -26,7 +28,7 @@ type InstallState struct {
 
 	// ClaudeModelAssignments maps SDD phase names (e.g. "sdd-explore") to a
 	// Claude model alias ("opus", "sonnet", "haiku"). Persisted so that
-	// `gentle-ai sync` preserves the user's model choices instead of falling
+	// `specai sync` preserves the user's model choices instead of falling
 	// back to the "balanced" preset every time.
 	ClaudeModelAssignments map[string]string `json:"claude_model_assignments,omitempty"`
 
@@ -39,7 +41,7 @@ type InstallState struct {
 	ModelAssignments map[string]ModelAssignmentState `json:"model_assignments,omitempty"`
 
 	// Persona records the persona the user installed ("gentleman", "neutral",
-	// "custom"). Persisted so that `gentle-ai sync` regenerates the same persona
+	// "custom"). Persisted so that `specai sync` regenerates the same persona
 	// the user originally chose instead of defaulting to Gentleman every time.
 	// Empty for state files written before persona persistence was added —
 	// callers fall back to PersonaGentleman in that case.
@@ -51,9 +53,40 @@ func Path(homeDir string) string {
 	return filepath.Join(homeDir, stateDir, stateFile)
 }
 
+// migrateLegacyState copies the legacy state file from .gentle-ai to .specai
+// when .specai/state.json does not exist yet. This is a one-time additive copy —
+// the legacy directory is left untouched (copy, not move).
+func migrateLegacyState(homeDir string) {
+	destPath := Path(homeDir)
+	srcPath := filepath.Join(homeDir, legacyStateDir, stateFile)
+
+	// Only migrate if destination is absent and source exists.
+	if _, err := os.Stat(destPath); err == nil {
+		return // destination already exists, skip
+	}
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return // source absent or unreadable, skip silently
+	}
+	defer src.Close()
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return
+	}
+	dst, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
+	if err != nil {
+		return
+	}
+	defer dst.Close()
+	_, _ = io.Copy(dst, src)
+}
+
 // Read reads and unmarshals the state file from the given home directory.
+// If the .specai/state.json does not exist but .gentle-ai/state.json does,
+// it is copied first (transparent one-time migration).
 // Returns an error if the file does not exist or cannot be decoded.
 func Read(homeDir string) (InstallState, error) {
+	migrateLegacyState(homeDir)
 	data, err := os.ReadFile(Path(homeDir))
 	if err != nil {
 		return InstallState{}, err
@@ -102,7 +135,7 @@ func MergeAgents(existing InstallState, newAgents []string) InstallState {
 }
 
 // Write persists the full install state to disk under the given home directory.
-// It creates the .gentle-ai directory if it does not already exist.
+// It creates the .specai directory if it does not already exist.
 func Write(homeDir string, s InstallState) error {
 	dir := filepath.Join(homeDir, stateDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {

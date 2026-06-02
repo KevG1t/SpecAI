@@ -9,7 +9,7 @@ import (
 func TestRenderCLI_IncompleteCheckDoesNotClaimUpToDate(t *testing.T) {
 	results := []UpdateResult{
 		{Tool: ToolInfo{Name: "gentle-ai"}, InstalledVersion: "1.0.0", LatestVersion: "1.0.0", Status: UpToDate},
-		{Tool: ToolInfo{Name: "engram"}, Status: CheckFailed, Err: fmt.Errorf("timeout")},
+		{Tool: ToolInfo{Name: "sdd-memory"}, Status: CheckFailed, Err: fmt.Errorf("timeout")},
 	}
 
 	out := RenderCLI(results)
@@ -28,7 +28,7 @@ func TestRenderCLI_IncompleteCheckDoesNotClaimUpToDate(t *testing.T) {
 func TestRenderCLI_OpenCodeRegisteredNotMaterialized(t *testing.T) {
 	results := []UpdateResult{
 		{
-			Tool:       ToolInfo{Name: "opencode-sdd-engram-manage"},
+			Tool:       ToolInfo{Name: "opencode-sdd-memory-manage"},
 			Status:     RegisteredNotMaterialized,
 			UpdateHint: "Restart or reload OpenCode to materialize the plugin; if it stays pending, check OpenCode logs for package or peer dependency errors.",
 		},
@@ -49,7 +49,7 @@ func TestRenderCLI_OpenCodeRegisteredNotMaterialized(t *testing.T) {
 func TestCheckFailures(t *testing.T) {
 	results := []UpdateResult{
 		{Tool: ToolInfo{Name: "gentle-ai"}, Status: UpToDate},
-		{Tool: ToolInfo{Name: "engram"}, Status: CheckFailed},
+		{Tool: ToolInfo{Name: "sdd-memory"}, Status: CheckFailed},
 		{Tool: ToolInfo{Name: "gga"}, Status: CheckFailed},
 	}
 
@@ -57,8 +57,8 @@ func TestCheckFailures(t *testing.T) {
 	if len(failed) != 2 {
 		t.Fatalf("len(CheckFailures) = %d, want 2", len(failed))
 	}
-	if failed[0] != "engram" || failed[1] != "gga" {
-		t.Fatalf("CheckFailures() = %v, want [engram gga]", failed)
+	if failed[0] != "sdd-memory" || failed[1] != "gga" {
+		t.Fatalf("CheckFailures() = %v, want [sdd-memory gga]", failed)
 	}
 	if !HasCheckFailures(results) {
 		t.Fatalf("HasCheckFailures() = false, want true")

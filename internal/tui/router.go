@@ -11,11 +11,13 @@ const (
 	ScreenDeleteConfirm  Screen = "deleteConfirm"
 	ScreenBackupResult   Screen = "backupResult"
 	ScreenInstall        Screen = "install"
+	ScreenAgentSelect    Screen = "agentSelect" // Agent selection before install pipeline
 	ScreenSetupLocal     Screen = "setupLocal"
 	ScreenUpgrade        Screen = "upgrade"
 	ScreenSync           Screen = "sync"
 	ScreenUpgradeSync    Screen = "upgradeSync"
 	ScreenUninstall      Screen = "uninstall"
+	ScreenComplete       Screen = "complete" // Post-install completion summary
 )
 
 // Route defines the transitions from a screen.

@@ -28,36 +28,36 @@ func TestDetectInstalledVersion(t *testing.T) {
 		wantVersion   string
 	}{
 		{
-			name:         "gentle-ai uses build var",
-			tool:         ToolInfo{Name: "gentle-ai", DetectCmd: nil},
+			name:         "specai uses build var",
+			tool:         ToolInfo{Name: "specai", DetectCmd: nil},
 			currentBuild: "1.5.0",
 			wantVersion:  "1.5.0",
 		},
 		{
-			name:         "gentle-ai dev build",
-			tool:         ToolInfo{Name: "gentle-ai", DetectCmd: nil},
+			name:         "specai dev build",
+			tool:         ToolInfo{Name: "specai", DetectCmd: nil},
 			currentBuild: "dev",
 			wantVersion:  "dev",
 		},
 		{
-			name: "engram version parsed from output",
-			tool: ToolInfo{Name: "engram", DetectCmd: []string{"engram", "version"}},
+			name: "sdd-memory version parsed from output",
+			tool: ToolInfo{Name: "sdd-memory", DetectCmd: []string{"sdd-memory", "version"}},
 			lookPathFn: func(string) (string, error) {
-				return "/usr/local/bin/engram", nil
+				return "/usr/local/bin/sdd-memory", nil
 			},
 			execCommandFn: func(name string, args ...string) *exec.Cmd {
-				return mockCmd("echo", "engram v0.3.2")
+				return mockCmd("echo", "sdd-memory v0.3.2")
 			},
 			wantVersion: "0.3.2",
 		},
 		{
-			name: "engram dev output is preserved as dev sentinel",
-			tool: ToolInfo{Name: "engram", DetectCmd: []string{"engram", "version"}},
+			name: "sdd-memory dev output is preserved as dev sentinel",
+			tool: ToolInfo{Name: "sdd-memory", DetectCmd: []string{"sdd-memory", "version"}},
 			lookPathFn: func(string) (string, error) {
-				return "/usr/local/bin/engram", nil
+				return "/usr/local/bin/sdd-memory", nil
 			},
 			execCommandFn: func(name string, args ...string) *exec.Cmd {
-				return mockCmd("echo", "engram dev")
+				return mockCmd("echo", "sdd-memory dev")
 			},
 			wantVersion: "dev",
 		},
@@ -71,9 +71,9 @@ func TestDetectInstalledVersion(t *testing.T) {
 		},
 		{
 			name: "binary exists but version command fails",
-			tool: ToolInfo{Name: "engram", DetectCmd: []string{"engram", "version"}},
+			tool: ToolInfo{Name: "sdd-memory", DetectCmd: []string{"sdd-memory", "version"}},
 			lookPathFn: func(string) (string, error) {
-				return "/usr/local/bin/engram", nil
+				return "/usr/local/bin/sdd-memory", nil
 			},
 			execCommandFn: func(name string, args ...string) *exec.Cmd {
 				return mockCmd("false") // exits with error
@@ -291,7 +291,7 @@ func TestCheckSingleToolOpenCodePluginRegisteredNotMaterialized(t *testing.T) {
 	httpClient.Transport = &testTransport{server: server}
 
 	tool := ToolInfo{
-		Name:          "opencode-sdd-engram-manage",
+		Name:          "opencode-sdd-memory-manage",
 		Owner:         "owner",
 		Repo:          "repo",
 		InstallMethod: InstallOpenCodePlugin,
@@ -314,8 +314,8 @@ func TestCheckSingleToolOpenCodePluginRegisteredNotMaterialized(t *testing.T) {
 }
 
 func TestParseVersionFromOutput_DevSentinel(t *testing.T) {
-	if got := parseVersionFromOutput("engram dev"); got != "dev" {
-		t.Fatalf("parseVersionFromOutput(engram dev) = %q, want %q", got, "dev")
+	if got := parseVersionFromOutput("sdd-memory dev"); got != "dev" {
+		t.Fatalf("parseVersionFromOutput(sdd-memory dev) = %q, want %q", got, "dev")
 	}
 }
 
@@ -407,7 +407,7 @@ func TestFetchLatestRelease(t *testing.T) {
 func TestFetchLatestReleaseMatchingPatternSkipsPiChannel(t *testing.T) {
 	var serverURL string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/Gentleman-Programming/engram/releases" {
+		if r.URL.Path != "/repos/KevG1t/sdd-memory/releases" {
 			t.Fatalf("unexpected path: %s", r.URL.String())
 		}
 		if r.URL.Query().Get("per_page") != "100" {
@@ -416,13 +416,13 @@ func TestFetchLatestReleaseMatchingPatternSkipsPiChannel(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Query().Get("page") {
 		case "":
-			w.Header().Set("Link", fmt.Sprintf(`<%s/repos/Gentleman-Programming/engram/releases?per_page=100&page=2>; rel="next"`, serverURL))
+			w.Header().Set("Link", fmt.Sprintf(`<%s/repos/KevG1t/sdd-memory/releases?per_page=100&page=2>; rel="next"`, serverURL))
 			json.NewEncoder(w).Encode([]githubRelease{
-				{TagName: "pi-v0.1.7", HTMLURL: "https://github.com/Gentleman-Programming/engram/releases/tag/pi-v0.1.7"},
+				{TagName: "pi-v0.1.7", HTMLURL: "https://github.com/KevG1t/sdd-memory/releases/tag/pi-v0.1.7"},
 			})
 		case "2":
 			json.NewEncoder(w).Encode([]githubRelease{
-				{TagName: "v1.15.13", HTMLURL: "https://github.com/Gentleman-Programming/engram/releases/tag/v1.15.13"},
+				{TagName: "v1.15.13", HTMLURL: "https://github.com/KevG1t/sdd-memory/releases/tag/v1.15.13"},
 			})
 		default:
 			t.Fatalf("unexpected page: %s", r.URL.Query().Get("page"))
@@ -436,7 +436,7 @@ func TestFetchLatestReleaseMatchingPatternSkipsPiChannel(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	release, err := fetchLatestReleaseMatchingPattern(context.Background(), "Gentleman-Programming", "engram", `^v[0-9]+\.[0-9]+\.[0-9]+$`)
+	release, err := fetchLatestReleaseMatchingPattern(context.Background(), "KevG1t", "sdd-memory", `^v[0-9]+\.[0-9]+\.[0-9]+$`)
 	if err != nil {
 		t.Fatalf("fetchLatestReleaseMatchingPattern() error = %v", err)
 	}
@@ -449,7 +449,7 @@ func TestFetchLatestReleaseMatchingPatternRejectsPaginationLoop(t *testing.T) {
 	var serverURL string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Link", fmt.Sprintf(`<%s/repos/Gentleman-Programming/engram/releases?per_page=100>; rel="next"`, serverURL))
+		w.Header().Set("Link", fmt.Sprintf(`<%s/repos/KevG1t/sdd-memory/releases?per_page=100>; rel="next"`, serverURL))
 		json.NewEncoder(w).Encode([]githubRelease{{TagName: "pi-v0.1.7"}})
 	}))
 	serverURL = server.URL
@@ -460,7 +460,7 @@ func TestFetchLatestReleaseMatchingPatternRejectsPaginationLoop(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	_, err := fetchLatestReleaseMatchingPattern(context.Background(), "Gentleman-Programming", "engram", `^v[0-9]+\.[0-9]+\.[0-9]+$`)
+	_, err := fetchLatestReleaseMatchingPattern(context.Background(), "KevG1t", "sdd-memory", `^v[0-9]+\.[0-9]+\.[0-9]+$`)
 	if err == nil || !strings.Contains(err.Error(), "pagination loop detected") {
 		t.Fatalf("expected pagination loop error, got %v", err)
 	}
@@ -527,8 +527,8 @@ func TestFetchLatestRelease_GithubToken(t *testing.T) {
 		t.Fatalf("Authorization = %q, want %q", gotAuth, "Bearer test-token-123")
 	}
 
-	if gotUserAgent != "gentle-ai-update-check" {
-		t.Fatalf("User-Agent = %q, want %q", gotUserAgent, "gentle-ai-update-check")
+	if gotUserAgent != "specai-update-check" {
+		t.Fatalf("User-Agent = %q, want %q", gotUserAgent, "specai-update-check")
 	}
 }
 
@@ -576,16 +576,16 @@ func TestCheckAll(t *testing.T) {
 		path := r.URL.Path
 		var release githubRelease
 		switch {
-		case contains(path, "gentle-ai"):
-			release = githubRelease{TagName: "v1.5.0", HTMLURL: "https://github.com/Gentleman-Programming/gentle-ai/releases/tag/v1.5.0"}
+		case contains(path, "SpecAI"):
+			release = githubRelease{TagName: "v1.5.0", HTMLURL: "https://github.com/KevG1t/SpecAI/releases/tag/v1.5.0"}
 		case contains(path, "gentleman-guardian-angel"):
-			release = githubRelease{TagName: "v2.0.0", HTMLURL: "https://github.com/Gentleman-Programming/gentleman-guardian-angel/releases/tag/v2.0.0"}
+			release = githubRelease{TagName: "v2.0.0", HTMLURL: "https://github.com/KevG1t/gentleman-guardian-angel/releases/tag/v2.0.0"}
 		case contains(path, "sub-agent-statusline"):
 			release = githubRelease{TagName: "v0.4.0", HTMLURL: "https://github.com/Joaquinvesapa/sub-agent-statusline/releases/tag/v0.4.0"}
 		case contains(path, "sdd-engram-plugin"):
 			release = githubRelease{TagName: "v1.1.7", HTMLURL: "https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/releases/tag/v1.1.7"}
-		case contains(path, "engram"):
-			release = githubRelease{TagName: "v0.4.0", HTMLURL: "https://github.com/Gentleman-Programming/engram/releases/tag/v0.4.0"}
+		case contains(path, "sdd-memory"):
+			release = githubRelease{TagName: "v0.4.0", HTMLURL: "https://github.com/KevG1t/sdd-memory/releases/tag/v0.4.0"}
 		}
 		json.NewEncoder(w).Encode(release)
 	}))
@@ -605,11 +605,11 @@ func TestCheckAll(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	// Mock: engram is installed at v0.3.2, gga is not installed.
+	// Mock: sdd-memory is installed at v0.3.2, gga is not installed.
 	lookPath = func(name string) (string, error) {
 		switch name {
-		case "engram":
-			return "/usr/local/bin/engram", nil
+		case "sdd-memory":
+			return "/usr/local/bin/sdd-memory", nil
 		case "gga":
 			return "", fmt.Errorf("not found")
 		default:
@@ -617,8 +617,8 @@ func TestCheckAll(t *testing.T) {
 		}
 	}
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "engram" {
-			return mockCmd("echo", "engram v0.3.2")
+		if name == "sdd-memory" {
+			return mockCmd("echo", "sdd-memory v0.3.2")
 		}
 		return mockCmd("false")
 	}
@@ -632,26 +632,26 @@ func TestCheckAll(t *testing.T) {
 		t.Fatalf("len(results) = %d, want 5", len(results))
 	}
 
-	// gentle-ai: 1.5.0 local == 1.5.0 remote → UpToDate
-	assertResult(t, results[0], "gentle-ai", UpToDate, "1.5.0", "1.5.0")
+	// specai: 1.5.0 local == 1.5.0 remote → UpToDate
+	assertResult(t, results[0], "specai", UpToDate, "1.5.0", "1.5.0")
 
-	// engram: 0.3.2 local < 0.4.0 remote → UpdateAvailable
-	assertResult(t, results[1], "engram", UpdateAvailable, "0.3.2", "0.4.0")
+	// sdd-memory: 0.3.2 local < 0.4.0 remote → UpdateAvailable
+	assertResult(t, results[1], "sdd-memory", UpdateAvailable, "0.3.2", "0.4.0")
 
 	// gga: not installed
 	assertResult(t, results[2], "gga", NotInstalled, "", "2.0.0")
 	assertResult(t, results[3], "opencode-subagent-statusline", NotInstalled, "", "0.4.0")
-	assertResult(t, results[4], "opencode-sdd-engram-manage", NotInstalled, "", "1.1.7")
+	assertResult(t, results[4], "opencode-sdd-memory-manage", NotInstalled, "", "1.1.7")
 }
 
-func TestCheckSingleTool_EngramUsesBinaryReleaseChannel(t *testing.T) {
+func TestCheckSingleTool_SDDMemoryUsesBinaryReleaseChannel(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
-		case "/repos/Gentleman-Programming/engram/releases":
+		case "/repos/KevG1t/sdd-memory/releases":
 			json.NewEncoder(w).Encode([]githubRelease{
-				{TagName: "pi-v0.1.7", HTMLURL: "https://github.com/Gentleman-Programming/engram/releases/tag/pi-v0.1.7"},
-				{TagName: "v1.15.13", HTMLURL: "https://github.com/Gentleman-Programming/engram/releases/tag/v1.15.13"},
+				{TagName: "pi-v0.1.7", HTMLURL: "https://github.com/KevG1t/sdd-memory/releases/tag/pi-v0.1.7"},
+				{TagName: "v1.15.13", HTMLURL: "https://github.com/KevG1t/sdd-memory/releases/tag/v1.15.13"},
 			})
 		default:
 			t.Fatalf("unexpected path: %s", r.URL.String())
@@ -671,21 +671,21 @@ func TestCheckSingleTool_EngramUsesBinaryReleaseChannel(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 	lookPath = func(name string) (string, error) {
-		if name == "engram" {
-			return "/usr/local/bin/engram", nil
+		if name == "sdd-memory" {
+			return "/usr/local/bin/sdd-memory", nil
 		}
 		return "", fmt.Errorf("not found")
 	}
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "engram" {
-			return mockCmd("echo", "engram 1.15.13")
+		if name == "sdd-memory" {
+			return mockCmd("echo", "sdd-memory 1.15.13")
 		}
 		return mockCmd("false")
 	}
 
 	result := checkSingleTool(context.Background(), Tools[1], "dev", system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true})
-	assertResult(t, result, "engram", UpToDate, "1.15.13", "1.15.13")
-	if result.ReleaseURL != "https://github.com/Gentleman-Programming/engram/releases/tag/v1.15.13" {
+	assertResult(t, result, "sdd-memory", UpToDate, "1.15.13", "1.15.13")
+	if result.ReleaseURL != "https://github.com/KevG1t/sdd-memory/releases/tag/v1.15.13" {
 		t.Fatalf("ReleaseURL = %q, want binary channel release", result.ReleaseURL)
 	}
 }
@@ -722,17 +722,17 @@ func TestCheckAll_NetworkError(t *testing.T) {
 	profile := system.PlatformProfile{OS: "linux", LinuxDistro: "ubuntu", PackageManager: "apt", Supported: true}
 	results := CheckAll(context.Background(), "1.0.0", profile)
 
-	// gentle-ai has no DetectCmd, so it gets currentBuildVersion "1.0.0" as local
+	// specai has no DetectCmd, so it gets currentBuildVersion "1.0.0" as local
 	// but fetch fails → CheckFailed (it has a local version).
 	if results[0].Status != CheckFailed {
-		t.Fatalf("gentle-ai status = %q, want %q", results[0].Status, CheckFailed)
+		t.Fatalf("specai status = %q, want %q", results[0].Status, CheckFailed)
 	}
 	if results[0].Err == nil {
-		t.Fatalf("gentle-ai expected error, got nil")
+		t.Fatalf("specai expected error, got nil")
 	}
 
 	if results[1].Status != CheckFailed {
-		t.Fatalf("engram status = %q, want %q", results[1].Status, CheckFailed)
+		t.Fatalf("sdd-memory status = %q, want %q", results[1].Status, CheckFailed)
 	}
 	if results[2].Status != CheckFailed {
 		t.Fatalf("gga status = %q, want %q", results[2].Status, CheckFailed)
@@ -766,13 +766,13 @@ func TestCheckFiltered_FetchErrorPreservesCheckFailedForMissingTool(t *testing.T
 	execCommand = func(name string, args ...string) *exec.Cmd { return mockCmd("false") }
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
-	results := CheckFiltered(context.Background(), "1.0.0", profile, []string{"engram"})
+	results := CheckFiltered(context.Background(), "1.0.0", profile, []string{"sdd-memory"})
 
 	if len(results) != 1 {
 		t.Fatalf("len(results) = %d, want 1", len(results))
 	}
 	if results[0].Status != CheckFailed {
-		t.Fatalf("engram status = %q, want %q", results[0].Status, CheckFailed)
+		t.Fatalf("sdd-memory status = %q, want %q", results[0].Status, CheckFailed)
 	}
 }
 
@@ -786,40 +786,40 @@ func TestUpdateHint(t *testing.T) {
 		want    string
 	}{
 		{
-			name:    "gentle-ai macOS",
-			tool:    ToolInfo{Name: "gentle-ai"},
+			name:    "specai macOS",
+			tool:    ToolInfo{Name: "specai"},
 			profile: system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			want:    "brew upgrade gentle-ai",
+			want:    "brew upgrade specai",
 		},
 		{
-			name:    "gentle-ai linux",
-			tool:    ToolInfo{Name: "gentle-ai"},
+			name:    "specai linux",
+			tool:    ToolInfo{Name: "specai"},
 			profile: system.PlatformProfile{OS: "linux", PackageManager: "apt"},
-			want:    "curl -fsSL https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/scripts/install.sh | bash",
+			want:    "curl -fsSL https://raw.githubusercontent.com/KevG1t/SpecAI/main/scripts/install.sh | bash",
 		},
 		{
-			name:    "gentle-ai windows",
-			tool:    ToolInfo{Name: "gentle-ai"},
+			name:    "specai windows",
+			tool:    ToolInfo{Name: "specai"},
 			profile: system.PlatformProfile{OS: "windows", PackageManager: "winget"},
-			want:    "irm https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/scripts/install.ps1 | iex",
+			want:    "irm https://raw.githubusercontent.com/KevG1t/SpecAI/main/scripts/install.ps1 | iex",
 		},
 		{
-			name:    "engram macOS brew",
-			tool:    ToolInfo{Name: "engram"},
+			name:    "sdd-memory macOS brew",
+			tool:    ToolInfo{Name: "sdd-memory"},
 			profile: system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			want:    "brew upgrade engram",
+			want:    "brew upgrade sdd-memory",
 		},
 		{
-			name:    "engram linux",
-			tool:    ToolInfo{Name: "engram"},
+			name:    "sdd-memory linux",
+			tool:    ToolInfo{Name: "sdd-memory"},
 			profile: system.PlatformProfile{OS: "linux", PackageManager: "apt"},
-			want:    "gentle-ai upgrade (downloads pre-built binary)",
+			want:    "specai upgrade (downloads pre-built binary)",
 		},
 		{
-			name:    "engram windows",
-			tool:    ToolInfo{Name: "engram"},
+			name:    "sdd-memory windows",
+			tool:    ToolInfo{Name: "sdd-memory"},
 			profile: system.PlatformProfile{OS: "windows", PackageManager: "winget"},
-			want:    "gentle-ai upgrade (downloads pre-built binary)",
+			want:    "specai upgrade (downloads pre-built binary)",
 		},
 		{
 			name:    "gga macOS brew",
@@ -831,7 +831,7 @@ func TestUpdateHint(t *testing.T) {
 			name:    "gga linux",
 			tool:    ToolInfo{Name: "gga"},
 			profile: system.PlatformProfile{OS: "linux", PackageManager: "apt"},
-			want:    "See https://github.com/Gentleman-Programming/gentleman-guardian-angel",
+			want:    "See https://github.com/KevG1t/gentleman-guardian-angel",
 		},
 		{
 			name:    "unknown tool",
@@ -961,7 +961,7 @@ func TestParseVersionFromOutput(t *testing.T) {
 		output string
 		want   string
 	}{
-		{name: "engram v0.3.2", output: "engram v0.3.2", want: "0.3.2"},
+		{name: "sdd-memory v0.3.2", output: "sdd-memory v0.3.2", want: "0.3.2"},
 		{name: "gga 1.0.0", output: "gga version 1.0.0", want: "1.0.0"},
 		{name: "bare version", output: "2.1.0", want: "2.1.0"},
 		{name: "no version", output: "no version info here", want: ""},
@@ -988,11 +988,11 @@ func TestRegistryContents(t *testing.T) {
 		owner string
 		repo  string
 	}{
-		"gentle-ai":                    {owner: "Gentleman-Programming", repo: "gentle-ai"},
-		"engram":                       {owner: "Gentleman-Programming", repo: "engram"},
+		"specai":                       {owner: "KevG1t", repo: "SpecAI"},
+		"sdd-memory":                   {owner: "KevG1t", repo: "sdd-memory"},
 		"gga":                          {owner: "Gentleman-Programming", repo: "gentleman-guardian-angel"},
 		"opencode-subagent-statusline": {owner: "Joaquinvesapa", repo: "sub-agent-statusline"},
-		"opencode-sdd-engram-manage":   {owner: "j0k3r-dev-rgl", repo: "sdd-engram-plugin"},
+		"opencode-sdd-memory-manage":   {owner: "j0k3r-dev-rgl", repo: "sdd-engram-plugin"},
 	}
 
 	for _, tool := range Tools {
@@ -1008,17 +1008,17 @@ func TestRegistryContents(t *testing.T) {
 		}
 	}
 
-	// gentle-ai must have nil DetectCmd.
+	// specai must have nil DetectCmd.
 	if Tools[0].DetectCmd != nil {
-		t.Fatalf("gentle-ai DetectCmd should be nil")
+		t.Fatalf("specai DetectCmd should be nil")
 	}
 
-	// engram and gga must have non-nil DetectCmd.
+	// sdd-memory and gga must have non-nil DetectCmd.
 	if Tools[1].DetectCmd == nil {
-		t.Fatalf("engram DetectCmd should not be nil")
+		t.Fatalf("sdd-memory DetectCmd should not be nil")
 	}
 	if Tools[1].ReleaseTagPattern != `^v[0-9]+\.[0-9]+\.[0-9]+$` {
-		t.Fatalf("engram ReleaseTagPattern = %q, want binary v* channel pattern", Tools[1].ReleaseTagPattern)
+		t.Fatalf("sdd-memory ReleaseTagPattern = %q, want binary v* channel pattern", Tools[1].ReleaseTagPattern)
 	}
 	if Tools[2].DetectCmd == nil {
 		t.Fatalf("gga DetectCmd should not be nil")
@@ -1042,7 +1042,7 @@ func TestCheckAll_DevVersion(t *testing.T) {
 	origLookPath := lookPath
 	origExecCommand := execCommand
 
-	// Override only the first tool (gentle-ai) by running CheckAll with "dev".
+	// Override only the first tool (specai) by running CheckAll with "dev".
 	origTools := Tools
 	t.Cleanup(func() {
 		httpClient = origClient
@@ -1054,7 +1054,7 @@ func TestCheckAll_DevVersion(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	// Restrict to just gentle-ai to isolate the test.
+	// Restrict to just specai to isolate the test.
 	Tools = []ToolInfo{Tools[0]}
 
 	lookPath = func(string) (string, error) { return "", fmt.Errorf("not found") }
@@ -1069,14 +1069,14 @@ func TestCheckAll_DevVersion(t *testing.T) {
 
 	// The spec requires: "dev" build MUST be reported as DevBuild, not VersionUnknown.
 	if results[0].Status != DevBuild {
-		t.Fatalf("gentle-ai dev status = %q, want %q", results[0].Status, DevBuild)
+		t.Fatalf("specai dev status = %q, want %q", results[0].Status, DevBuild)
 	}
 }
 
 // --- TestCheckFiltered ---
 
 // TestCheckFiltered verifies that CheckFiltered restricts results to the named tools
-// and that the dev-build sentinel causes gentle-ai to be reported as DevBuild.
+// and that the dev-build sentinel causes specai to be reported as DevBuild.
 func TestCheckFiltered_SubsetOfTools(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1097,27 +1097,27 @@ func TestCheckFiltered_SubsetOfTools(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 	lookPath = func(name string) (string, error) {
-		if name == "engram" {
-			return "/usr/local/bin/engram", nil
+		if name == "sdd-memory" {
+			return "/usr/local/bin/sdd-memory", nil
 		}
 		return "", fmt.Errorf("not found")
 	}
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "engram" {
-			return mockCmd("echo", "engram v0.9.9")
+		if name == "sdd-memory" {
+			return mockCmd("echo", "sdd-memory v0.9.9")
 		}
 		return mockCmd("false")
 	}
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
 
-	// Request only "engram" — should return exactly 1 result.
-	results := CheckFiltered(context.Background(), "1.0.0", profile, []string{"engram"})
+	// Request only "sdd-memory" — should return exactly 1 result.
+	results := CheckFiltered(context.Background(), "1.0.0", profile, []string{"sdd-memory"})
 	if len(results) != 1 {
-		t.Fatalf("CheckFiltered(engram) len = %d, want 1", len(results))
+		t.Fatalf("CheckFiltered(sdd-memory) len = %d, want 1", len(results))
 	}
-	if results[0].Tool.Name != "engram" {
-		t.Fatalf("CheckFiltered(engram) tool = %q, want %q", results[0].Tool.Name, "engram")
+	if results[0].Tool.Name != "sdd-memory" {
+		t.Fatalf("CheckFiltered(sdd-memory) tool = %q, want %q", results[0].Tool.Name, "sdd-memory")
 	}
 }
 
@@ -1186,12 +1186,12 @@ func TestCheckFiltered_UnknownToolIgnored(t *testing.T) {
 }
 
 // TestCheckFiltered_DevBuildSemanticsForGentleAI verifies the design requirement:
-// when the running gentle-ai binary reports version "dev", it is identified as a
+// when the running specai binary reports version "dev", it is identified as a
 // DevBuild and NOT reported as UpdateAvailable or VersionUnknown.
 //
 // The spec says:
 //   - Dev build MUST be reported as development-build semantic
-//   - gentle-ai self-upgrade is skipped while engram/gga remain eligible
+//   - specai self-upgrade is skipped while sdd-memory/gga remain eligible
 func TestCheckFiltered_DevBuildSemanticsForGentleAI(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1215,7 +1215,7 @@ func TestCheckFiltered_DevBuildSemanticsForGentleAI(t *testing.T) {
 	httpClient.Transport = &testTransport{server: server}
 	lookPath = func(string) (string, error) { return "", fmt.Errorf("not found") }
 	execCommand = func(name string, args ...string) *exec.Cmd { return mockCmd("false") }
-	Tools = []ToolInfo{Tools[0]} // gentle-ai only
+	Tools = []ToolInfo{Tools[0]} // specai only
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
 
@@ -1225,8 +1225,8 @@ func TestCheckFiltered_DevBuildSemanticsForGentleAI(t *testing.T) {
 	}
 
 	r := results[0]
-	if r.Tool.Name != "gentle-ai" {
-		t.Fatalf("tool = %q, want gentle-ai", r.Tool.Name)
+	if r.Tool.Name != "specai" {
+		t.Fatalf("tool = %q, want specai", r.Tool.Name)
 	}
 
 	// Dev build should be reported as DevBuild status, not VersionUnknown or UpdateAvailable.
@@ -1236,7 +1236,7 @@ func TestCheckFiltered_DevBuildSemanticsForGentleAI(t *testing.T) {
 }
 
 // TestCheckFiltered_DevBuildSkipNotEligible verifies that in a mixed run,
-// gentle-ai with "dev" version gets DevBuild while engram with a real version stays eligible.
+// specai with "dev" version gets DevBuild while sdd-memory with a real version stays eligible.
 func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1245,9 +1245,9 @@ func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 		path := r.URL.Path
 		var release githubRelease
 		switch {
-		case contains(path, "gentle-ai"):
+		case contains(path, "specai"):
 			release = githubRelease{TagName: "v9.9.9"}
-		case contains(path, "engram"):
+		case contains(path, "sdd-memory"):
 			release = githubRelease{TagName: "v2.0.0"}
 		default:
 			release = githubRelease{TagName: "v1.0.0"}
@@ -1270,20 +1270,20 @@ func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	// engram is installed at v1.0.0
+	// sdd-memory is installed at v1.0.0
 	lookPath = func(name string) (string, error) {
-		if name == "engram" {
-			return "/usr/local/bin/engram", nil
+		if name == "sdd-memory" {
+			return "/usr/local/bin/sdd-memory", nil
 		}
 		return "", fmt.Errorf("not found")
 	}
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "engram" {
-			return mockCmd("echo", "engram v1.0.0")
+		if name == "sdd-memory" {
+			return mockCmd("echo", "sdd-memory v1.0.0")
 		}
 		return mockCmd("false")
 	}
-	// Only gentle-ai and engram for this test
+	// Only specai and sdd-memory for this test
 	Tools = []ToolInfo{Tools[0], Tools[1]}
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
@@ -1293,14 +1293,14 @@ func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 		t.Fatalf("len = %d, want 2", len(results))
 	}
 
-	// gentle-ai should be DevBuild
+	// specai should be DevBuild
 	if results[0].Status != DevBuild {
-		t.Fatalf("gentle-ai status = %q, want DevBuild", results[0].Status)
+		t.Fatalf("specai status = %q, want DevBuild", results[0].Status)
 	}
 
-	// engram should be UpdateAvailable (1.0.0 < 2.0.0)
+	// sdd-memory should be UpdateAvailable (1.0.0 < 2.0.0)
 	if results[1].Status != UpdateAvailable {
-		t.Fatalf("engram status = %q, want UpdateAvailable", results[1].Status)
+		t.Fatalf("sdd-memory status = %q, want UpdateAvailable", results[1].Status)
 	}
 }
 
@@ -1313,7 +1313,7 @@ func TestNoUpdatesPath(t *testing.T) {
 		path := r.URL.Path
 		var release githubRelease
 		switch {
-		case contains(path, "engram"):
+		case contains(path, "sdd-memory"):
 			release = githubRelease{TagName: "v0.3.2"}
 		case contains(path, "gentleman-guardian-angel"):
 			release = githubRelease{TagName: "v1.0.0"}
@@ -1338,20 +1338,20 @@ func TestNoUpdatesPath(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	// engram is at v0.3.2 (same as remote), gga is not installed
+	// sdd-memory is at v0.3.2 (same as remote), gga is not installed
 	lookPath = func(name string) (string, error) {
-		if name == "engram" {
-			return "/usr/local/bin/engram", nil
+		if name == "sdd-memory" {
+			return "/usr/local/bin/sdd-memory", nil
 		}
 		return "", fmt.Errorf("not found")
 	}
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "engram" {
-			return mockCmd("echo", "engram v0.3.2")
+		if name == "sdd-memory" {
+			return mockCmd("echo", "sdd-memory v0.3.2")
 		}
 		return mockCmd("false")
 	}
-	// Only engram and gga for this test (skip gentle-ai to avoid dev-build behavior)
+	// Only sdd-memory and gga for this test (skip specai to avoid dev-build behavior)
 	Tools = []ToolInfo{Tools[1], Tools[2]}
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
@@ -1361,9 +1361,9 @@ func TestNoUpdatesPath(t *testing.T) {
 		t.Fatalf("len = %d, want 2", len(results))
 	}
 
-	// engram: up to date
+	// sdd-memory: up to date
 	if results[0].Status != UpToDate {
-		t.Fatalf("engram status = %q, want UpToDate", results[0].Status)
+		t.Fatalf("sdd-memory status = %q, want UpToDate", results[0].Status)
 	}
 
 	// gga: not installed
@@ -1374,10 +1374,10 @@ func TestNoUpdatesPath(t *testing.T) {
 
 // --- TestEngramHintNoBrew ---
 
-// TestEngramHintNoBrew verifies that on non-brew platforms, engramHint
+// TestSDDMemoryHintNoBrew verifies that on non-brew platforms, sdd-memory hint
 // no longer returns "go install..." — it should reflect binary download.
 // This is the regression test for issue #160.
-func TestEngramHintNoBrew(t *testing.T) {
+func TestSDDMemoryHintNoBrew(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile system.PlatformProfile
@@ -1394,17 +1394,17 @@ func TestEngramHintNoBrew(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			tool := ToolInfo{Name: "engram"}
+			tool := ToolInfo{Name: "sdd-memory"}
 			got := updateHint(tool, tc.profile)
 
 			// Must NOT contain "go install".
 			if contains(got, "go install") {
-				t.Errorf("engramHint for non-brew should NOT contain 'go install', got %q", got)
+				t.Errorf("sdd-memory hint for non-brew should NOT contain 'go install', got %q", got)
 			}
 
 			// Must NOT be empty (should have some actionable hint).
 			if got == "" {
-				t.Errorf("engramHint for non-brew should not be empty")
+				t.Errorf("sdd-memory hint for non-brew should not be empty")
 			}
 		})
 	}
@@ -1418,15 +1418,15 @@ func TestInstallMethodFieldsOnRegistry(t *testing.T) {
 		}
 	}
 
-	// engram: uses binary download (not go-install) — GoImportPath must be empty.
+	// sdd-memory: uses binary download (not go-install) — GoImportPath must be empty.
 	for _, tool := range Tools {
 		switch tool.Name {
-		case "engram":
+		case "sdd-memory":
 			if tool.InstallMethod != InstallBinary {
-				t.Errorf("engram InstallMethod = %q, want %q", tool.InstallMethod, InstallBinary)
+				t.Errorf("sdd-memory InstallMethod = %q, want %q", tool.InstallMethod, InstallBinary)
 			}
 			if tool.GoImportPath != "" {
-				t.Errorf("engram GoImportPath should be empty (binary download, not go-install), got %q", tool.GoImportPath)
+				t.Errorf("sdd-memory GoImportPath should be empty (binary download, not go-install), got %q", tool.GoImportPath)
 			}
 		}
 	}
@@ -1471,8 +1471,8 @@ func TestBuildExecCmd_NonPs1Passthrough(t *testing.T) {
 		binary string
 		args   []string
 	}{
-		{"/usr/local/bin/engram", []string{"version"}},
-		{`C:\Users\user\AppData\Local\engram\bin\engram.exe`, []string{"version"}},
+		{"/usr/local/bin/sdd-memory", []string{"version"}},
+		{`C:\Users\user\AppData\Local\sdd-memory\bin\sdd-memory.exe`, []string{"version"}},
 		{"/home/user/.local/bin/gga", []string{"--version"}},
 	}
 
