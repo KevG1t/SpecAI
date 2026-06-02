@@ -66,8 +66,8 @@ func TestInjectMCP_ClaudeCode(t *testing.T) {
 		t.Fatal("expected 'command' key in sdd-memory.json")
 	}
 	args, ok := got["args"].([]any)
-	if !ok || len(args) != 1 || args[0] != "mcp" {
-		t.Errorf("args = %v, want [\"mcp\"]", got["args"])
+	if !ok || len(args) < 2 || args[0] != "mcp" || args[1] != "--tools=agent" {
+		t.Errorf("args = %v, want [\"mcp\", \"--tools=agent\"]", got["args"])
 	}
 	// No mcpServers wrapper.
 	if _, hasWrapper := got["mcpServers"]; hasWrapper {
@@ -143,8 +143,8 @@ func TestInjectMCP_Cursor(t *testing.T) {
 		t.Fatalf("'mcpServers.sdd-memory' missing")
 	}
 	args, ok := sddMem["args"].([]any)
-	if !ok || len(args) != 1 || args[0] != "mcp" {
-		t.Errorf("args = %v, want [\"mcp\"]", sddMem["args"])
+	if !ok || len(args) < 2 || args[0] != "mcp" || args[1] != "--tools=agent" {
+		t.Errorf("args = %v, want [\"mcp\", \"--tools=agent\"]", sddMem["args"])
 	}
 }
 
@@ -165,8 +165,14 @@ func TestInjectMCP_Codex(t *testing.T) {
 	if !strings.Contains(content, "[mcp_servers.sdd-memory]") {
 		t.Errorf("missing [mcp_servers.sdd-memory] block, got:\n%s", content)
 	}
-	if !strings.Contains(content, `args = ["mcp"]`) {
+	if !strings.Contains(content, `args = ["mcp", "--tools=agent"]`) {
 		t.Errorf("missing args line, got:\n%s", content)
+	}
+	if !strings.Contains(content, `model_instructions_file = "sdd-memory-instructions.md"`) {
+		t.Errorf("missing model_instructions_file, got:\n%s", content)
+	}
+	if !strings.Contains(content, `experimental_compact_prompt_file = "sdd-memory-compact-prompt.md"`) {
+		t.Errorf("missing experimental_compact_prompt_file, got:\n%s", content)
 	}
 }
 
@@ -178,7 +184,7 @@ func TestInjectMCP_Codex_Upsert(t *testing.T) {
 	if err := step.fs.MkdirAll(filepath.Dir(tomlPath), 0755); err != nil {
 		t.Fatal(err)
 	}
-	existing := "[mcp_servers.sdd-memory]\ncommand = \"old-cmd\"\nargs = [\"mcp\"]\n"
+	existing := "[mcp_servers.sdd-memory]\ncommand = \"old-cmd\"\nargs = [\"mcp\", \"--tools=agent\"]\n"
 	if err := afero.WriteFile(step.fs, tomlPath, []byte(existing), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -219,8 +225,9 @@ func TestInjectMCP_VSCode_WritesServersKey(t *testing.T) {
 		t.Fatalf("Run() error: %v", err)
 	}
 
-	path := "/home/user/.vscode/mcp.json"
-	got := readJSON(t, step.fs, path)
+	// Path depends on OS — compute the same way the step does.
+	vscodePath := filepath.Join(vscodeUserConfigDir("/home/user"), "mcp.json")
+	got := readJSON(t, step.fs, vscodePath)
 
 	if _, hasMCPServers := got["mcpServers"]; hasMCPServers {
 		t.Error("VS Code config must NOT have 'mcpServers' key — use 'servers' instead")
@@ -268,6 +275,83 @@ func TestInjectMCP_Antigravity_WritesPluginFiles(t *testing.T) {
 		if _, err := step.fs.Stat(path); err != nil {
 			t.Errorf("Antigravity plugin file %q must exist after install: %v", file, err)
 		}
+	}
+}
+
+// TestSddMemoryArgs_ContainsToolsAgent verifies the package-level variable includes --tools=agent.
+func TestSddMemoryArgs_ContainsToolsAgent(t *testing.T) {
+	if len(sddMemoryArgs) < 2 {
+		t.Fatalf("sddMemoryArgs len = %d, want at least 2", len(sddMemoryArgs))
+	}
+	if sddMemoryArgs[0] != "mcp" {
+		t.Errorf("sddMemoryArgs[0] = %q, want \"mcp\"", sddMemoryArgs[0])
+	}
+	if sddMemoryArgs[1] != "--tools=agent" {
+		t.Errorf("sddMemoryArgs[1] = %q, want \"--tools=agent\"", sddMemoryArgs[1])
+	}
+}
+
+// TestInjectMCP_ClaudeCode_ArgsContainToolsAgent verifies --tools=agent is in Claude Code config.
+func TestInjectMCP_ClaudeCode_ArgsContainToolsAgent(t *testing.T) {
+	step := newMCPStep("/home/user", model.AgentClaudeCode)
+	if err := step.Run(); err != nil {
+		t.Fatalf("Run() error: %v", err)
+	}
+
+	path := "/home/user/.claude/mcp/sdd-memory.json"
+	got := readJSON(t, step.fs, path)
+
+	args, ok := got["args"].([]any)
+	if !ok || len(args) < 2 {
+		t.Fatalf("args = %v, want at least 2 elements", got["args"])
+	}
+	if args[1] != "--tools=agent" {
+		t.Errorf("args[1] = %q, want \"--tools=agent\"", args[1])
+	}
+}
+
+// TestVscodeUserConfigDir_Windows verifies the Windows path uses APPDATA.
+func TestVscodeUserConfigDir_Windows(t *testing.T) {
+	result := vscodeUserConfigDir_forOS("windows", "/home/user", "C:\\Users\\user\\AppData\\Roaming", "")
+	want := "C:\\Users\\user\\AppData\\Roaming/Code/User"
+	if result != want {
+		t.Errorf("Windows APPDATA path = %q, want %q", result, want)
+	}
+}
+
+// TestVscodeUserConfigDir_WindowsFallback verifies fallback to ~/.vscode when APPDATA absent.
+func TestVscodeUserConfigDir_WindowsFallback(t *testing.T) {
+	result := vscodeUserConfigDir_forOS("windows", "/home/user", "", "")
+	want := "/home/user/.vscode"
+	if result != want {
+		t.Errorf("Windows fallback path = %q, want %q", result, want)
+	}
+}
+
+// TestVscodeUserConfigDir_macOS verifies the macOS path.
+func TestVscodeUserConfigDir_macOS(t *testing.T) {
+	result := vscodeUserConfigDir_forOS("darwin", "/Users/user", "", "")
+	want := "/Users/user/Library/Application Support/Code/User"
+	if result != want {
+		t.Errorf("macOS path = %q, want %q", result, want)
+	}
+}
+
+// TestVscodeUserConfigDir_Linux verifies the Linux path uses XDG_CONFIG_HOME when set.
+func TestVscodeUserConfigDir_Linux(t *testing.T) {
+	result := vscodeUserConfigDir_forOS("linux", "/home/user", "", "/home/user/.config")
+	want := "/home/user/.config/Code/User"
+	if result != want {
+		t.Errorf("Linux XDG path = %q, want %q", result, want)
+	}
+}
+
+// TestVscodeUserConfigDir_LinuxFallback verifies the Linux fallback when XDG absent.
+func TestVscodeUserConfigDir_LinuxFallback(t *testing.T) {
+	result := vscodeUserConfigDir_forOS("linux", "/home/user", "", "")
+	want := "/home/user/.config/Code/User"
+	if result != want {
+		t.Errorf("Linux fallback path = %q, want %q", result, want)
 	}
 }
 

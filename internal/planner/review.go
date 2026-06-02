@@ -34,5 +34,6 @@ func BuildReviewPayload(selection model.Selection, resolved ResolvedPlan) Review
 		// Issue #149: pass StrictTDD and whether SDD is in plan.
 		StrictTDD: selection.StrictTDD,
 		HasSDD:    hasSDD,
+		SDDMode:   selection.SDDMode,
 	}
 }

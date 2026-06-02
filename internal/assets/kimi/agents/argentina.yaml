@@ -1,6 +1,6 @@
 version: "1"
 agent:
-  name: gentleman
+  name: argentina
   extend: default
   system_prompt_path: ../KIMI.md
   subagents:

@@ -1,10 +1,12 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/KevG1t/SpecAI/internal/backup"
+	"github.com/KevG1t/SpecAI/internal/catalog"
 	"github.com/KevG1t/SpecAI/internal/model"
 	"github.com/KevG1t/SpecAI/internal/pipeline"
 	"github.com/KevG1t/SpecAI/internal/planner"
@@ -15,9 +17,24 @@ import (
 )
 
 type MainModel struct {
-	currentScreen Screen
-	welcome       screens.WelcomeModel
+	currentScreen  Screen
+	previousScreen Screen
+	welcome        screens.WelcomeModel
 	agentSelect   screens.AgentSelectModel
+
+	persona           screens.PersonaModel
+	preset            screens.PresetModel
+	claudeModelPicker screens.ClaudeModelPickerModel
+	kiroModelPicker   screens.KiroModelPickerModel
+	sddMode           screens.SDDModeModel
+	strictTDD         screens.StrictTDDModel
+
+	// New wizard screens (Phase 4)
+	detection           screens.DetectionModel
+	review              screens.ReviewModel
+	dependencyTree      screens.DependencyTreeModel
+	openCodeModelPicker screens.OpenCodeModelPickerModel
+	skillPicker         screens.SkillPickerModel
 
 	install    screens.InstallModel
 	setupLocal screens.SetupLocalModel
@@ -28,9 +45,15 @@ type MainModel struct {
 
 	selectedOpt     string
 	installCtx      *steps.InstallContext
+	selectedAgents  []model.AgentID
 	progressCh      chan pipeline.ProgressEvent
 	latestProg      screens.ProgressMsg
 	completePayload *screens.CompletePayload
+
+	// Accumulated wizard state (Phase 4)
+	detectionResult *system.DetectionResult
+	selectedPreset  model.PresetID
+	resolvedPlan    planner.ResolvedPlan
 
 	Backups        []backup.Manifest
 	SelectedBackup int
@@ -48,6 +71,12 @@ func NewMainModel() MainModel {
 
 func (m MainModel) Init() tea.Cmd {
 	return m.welcome.Init()
+}
+
+// setCurrentScreen stores m.currentScreen as previousScreen before transitioning to next.
+func (m *MainModel) setCurrentScreen(next Screen) {
+	m.previousScreen = m.currentScreen
+	m.currentScreen = next
 }
 
 type dummyStep struct {
@@ -85,16 +114,17 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case screens.BackMsg:
-		m.currentScreen = ScreenWelcome
-		m.selectedOpt = ""
+		// No-op if previousScreen is zero value (user is already at the first screen).
+		if m.previousScreen != "" {
+			m.setCurrentScreen(m.previousScreen)
+		}
 		return m, nil
 
 	case screens.AgentsSelectedMsg:
-		// Build IDEAdapter slice from the selected AgentIDs.
+		// Build install context with the selected IDEs right away.
 		ctx, errCtx := steps.NewInstallContext()
 		if errCtx != nil {
-			// Fallback: transition to install screen which will surface the error.
-			m.currentScreen = ScreenInstall
+			m.setCurrentScreen(ScreenInstall)
 			m.install = screens.NewInstallModel()
 			return m, m.install.Init()
 		}
@@ -106,43 +136,211 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		ctx.IDEs = adapters
 		m.installCtx = ctx
-		m.currentScreen = ScreenInstall
+		m.selectedAgents = msg.Agents
+		m.persona = screens.NewPersonaModel()
+		m.setCurrentScreen(ScreenPersona)
+		return m, nil
+
+	case screens.PersonaSelectedMsg:
+		if m.installCtx != nil {
+			m.installCtx.Persona = msg.Persona
+		}
+		m.preset = screens.NewPresetModel()
+		m.setCurrentScreen(ScreenPreset)
+		return m, nil
+
+	case screens.PresetSelectedMsg:
+		// Store preset and build the initial resolved plan (Approach B).
+		m.selectedPreset = msg.Preset
+		if m.installCtx != nil {
+			m.installCtx.Preset = msg.Preset
+		}
+		sel := m.buildSelection()
+		resolved, err := planner.NewResolver(planner.MVPGraph()).Resolve(sel)
+		if err == nil {
+			m.resolvedPlan = resolved
+		}
+
+		// Route to agent-specific screens.
+		next := m.nextScreenAfterConfig()
+		switch next {
+		case ScreenClaudeModelPicker:
+			m.claudeModelPicker = screens.NewClaudeModelPickerModel(nil)
+			m.setCurrentScreen(ScreenClaudeModelPicker)
+		case ScreenKiroModelPicker:
+			m.kiroModelPicker = screens.NewKiroModelPickerModel(nil)
+			m.setCurrentScreen(ScreenKiroModelPicker)
+		case ScreenSDDMode:
+			m.sddMode = screens.NewSDDModeModel()
+			m.setCurrentScreen(ScreenSDDMode)
+		default:
+			// No agent-specific screen — go directly to DependencyTree.
+			m.dependencyTree = screens.NewDependencyTreeModel(
+				m.selectedPreset, m.resolvedPlan, m.selectedAgents,
+				planner.NewResolver(planner.MVPGraph()).Resolve,
+			)
+			m.setCurrentScreen(ScreenDependencyTree)
+		}
+		return m, nil
+
+	case screens.ClaudeModelsSelectedMsg:
+		if m.installCtx != nil {
+			m.installCtx.ClaudeModelAssignments = stringifyAliasMap(msg.Assignments)
+		}
+		hasKiro := agentInList(m.selectedAgents, model.AgentKiroIDE)
+		hasOpenCode := agentInList(m.selectedAgents, model.AgentOpenCode)
+		if hasKiro {
+			m.kiroModelPicker = screens.NewKiroModelPickerModel(nil)
+			m.setCurrentScreen(ScreenKiroModelPicker)
+			return m, nil
+		} else if hasOpenCode {
+			m.sddMode = screens.NewSDDModeModel()
+			m.setCurrentScreen(ScreenSDDMode)
+			return m, nil
+		}
+		// No further agent-specific screens — go to DependencyTree.
+		m.dependencyTree = screens.NewDependencyTreeModel(
+			m.selectedPreset, m.resolvedPlan, m.selectedAgents,
+			planner.NewResolver(planner.MVPGraph()).Resolve,
+		)
+		m.setCurrentScreen(ScreenDependencyTree)
+		return m, nil
+
+	case screens.KiroModelsSelectedMsg:
+		if m.installCtx != nil {
+			m.installCtx.KiroModelAssignments = stringifyAliasMap(msg.Assignments)
+		}
+		hasOpenCode := agentInList(m.selectedAgents, model.AgentOpenCode)
+		if hasOpenCode {
+			m.sddMode = screens.NewSDDModeModel()
+			m.setCurrentScreen(ScreenSDDMode)
+			return m, nil
+		}
+		// No further agent-specific screens — go to DependencyTree.
+		m.dependencyTree = screens.NewDependencyTreeModel(
+			m.selectedPreset, m.resolvedPlan, m.selectedAgents,
+			planner.NewResolver(planner.MVPGraph()).Resolve,
+		)
+		m.setCurrentScreen(ScreenDependencyTree)
+		return m, nil
+
+	case screens.SDDModeSelectedMsg:
+		if m.installCtx != nil {
+			m.installCtx.SDDMode = string(msg.Mode)
+		}
+		// If OpenCode is selected, route to OpenCode model picker before StrictTDD.
+		if agentInList(m.selectedAgents, model.AgentOpenCode) {
+			m.openCodeModelPicker = screens.NewOpenCodeModelPickerModel()
+			m.setCurrentScreen(ScreenOpenCodeModelPicker)
+			return m, nil
+		}
+		m.strictTDD = screens.NewStrictTDDModel()
+		m.setCurrentScreen(ScreenStrictTDD)
+		return m, nil
+
+	case screens.DetectionConfirmedMsg:
+		m.detectionResult = msg.Result
+		detected := system.DetectedAgentIDs()
+		m.agentSelect = screens.NewAgentSelectModel(detected)
+		m.setCurrentScreen(ScreenAgentSelect)
+		return m, nil
+
+	case screens.StrictTDDSelectedMsg:
+		if m.installCtx != nil {
+			m.installCtx.StrictTDD = msg.Enabled
+		}
+		next := m.nextScreenAfterStrictTDD()
+		m.setCurrentScreen(next)
+		m.dependencyTree = screens.NewDependencyTreeModel(
+			m.selectedPreset, m.resolvedPlan, m.selectedAgents,
+			planner.NewResolver(planner.MVPGraph()).Resolve,
+		)
+		return m, nil
+
+	case screens.OpenCodeModelsSelectedMsg:
+		if m.installCtx != nil {
+			m.installCtx.ModelAssignments = msg.Assignments
+		}
+		m.strictTDD = screens.NewStrictTDDModel()
+		m.setCurrentScreen(ScreenStrictTDD)
+		return m, nil
+
+	case screens.DependencyTreeConfirmedMsg:
+		// Re-resolve with the confirmed component list.
+		sel := m.buildSelection()
+		sel.Components = msg.Components
+		resolved, err := planner.NewResolver(planner.MVPGraph()).Resolve(sel)
+		if err == nil {
+			m.resolvedPlan = resolved
+		}
+		if m.selectedPreset == model.PresetCustom {
+			m.skillPicker = screens.NewSkillPickerModel(nil)
+			m.setCurrentScreen(ScreenSkillPicker)
+			return m, nil
+		}
+		payload := planner.BuildReviewPayload(sel, m.resolvedPlan)
+		m.review = screens.NewReviewModel(payload)
+		m.setCurrentScreen(ScreenReview)
+		return m, nil
+
+	case screens.SkillsSelectedMsg:
+		if m.installCtx != nil {
+			m.installCtx.SelectedComponents = nil // reset; skills are kept in sel
+		}
+		// Build review payload with selected skills.
+		sel := m.buildSelection()
+		sel.Components = m.resolvedPlan.OrderedComponents
+		sel.Skills = msg.Skills
+		payload := planner.BuildReviewPayload(sel, m.resolvedPlan)
+		m.review = screens.NewReviewModel(payload)
+		m.setCurrentScreen(ScreenReview)
+		return m, nil
+
+	case screens.ReviewConfirmedMsg:
 		m.install = screens.NewInstallModel()
-		return m, m.install.Init()
+		m.install.Started = true
+		m.setCurrentScreen(ScreenInstall)
+		return m, tea.Batch(m.install.Init(), func() tea.Msg { return screens.StartPipelineMsg{Action: "Install"} })
+
+	case screens.ReviewBackMsg:
+		m.setCurrentScreen(ScreenDependencyTree)
+		return m, nil
 
 	case screens.OptionSelectedMsg:
 		m.selectedOpt = msg.Option
 		if msg.Option == "Backup" {
-			m.currentScreen = ScreenBackups
+			m.setCurrentScreen(ScreenBackups)
 			m.Backups = ListBackups()
 			m.SelectedBackup = 0
 			m.BackupScroll = 0
 			return m, nil
 		} else if msg.Option == "Install" {
-			// Show agent selection before starting the install pipeline.
-			detected := system.DetectedAgentIDs()
-			m.agentSelect = screens.NewAgentSelectModel(detected)
-			m.currentScreen = ScreenAgentSelect
-			return m, nil
+			// Run system detection before agent selection.
+			m.detection = screens.NewDetectionModel(func(ctx context.Context) (*system.DetectionResult, error) {
+				r, err := system.Detect(ctx)
+				return &r, err
+			})
+			m.setCurrentScreen(ScreenDetection)
+			return m, m.detection.Init()
 		} else if msg.Option == "Setup Local (Inyectar en este Repo)" {
-			m.currentScreen = ScreenSetupLocal
 			m.setupLocal = screens.NewSetupLocalModel()
+			m.setCurrentScreen(ScreenSetupLocal)
 			return m, m.setupLocal.Init()
 		} else if msg.Option == "Sync" {
-			m.currentScreen = ScreenSync
 			m.sync = screens.NewSyncModel()
+			m.setCurrentScreen(ScreenSync)
 			return m, m.sync.Init()
 		} else if msg.Option == "Upgrade" {
-			m.currentScreen = ScreenUpgrade
 			m.upgrade = screens.NewUpgradeModel()
+			m.setCurrentScreen(ScreenUpgrade)
 			return m, m.upgrade.Init()
 		} else if msg.Option == "Upgrade + Sync" {
-			m.currentScreen = ScreenUpgradeSync
 			m.upgSync = screens.NewUpgradeSyncModel()
+			m.setCurrentScreen(ScreenUpgradeSync)
 			return m, m.upgSync.Init()
 		} else if msg.Option == "Uninstall" {
-			m.currentScreen = ScreenUninstall
 			m.uninstall = screens.NewUninstallModel()
+			m.setCurrentScreen(ScreenUninstall)
 			return m, m.uninstall.Init()
 		}
 		return m, nil
@@ -200,6 +398,8 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Inject assets (Skills, SDD, sdd-memory config)
 				injector := steps.NewAssetInjector(nil)
 				applySteps = append(applySteps, steps.NewStepInjectAssets(ctx, injector, resolvedPlan))
+				applySteps = append(applySteps, steps.NewStepInjectSubAgents(ctx))
+				applySteps = append(applySteps, steps.NewStepInjectOpenCodePlugins(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectSDDMemory(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectOpenCodeOverlay(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectSlashCommands(ctx))
@@ -306,7 +506,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If the message carries a CompletePayload, transition to the completion screen.
 		if msg.Payload != nil {
 			m.completePayload = msg.Payload
-			m.currentScreen = ScreenComplete
+			m.setCurrentScreen(ScreenComplete)
 			return m, nil
 		}
 		// Legacy: dispatch to the active module screen.
@@ -326,6 +526,36 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var aModel tea.Model
 		aModel, cmd = m.agentSelect.Update(msg)
 		m.agentSelect = aModel.(screens.AgentSelectModel)
+		cmds = append(cmds, cmd)
+	case ScreenPersona:
+		var pModel tea.Model
+		pModel, cmd = m.persona.Update(msg)
+		m.persona = pModel.(screens.PersonaModel)
+		cmds = append(cmds, cmd)
+	case ScreenPreset:
+		var prModel tea.Model
+		prModel, cmd = m.preset.Update(msg)
+		m.preset = prModel.(screens.PresetModel)
+		cmds = append(cmds, cmd)
+	case ScreenClaudeModelPicker:
+		var cModel tea.Model
+		cModel, cmd = m.claudeModelPicker.Update(msg)
+		m.claudeModelPicker = cModel.(screens.ClaudeModelPickerModel)
+		cmds = append(cmds, cmd)
+	case ScreenKiroModelPicker:
+		var kModel tea.Model
+		kModel, cmd = m.kiroModelPicker.Update(msg)
+		m.kiroModelPicker = kModel.(screens.KiroModelPickerModel)
+		cmds = append(cmds, cmd)
+	case ScreenSDDMode:
+		var sModel tea.Model
+		sModel, cmd = m.sddMode.Update(msg)
+		m.sddMode = sModel.(screens.SDDModeModel)
+		cmds = append(cmds, cmd)
+	case ScreenStrictTDD:
+		var tModel tea.Model
+		tModel, cmd = m.strictTDD.Update(msg)
+		m.strictTDD = tModel.(screens.StrictTDDModel)
 		cmds = append(cmds, cmd)
 	case ScreenInstall:
 		var mModel tea.Model
@@ -357,6 +587,31 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		mModel, cmd = m.uninstall.Update(msg)
 		m.uninstall = mModel.(screens.UninstallModel)
 		cmds = append(cmds, cmd)
+	case ScreenDetection:
+		var dModel tea.Model
+		dModel, cmd = m.detection.Update(msg)
+		m.detection = dModel.(screens.DetectionModel)
+		cmds = append(cmds, cmd)
+	case ScreenReview:
+		var rModel tea.Model
+		rModel, cmd = m.review.Update(msg)
+		m.review = rModel.(screens.ReviewModel)
+		cmds = append(cmds, cmd)
+	case ScreenDependencyTree:
+		var dtModel tea.Model
+		dtModel, cmd = m.dependencyTree.Update(msg)
+		m.dependencyTree = dtModel.(screens.DependencyTreeModel)
+		cmds = append(cmds, cmd)
+	case ScreenOpenCodeModelPicker:
+		var ocModel tea.Model
+		ocModel, cmd = m.openCodeModelPicker.Update(msg)
+		m.openCodeModelPicker = ocModel.(screens.OpenCodeModelPickerModel)
+		cmds = append(cmds, cmd)
+	case ScreenSkillPicker:
+		var spModel tea.Model
+		spModel, cmd = m.skillPicker.Update(msg)
+		m.skillPicker = spModel.(screens.SkillPickerModel)
+		cmds = append(cmds, cmd)
 	case ScreenBackups, ScreenRestoreConfirm, ScreenDeleteConfirm, ScreenBackupResult:
 		m, cmd = m.UpdateBackups(msg)
 		cmds = append(cmds, cmd)
@@ -371,6 +626,18 @@ func (m MainModel) View() string {
 		return m.welcome.View()
 	case ScreenAgentSelect:
 		return m.agentSelect.View()
+	case ScreenPersona:
+		return m.persona.View()
+	case ScreenPreset:
+		return m.preset.View()
+	case ScreenClaudeModelPicker:
+		return m.claudeModelPicker.View()
+	case ScreenKiroModelPicker:
+		return m.kiroModelPicker.View()
+	case ScreenSDDMode:
+		return m.sddMode.View()
+	case ScreenStrictTDD:
+		return m.strictTDD.View()
 	case ScreenInstall:
 		return m.install.View()
 	case ScreenSetupLocal:
@@ -383,6 +650,16 @@ func (m MainModel) View() string {
 		return m.upgSync.View()
 	case ScreenUninstall:
 		return m.uninstall.View()
+	case ScreenDetection:
+		return m.detection.View()
+	case ScreenReview:
+		return m.review.View()
+	case ScreenDependencyTree:
+		return m.dependencyTree.View()
+	case ScreenOpenCodeModelPicker:
+		return m.openCodeModelPicker.View()
+	case ScreenSkillPicker:
+		return m.skillPicker.View()
 	case ScreenLoading:
 		// Not used anymore as each screen handles its own "running" state
 		return ""
@@ -396,4 +673,89 @@ func (m MainModel) View() string {
 	default:
 		return "Pantalla desconocida"
 	}
+}
+
+// agentInList reports whether the given AgentID is present in the slice.
+func agentInList(agents []model.AgentID, target model.AgentID) bool {
+	for _, a := range agents {
+		if a == target {
+			return true
+		}
+	}
+	return false
+}
+
+// stringifyAliasMap converts a map[string]model.ClaudeModelAlias to map[string]string
+// so it can be stored in InstallContext without importing screens from steps.
+func stringifyAliasMap(m map[string]model.ClaudeModelAlias) map[string]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = string(v)
+	}
+	return out
+}
+
+// buildSelection constructs a model.Selection from the accumulated MainModel state.
+// It is called at PresetSelectedMsg time (Approach B) and before entering ScreenReview.
+func (m MainModel) buildSelection() model.Selection {
+	components := catalog.ComponentsForPreset(m.selectedPreset)
+
+	var persona model.PersonaID
+	var sddMode model.SDDModeID
+	var strictTDD bool
+	var modelAssignments map[string]model.ModelAssignment
+	var claudeAssignments map[string]model.ClaudeModelAlias
+
+	if m.installCtx != nil {
+		persona = m.installCtx.Persona
+		sddMode = model.SDDModeID(m.installCtx.SDDMode)
+		strictTDD = m.installCtx.StrictTDD
+		modelAssignments = m.installCtx.ModelAssignments
+
+		// Convert ClaudeModelAssignments map[string]string → map[string]model.ClaudeModelAlias
+		if len(m.installCtx.ClaudeModelAssignments) > 0 {
+			claudeAssignments = make(map[string]model.ClaudeModelAlias, len(m.installCtx.ClaudeModelAssignments))
+			for k, v := range m.installCtx.ClaudeModelAssignments {
+				if k == "orchestrator" {
+					continue // Claude Code manages its own orchestrator model
+				}
+				claudeAssignments[k] = model.ClaudeModelAlias(v)
+			}
+		}
+	}
+
+	return model.Selection{
+		Agents:                 m.selectedAgents,
+		Components:             components,
+		Persona:                persona,
+		Preset:                 m.selectedPreset,
+		SDDMode:                sddMode,
+		StrictTDD:              strictTDD,
+		ModelAssignments:       modelAssignments,
+		ClaudeModelAssignments: claudeAssignments,
+	}
+}
+
+// nextScreenAfterConfig returns the screen that should follow the preset selection,
+// based on which agents the user selected.
+func (m MainModel) nextScreenAfterConfig() Screen {
+	if agentInList(m.selectedAgents, model.AgentClaudeCode) {
+		return ScreenClaudeModelPicker
+	}
+	if agentInList(m.selectedAgents, model.AgentKiroIDE) {
+		return ScreenKiroModelPicker
+	}
+	if agentInList(m.selectedAgents, model.AgentOpenCode) {
+		return ScreenSDDMode
+	}
+	return ScreenDependencyTree
+}
+
+// nextScreenAfterStrictTDD returns the screen that should follow ScreenStrictTDD.
+// ScreenOpenCodePlugins is excluded from this change per scope constraint.
+func (m MainModel) nextScreenAfterStrictTDD() Screen {
+	return ScreenDependencyTree
 }

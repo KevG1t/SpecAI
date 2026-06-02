@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/KevG1t/SpecAI/internal/assets"
@@ -13,6 +14,10 @@ import (
 	"github.com/KevG1t/SpecAI/internal/util"
 	"github.com/spf13/afero"
 )
+
+// sddMemoryArgs are the arguments passed to the sdd-memory MCP server.
+// The --tools=agent flag restricts the exposed tools to the agent subset.
+var sddMemoryArgs = []string{"mcp", "--tools=agent"}
 
 // StepInjectMCP writes the sdd-memory MCP config into each IDE's config file.
 type StepInjectMCP struct {
@@ -80,7 +85,7 @@ func (s *StepInjectMCP) writeSeparateMCPFile(cmd string) error {
 	}
 	content := map[string]any{
 		"command": cmd,
-		"args":    []string{"mcp"},
+		"args":    sddMemoryArgs,
 	}
 	data, err := json.MarshalIndent(content, "", "  ")
 	if err != nil {
@@ -103,10 +108,11 @@ func (s *StepInjectMCP) writeMergeIntoSettings(ide interface{ AgentID() model.Ag
 		return fmt.Errorf("unsupported agent for StrategyMergeIntoSettings: %s", ide.AgentID())
 	}
 
+	cmdArgs := append([]string{cmd}, sddMemoryArgs...)
 	overlay := map[string]any{
 		"mcp": map[string]any{
 			"sdd-memory": map[string]any{
-				"command": []string{cmd, "mcp"},
+				"command": cmdArgs,
 				"type":    "local",
 			},
 		},
@@ -128,7 +134,7 @@ func (s *StepInjectMCP) writeMCPConfigFile(ide interface{ AgentID() model.AgentI
 	case model.AgentAntigravity:
 		configPath = filepath.Join(s.ctx.HomeDir, ".gemini", "antigravity-cli", "mcp_config.json")
 	case model.AgentVSCodeCopilot:
-		configPath = filepath.Join(s.ctx.HomeDir, ".vscode", "mcp.json")
+		configPath = filepath.Join(vscodeUserConfigDir(s.ctx.HomeDir), "mcp.json")
 	case model.AgentKimi:
 		configPath = filepath.Join(s.ctx.HomeDir, ".kimi", "mcp.json")
 	case model.AgentQwenCode:
@@ -149,7 +155,7 @@ func (s *StepInjectMCP) writeMCPConfigFile(ide interface{ AgentID() model.AgentI
 			"servers": map[string]any{
 				"sdd-memory": map[string]any{
 					"command": cmd,
-					"args":    []string{"mcp"},
+					"args":    sddMemoryArgs,
 				},
 			},
 		}
@@ -158,7 +164,7 @@ func (s *StepInjectMCP) writeMCPConfigFile(ide interface{ AgentID() model.AgentI
 			"mcpServers": map[string]any{
 				"sdd-memory": map[string]any{
 					"command": cmd,
-					"args":    []string{"mcp"},
+					"args":    sddMemoryArgs,
 				},
 			},
 		}
@@ -171,7 +177,15 @@ func (s *StepInjectMCP) writeMCPConfigFile(ide interface{ AgentID() model.AgentI
 func (s *StepInjectMCP) writeTOMLFile(cmd string) error {
 	path := filepath.Join(s.ctx.HomeDir, ".codex", "config.toml")
 
-	block := fmt.Sprintf("\n[mcp_servers.sdd-memory]\ncommand = %q\nargs = [\"mcp\"]\n", cmd)
+	// Build TOML args array from sddMemoryArgs: ["mcp", "--tools=agent"]
+	tomlArgs := ""
+	for i, a := range sddMemoryArgs {
+		if i > 0 {
+			tomlArgs += ", "
+		}
+		tomlArgs += fmt.Sprintf("%q", a)
+	}
+	block := fmt.Sprintf("\n[mcp_servers.sdd-memory]\ncommand = %q\nargs = [%s]\nmodel_instructions_file = \"sdd-memory-instructions.md\"\nexperimental_compact_prompt_file = \"sdd-memory-compact-prompt.md\"\n", cmd, tomlArgs)
 
 	existing, err := afero.ReadFile(s.filesystem(), path)
 	if err != nil && !os.IsNotExist(err) {
@@ -263,6 +277,32 @@ func (s *StepInjectMCP) mergeAndWrite(path string, overlay map[string]any) error
 	}
 
 	return writeFileAtomic(s.filesystem(), path, merged, 0644)
+}
+
+// vscodeUserConfigDir returns the OS-correct directory for VS Code user config.
+// Windows: %APPDATA%/Code/User (fallback ~/.vscode)
+// macOS:   ~/Library/Application Support/Code/User
+// Linux:   $XDG_CONFIG_HOME/Code/User (fallback ~/.config/Code/User)
+func vscodeUserConfigDir(homeDir string) string {
+	return vscodeUserConfigDir_forOS(runtime.GOOS, homeDir, os.Getenv("APPDATA"), os.Getenv("XDG_CONFIG_HOME"))
+}
+
+// vscodeUserConfigDir_forOS is the testable variant that accepts OS/env values explicitly.
+func vscodeUserConfigDir_forOS(goos, homeDir, appData, xdgConfig string) string {
+	switch goos {
+	case "windows":
+		if appData != "" {
+			return appData + "/Code/User"
+		}
+		return homeDir + "/.vscode"
+	case "darwin":
+		return homeDir + "/Library/Application Support/Code/User"
+	default: // linux and others
+		if xdgConfig != "" {
+			return xdgConfig + "/Code/User"
+		}
+		return homeDir + "/.config/Code/User"
+	}
 }
 
 // writeFileAtomic writes data to path via a temp file + rename.
