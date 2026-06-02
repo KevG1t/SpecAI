@@ -44,24 +44,25 @@ func (s *StepInjectMCP) Run() error {
 	cmd := resolveBinary("sdd-memory")
 
 	for _, ide := range s.ctx.IDEs {
+		if !ide.SupportsMCP() {
+			continue
+		}
 		var err error
-		switch ide.AgentID() {
-		case model.AgentClaudeCode:
-			err = s.writeSeparateMCPFile(cmd)
+		switch ide.MCPStrategy() {
+		case model.StrategySeparateMCPFiles:
+			err = s.writeSeparateMCPFile(ide.MCPConfigPath(s.ctx.HomeDir, "sdd-memory"), cmd)
 			if err == nil {
-				err = s.writeClaudeHooks()
+				err = s.writeClaudeHooks(ide.SettingsPath(s.ctx.HomeDir))
 			}
-		case model.AgentOpenCode, model.AgentKilocode, model.AgentGeminiCLI:
-			err = s.writeMergeIntoSettings(ide, cmd)
-		case model.AgentCodex:
-			err = s.writeTOMLFile(cmd)
-		case model.AgentAntigravity:
-			err = s.writeMCPConfigFile(ide, cmd)
-			if err == nil {
+		case model.StrategyMergeIntoSettings:
+			err = s.writeMergeIntoSettings(ide.SettingsPath(s.ctx.HomeDir), cmd)
+		case model.StrategyMCPConfigFile:
+			err = s.writeMCPConfigFile(ide.MCPConfigPath(s.ctx.HomeDir, "sdd-memory"), ide.AgentID(), cmd)
+			if err == nil && ide.AgentID() == model.AgentAntigravity {
 				err = s.writeAntigravityPluginFiles()
 			}
-		default:
-			err = s.writeMCPConfigFile(ide, cmd)
+		case model.StrategyTOMLFile:
+			err = s.writeTOMLFile(ide.MCPConfigPath(s.ctx.HomeDir, "sdd-memory"), cmd)
 		}
 		if err != nil {
 			return fmt.Errorf("%s: %w", ide.Name(), err)
@@ -77,9 +78,9 @@ func resolveBinary(name string) string {
 	return name
 }
 
-// writeSeparateMCPFile handles Claude Code: ~/.claude/mcp/sdd-memory.json
-func (s *StepInjectMCP) writeSeparateMCPFile(cmd string) error {
-	dir := filepath.Join(s.ctx.HomeDir, ".claude", "mcp")
+// writeSeparateMCPFile writes a per-server MCP JSON file to configPath.
+func (s *StepInjectMCP) writeSeparateMCPFile(configPath string, cmd string) error {
+	dir := filepath.Dir(configPath)
 	if err := s.filesystem().MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -91,23 +92,11 @@ func (s *StepInjectMCP) writeSeparateMCPFile(cmd string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(s.filesystem(), filepath.Join(dir, "sdd-memory.json"), data, 0644)
+	return writeFileAtomic(s.filesystem(), configPath, data, 0644)
 }
 
-// writeMergeIntoSettings handles OpenCode, KiloCode, GeminiCLI.
-func (s *StepInjectMCP) writeMergeIntoSettings(ide interface{ AgentID() model.AgentID }, cmd string) error {
-	var settingsPath string
-	switch ide.AgentID() {
-	case model.AgentOpenCode:
-		settingsPath = filepath.Join(s.ctx.HomeDir, ".config", "opencode", "opencode.json")
-	case model.AgentKilocode:
-		settingsPath = filepath.Join(s.ctx.HomeDir, ".config", "kilo", "opencode.json")
-	case model.AgentGeminiCLI:
-		settingsPath = filepath.Join(s.ctx.HomeDir, ".gemini", "settings.json")
-	default:
-		return fmt.Errorf("unsupported agent for StrategyMergeIntoSettings: %s", ide.AgentID())
-	}
-
+// writeMergeIntoSettings merges MCP config into the agent's settings file at settingsPath.
+func (s *StepInjectMCP) writeMergeIntoSettings(settingsPath string, cmd string) error {
 	cmdArgs := append([]string{cmd}, sddMemoryArgs...)
 	overlay := map[string]any{
 		"mcp": map[string]any{
@@ -121,36 +110,11 @@ func (s *StepInjectMCP) writeMergeIntoSettings(ide interface{ AgentID() model.Ag
 	return s.mergeAndWrite(settingsPath, overlay)
 }
 
-// writeMCPConfigFile handles Cursor, Windsurf, Kiro, Antigravity, VSCodeCopilot, Kimi, Qwen, OpenClaw, Pi, Trae.
-func (s *StepInjectMCP) writeMCPConfigFile(ide interface{ AgentID() model.AgentID }, cmd string) error {
-	var configPath string
-	switch ide.AgentID() {
-	case model.AgentCursor:
-		configPath = filepath.Join(s.ctx.HomeDir, ".cursor", "mcp.json")
-	case model.AgentWindsurf:
-		configPath = filepath.Join(s.ctx.HomeDir, ".codeium", "windsurf", "mcp_config.json")
-	case model.AgentKiroIDE:
-		configPath = filepath.Join(s.ctx.HomeDir, ".kiro", "settings", "mcp.json")
-	case model.AgentAntigravity:
-		configPath = filepath.Join(s.ctx.HomeDir, ".gemini", "antigravity-cli", "mcp_config.json")
-	case model.AgentVSCodeCopilot:
-		configPath = filepath.Join(vscodeUserConfigDir(s.ctx.HomeDir), "mcp.json")
-	case model.AgentKimi:
-		configPath = filepath.Join(s.ctx.HomeDir, ".kimi", "mcp.json")
-	case model.AgentQwenCode:
-		configPath = filepath.Join(s.ctx.HomeDir, ".qwen", "mcp.json")
-	case model.AgentOpenClaw:
-		configPath = filepath.Join(s.ctx.HomeDir, ".openclaw", "mcp.json")
-	case model.AgentPi:
-		configPath = filepath.Join(s.ctx.HomeDir, ".pi", "mcp.json")
-	case model.AgentTrae:
-		configPath = filepath.Join(s.ctx.HomeDir, ".trae", "mcp.json")
-	default:
-		return fmt.Errorf("unsupported agent for StrategyMCPConfigFile: %s", ide.AgentID())
-	}
-
+// writeMCPConfigFile writes MCP config to a dedicated config file at configPath.
+// VSCodeCopilot uses "servers" as the root key; all other agents use "mcpServers".
+func (s *StepInjectMCP) writeMCPConfigFile(configPath string, agentID model.AgentID, cmd string) error {
 	var overlay map[string]any
-	if ide.AgentID() == model.AgentVSCodeCopilot {
+	if agentID == model.AgentVSCodeCopilot {
 		overlay = map[string]any{
 			"servers": map[string]any{
 				"sdd-memory": map[string]any{
@@ -173,9 +137,8 @@ func (s *StepInjectMCP) writeMCPConfigFile(ide interface{ AgentID() model.AgentI
 	return s.mergeAndWrite(configPath, overlay)
 }
 
-// writeTOMLFile handles Codex: ~/.codex/config.toml via text-based upsert.
-func (s *StepInjectMCP) writeTOMLFile(cmd string) error {
-	path := filepath.Join(s.ctx.HomeDir, ".codex", "config.toml")
+// writeTOMLFile writes MCP config as a TOML block to path via text-based upsert.
+func (s *StepInjectMCP) writeTOMLFile(path string, cmd string) error {
 
 	// Build TOML args array from sddMemoryArgs: ["mcp", "--tools=agent"]
 	tomlArgs := ""
@@ -214,10 +177,9 @@ func (s *StepInjectMCP) writeTOMLFile(cmd string) error {
 	return writeFileAtomic(s.filesystem(), path, []byte(content), 0644)
 }
 
-// writeClaudeHooks writes a UserPromptSubmit hook entry in ~/.claude/settings.json
+// writeClaudeHooks writes a UserPromptSubmit hook entry in the agent's settings file
 // that executes `specai skill-registry refresh`. The write is idempotent via JSON merge.
-func (s *StepInjectMCP) writeClaudeHooks() error {
-	settingsPath := filepath.Join(s.ctx.HomeDir, ".claude", "settings.json")
+func (s *StepInjectMCP) writeClaudeHooks(settingsPath string) error {
 	overlay := map[string]any{
 		"hooks": map[string]any{
 			"UserPromptSubmit": []any{
