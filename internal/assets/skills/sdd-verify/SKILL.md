@@ -1,4 +1,4 @@
-﻿<!-- section:model-capable -->
+<!-- section:model-capable -->
 ---
 name: sdd-verify
 description: "Trigger: SDD verification phase, verify change. Execute tests and prove implementation matches specs, design, and tasks."

@@ -33,7 +33,7 @@ func TestResolverAddsMissingDependenciesInOrder(t *testing.T) {
 	}
 }
 
-func TestResolverPersonaOrderedBeforeEngramAndSDDWhenSelected(t *testing.T) {
+func TestResolverPersonaOrderedBeforeSddMemoryAndSDDWhenSelected(t *testing.T) {
 	resolver := NewResolver(MVPGraph())
 
 	selection := model.Selection{
@@ -54,7 +54,7 @@ func TestResolverPersonaOrderedBeforeEngramAndSDDWhenSelected(t *testing.T) {
 	}
 }
 
-func TestResolverEngramOnlyDoesNotForcePersona(t *testing.T) {
+func TestResolverSddMemoryOnlyDoesNotForcePersona(t *testing.T) {
 	resolver := NewResolver(MVPGraph())
 
 	selection := model.Selection{
@@ -94,7 +94,7 @@ func TestResolverSDDOnlyDoesNotForcePersona(t *testing.T) {
 	}
 }
 
-func TestResolverPersonaAndEngramWithoutSDD(t *testing.T) {
+func TestResolverPersonaAndSddMemoryWithoutSDD(t *testing.T) {
 	resolver := NewResolver(MVPGraph())
 
 	selection := model.Selection{

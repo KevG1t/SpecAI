@@ -1,4 +1,4 @@
-﻿---
+---
 description: Inicializa una nueva feature o tarea mediana/grande usando SDD en modo Hybrid-First para Cascade en Windsurf
 ---
 

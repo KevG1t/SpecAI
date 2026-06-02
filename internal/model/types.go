@@ -165,7 +165,7 @@ type OpenCodeCommunityPluginID string
 
 const (
 	OpenCodePluginSubAgentStatusline OpenCodeCommunityPluginID = "sub-agent-statusline"
-	OpenCodePluginSDDMemoryManage    OpenCodeCommunityPluginID = "sdd-engram-plugin"
+	OpenCodePluginSDDMemoryManage    OpenCodeCommunityPluginID = "sdd-memory-plugin"
 	OpenCodePluginArgentinaLogo OpenCodeCommunityPluginID = "argentina-logo"
 )
 

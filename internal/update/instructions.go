@@ -13,7 +13,7 @@ func updateHint(tool ToolInfo, profile system.PlatformProfile) string {
 	case "specai":
 		return specAIHint(profile)
 	case "sdd-memory":
-		return engramHint(profile)
+		return sddMemoryHint(profile)
 	case "opencode-subagent-statusline", "opencode-sdd-memory-manage":
 		return "specai upgrade updates ~/.config/opencode npm deps, clears this plugin's @latest cache, then requires OpenCode restart/reload"
 	default:
@@ -42,7 +42,7 @@ func specAIHint(profile system.PlatformProfile) string {
 	}
 }
 
-func engramHint(profile system.PlatformProfile) string {
+func sddMemoryHint(profile system.PlatformProfile) string {
 	switch profile.PackageManager {
 	case "brew":
 		return "brew upgrade sdd-memory"

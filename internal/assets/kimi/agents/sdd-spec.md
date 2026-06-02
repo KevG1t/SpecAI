@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-spec
 description: >
   Write specifications with requirements and acceptance scenarios for a change. Use when a

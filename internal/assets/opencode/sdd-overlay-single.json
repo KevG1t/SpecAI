@@ -1,8 +1,8 @@
 {
   "agent": {
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary",
-      "description": "Gentle AI SDD Orchestrator - coordinates sub-agents, never does work inline",
+      "description": "SpecAI SDD Orchestrator - coordinates sub-agents, never does work inline",
       "prompt": "{file:./AGENTS.md}",
       "permission": {
         "task": {

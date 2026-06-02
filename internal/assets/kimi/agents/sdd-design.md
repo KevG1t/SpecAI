@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-design
 description: >
   Create a technical design document with architecture decisions and implementation approach.

@@ -1,4 +1,4 @@
-﻿<!-- section:model-capable -->
+<!-- section:model-capable -->
 # Agent Teams Lite — Orchestrator Instructions
 
 Bind this to the dedicated `sdd-orchestrator` agent or rule only. Do NOT apply it to executor phase agents such as `sdd-apply` or `sdd-verify`.

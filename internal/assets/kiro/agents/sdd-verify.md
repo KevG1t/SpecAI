@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-verify
 description: >
   Validate implementation against specs and tasks. Use when code is written and needs

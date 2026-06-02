@@ -2,13 +2,11 @@ package state
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 )
 
 const stateDir = ".specai"
-const legacyStateDir = ".gentle-ai"
 const stateFile = "state.json"
 
 // ModelAssignmentState is the JSON-serialisable form of a provider+model pair
@@ -53,40 +51,9 @@ func Path(homeDir string) string {
 	return filepath.Join(homeDir, stateDir, stateFile)
 }
 
-// migrateLegacyState copies the legacy state file from .gentle-ai to .specai
-// when .specai/state.json does not exist yet. This is a one-time additive copy —
-// the legacy directory is left untouched (copy, not move).
-func migrateLegacyState(homeDir string) {
-	destPath := Path(homeDir)
-	srcPath := filepath.Join(homeDir, legacyStateDir, stateFile)
-
-	// Only migrate if destination is absent and source exists.
-	if _, err := os.Stat(destPath); err == nil {
-		return // destination already exists, skip
-	}
-	src, err := os.Open(srcPath)
-	if err != nil {
-		return // source absent or unreadable, skip silently
-	}
-	defer src.Close()
-
-	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-		return
-	}
-	dst, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
-	if err != nil {
-		return
-	}
-	defer dst.Close()
-	_, _ = io.Copy(dst, src)
-}
-
 // Read reads and unmarshals the state file from the given home directory.
-// If the .specai/state.json does not exist but .gentle-ai/state.json does,
-// it is copied first (transparent one-time migration).
 // Returns an error if the file does not exist or cannot be decoded.
 func Read(homeDir string) (InstallState, error) {
-	migrateLegacyState(homeDir)
 	data, err := os.ReadFile(Path(homeDir))
 	if err != nil {
 		return InstallState{}, err

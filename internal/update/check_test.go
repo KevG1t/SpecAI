@@ -228,7 +228,7 @@ func TestDetectInstalledVersionFallbackPathsNoFallbackDefined(t *testing.T) {
 
 func TestDetectInstalledVersionFromOpenCodeNodeModulePackageJSON(t *testing.T) {
 	home := t.TempDir()
-	pkgDir := filepath.Join(home, ".config", "opencode", "node_modules", "opencode-sdd-engram-manage")
+	pkgDir := filepath.Join(home, ".config", "opencode", "node_modules", "opencode-sdd-memory-manage")
 	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func TestDetectInstalledVersionFromOpenCodeNodeModulePackageJSON(t *testing.T) {
 	userHomeDir = func() (string, error) { return home, nil }
 	t.Cleanup(func() { userHomeDir = origHome })
 
-	tool := ToolInfo{Name: "sdd-engram-plugin", NpmPackage: "opencode-sdd-engram-manage"}
+	tool := ToolInfo{Name: "sdd-memory-plugin", NpmPackage: "opencode-sdd-memory-manage"}
 	if got := detectInstalledVersion(context.Background(), tool, "dev"); got != "1.1.7" {
 		t.Fatalf("detectInstalledVersion() = %q, want 1.1.7", got)
 	}
@@ -251,14 +251,14 @@ func TestDetectInstalledVersionFromOpenCodePackageJSONDependency(t *testing.T) {
 	if err := os.MkdirAll(opencodeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(opencodeDir, "package.json"), []byte(`{"dependencies":{"opencode-sdd-engram-manage":"^1.3.3"}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(opencodeDir, "package.json"), []byte(`{"dependencies":{"opencode-sdd-memory-manage":"^1.3.3"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	origHome := userHomeDir
 	userHomeDir = func() (string, error) { return home, nil }
 	t.Cleanup(func() { userHomeDir = origHome })
 
-	tool := ToolInfo{Name: "sdd-engram-plugin", NpmPackage: "opencode-sdd-engram-manage"}
+	tool := ToolInfo{Name: "sdd-memory-plugin", NpmPackage: "opencode-sdd-memory-manage"}
 	if got := detectInstalledVersion(context.Background(), tool, "dev"); got != "1.3.3" {
 		t.Fatalf("detectInstalledVersion() = %q, want 1.3.3", got)
 	}
@@ -270,7 +270,7 @@ func TestCheckSingleToolOpenCodePluginRegisteredNotMaterialized(t *testing.T) {
 	if err := os.MkdirAll(opencodeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(opencodeDir, "tui.json"), []byte(`{"plugin":["opencode-sdd-engram-manage"]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(opencodeDir, "tui.json"), []byte(`{"plugin":["opencode-sdd-memory-manage"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -295,7 +295,7 @@ func TestCheckSingleToolOpenCodePluginRegisteredNotMaterialized(t *testing.T) {
 		Owner:         "owner",
 		Repo:          "repo",
 		InstallMethod: InstallOpenCodePlugin,
-		NpmPackage:    "opencode-sdd-engram-manage",
+		NpmPackage:    "opencode-sdd-memory-manage",
 	}
 
 	result := checkSingleTool(context.Background(), tool, "dev", system.PlatformProfile{})
@@ -580,8 +580,8 @@ func TestCheckAll(t *testing.T) {
 			release = githubRelease{TagName: "v1.5.0", HTMLURL: "https://github.com/KevG1t/SpecAI/releases/tag/v1.5.0"}
 		case contains(path, "sub-agent-statusline"):
 			release = githubRelease{TagName: "v0.4.0", HTMLURL: "https://github.com/Joaquinvesapa/sub-agent-statusline/releases/tag/v0.4.0"}
-		case contains(path, "sdd-engram-plugin"):
-			release = githubRelease{TagName: "v1.1.7", HTMLURL: "https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/releases/tag/v1.1.7"}
+		case contains(path, "sdd-memory-plugin"):
+			release = githubRelease{TagName: "v1.1.7", HTMLURL: "https://github.com/j0k3r-dev-rgl/sdd-memory-plugin/releases/tag/v1.1.7"}
 		case contains(path, "sdd-memory"):
 			release = githubRelease{TagName: "v0.4.0", HTMLURL: "https://github.com/KevG1t/sdd-memory/releases/tag/v0.4.0"}
 		}
@@ -970,7 +970,7 @@ func TestRegistryContents(t *testing.T) {
 		"specai":                       {owner: "KevG1t", repo: "SpecAI"},
 		"sdd-memory":                   {owner: "KevG1t", repo: "sdd-memory"},
 		"opencode-subagent-statusline": {owner: "Joaquinvesapa", repo: "sub-agent-statusline"},
-		"opencode-sdd-memory-manage":   {owner: "j0k3r-dev-rgl", repo: "sdd-engram-plugin"},
+		"opencode-sdd-memory-manage":   {owner: "j0k3r-dev-rgl", repo: "sdd-memory-plugin"},
 	}
 
 	for _, tool := range Tools {
@@ -1160,14 +1160,14 @@ func TestCheckFiltered_UnknownToolIgnored(t *testing.T) {
 	}
 }
 
-// TestCheckFiltered_DevBuildSemanticsForGentleAI verifies the design requirement:
+// TestCheckFiltered_DevBuildSemanticsForSpecAI verifies the design requirement:
 // when the running specai binary reports version "dev", it is identified as a
 // DevBuild and NOT reported as UpdateAvailable or VersionUnknown.
 //
 // The spec says:
 //   - Dev build MUST be reported as development-build semantic
 //   - specai self-upgrade is skipped while sdd-memory remains eligible
-func TestCheckFiltered_DevBuildSemanticsForGentleAI(t *testing.T) {
+func TestCheckFiltered_DevBuildSemanticsForSpecAI(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -1340,12 +1340,12 @@ func TestNoUpdatesPath(t *testing.T) {
 	}
 }
 
-// --- TestEngramHintNoBrew ---
+// --- TestSddMemoryHintNoBrew ---
 
-// TestSDDMemoryHintNoBrew verifies that on non-brew platforms, sdd-memory hint
+// TestSddMemoryHintNoBrew verifies that on non-brew platforms, sdd-memory hint
 // no longer returns "go install..." — it should reflect binary download.
 // This is the regression test for issue #160.
-func TestSDDMemoryHintNoBrew(t *testing.T) {
+func TestSddMemoryHintNoBrew(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile system.PlatformProfile

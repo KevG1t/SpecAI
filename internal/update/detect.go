@@ -117,8 +117,8 @@ func findFallbackBinary(tool ToolInfo) string {
 // passed as argv[0] to CreateProcess — they must be launched via the
 // PowerShell host. For a .ps1 binary we therefore rewrite:
 //
-//	("C:\Users\...\gga.ps1", ["--version"])
-//	→ ("powershell", ["-NoProfile", "-File", "C:\Users\...\gga.ps1", "--version"])
+//	("C:\Users\...\tool.exe", ["--version"])
+//	→ ("C:\Users\...\tool.exe", ["--version"])
 //
 // For all other binaries (real PE executables on Windows, any file on
 // Linux/macOS), the arguments are returned unchanged.

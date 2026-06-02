@@ -1,4 +1,4 @@
-﻿---
+---
 description: Explore and investigate an idea or feature — reads codebase and compares approaches
 ---
 

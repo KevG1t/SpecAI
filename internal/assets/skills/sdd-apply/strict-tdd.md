@@ -1,4 +1,4 @@
-﻿# Strict TDD Module — Apply Phase
+# Strict TDD Module — Apply Phase
 
 > **This module is loaded ONLY when Strict TDD Mode is enabled AND a test runner is available.**
 > If you are reading this, the orchestrator already verified both conditions. Follow every instruction.

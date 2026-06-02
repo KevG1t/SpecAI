@@ -1,4 +1,4 @@
-﻿# SDD Phase — Common Protocol
+# SDD Phase — Common Protocol
 
 Boilerplate identical across all SDD phase skills. Sub-agents MUST load this alongside their phase-specific SKILL.md.
 

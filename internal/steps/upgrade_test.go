@@ -64,7 +64,7 @@ func TestStepInstallUpdates_SkipsOpenCodePlugin(t *testing.T) {
 				Tool: update.ToolInfo{
 					Name:          "opencode-sdd-memory-manage",
 					InstallMethod: update.InstallOpenCodePlugin,
-					NpmPackage:    "opencode-sdd-engram-manage",
+					NpmPackage:    "opencode-sdd-memory-manage",
 				},
 				Status: update.UpdateAvailable,
 			},

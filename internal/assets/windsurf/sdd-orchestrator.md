@@ -1,4 +1,4 @@
-﻿# Agent Teams Lite — Orchestrator Instructions (Windsurf Cascade)
+# Agent Teams Lite — Orchestrator Instructions (Windsurf Cascade)
 
 Bind this to the dedicated `sdd-orchestrator` rule or memory only. Do NOT apply it to phase skill files such as `sdd-apply` or `sdd-verify`.
 

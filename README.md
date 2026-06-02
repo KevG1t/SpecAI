@@ -2,7 +2,7 @@
 
 ¡Bienvenido a **SpecAI**! 🚀
 
-SpecAI es una herramienta de terminal (CLI) y una interfaz de usuario en consola (TUI) diseñada para gestionar, instalar y sincronizar reglas locales de Inteligencia Artificial y configuraciones de agentes en tus repositorios. Forma parte del ecosistema de herramientas de desarrollo inspirado en `gentle-ai`.
+SpecAI es una herramienta de terminal (CLI) y una interfaz de usuario en consola (TUI) diseñada para gestionar, instalar y sincronizar reglas locales de Inteligencia Artificial y configuraciones de agentes en tus repositorios. Forma parte del ecosistema de herramientas de desarrollo inspirado en `specai`.
 
 Si querés configurar rápidamente las reglas base de IA en tu proyecto para que Cursor, Windsurf o Codex entiendan tus estándares (o los del equipo), SpecAI se encarga de inyectar todo de manera automática y estructurada.
 

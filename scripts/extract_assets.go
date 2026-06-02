@@ -1,15 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 )
 
-// ExtractAndReplace copies files from src to dst, replacing all occurrences of "engram" with "sdd-memory".
-func ExtractAndReplace(src string, dst string) error {
+// ExtractAssets copies files from src to dst.
+func ExtractAssets(src string, dst string) error {
 	return filepath.Walk(src, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -35,10 +34,7 @@ func ExtractAndReplace(src string, dst string) error {
 			return fmt.Errorf("failed to read file %s: %w", path, err)
 		}
 
-		// Replace "engram" with "sdd-memory"
-		newContent := bytes.ReplaceAll(content, []byte("engram"), []byte("sdd-memory"))
-
-		if err := os.WriteFile(dstPath, newContent, info.Mode()); err != nil {
+		if err := os.WriteFile(dstPath, content, info.Mode()); err != nil {
 			return fmt.Errorf("failed to write file %s: %w", dstPath, err)
 		}
 
@@ -59,7 +55,7 @@ func main() {
 		dst = os.Args[2]
 	}
 
-	if err := ExtractAndReplace(src, dst); err != nil {
+	if err := ExtractAssets(src, dst); err != nil {
 		fmt.Fprintf(os.Stderr, "Error extracting assets: %v\n", err)
 		os.Exit(1)
 	}

@@ -53,7 +53,7 @@ var orderedSddPhaseKeys = []string{
 // buildPhaseRows returns the canonical phase row list.
 func buildPhaseRows() []PhaseRow {
 	return []PhaseRow{
-		{Key: "gentle-orchestrator", Label: "Orchestrator"},
+		{Key: "specai-orchestrator", Label: "Orchestrator"},
 		{Key: "__set_all__", Label: "Set all SDD phases", IsSetAll: true},
 		{Key: "sdd-init", Label: "SDD Init"},
 		{Key: "sdd-explore", Label: "SDD Explore"},
