@@ -1,4 +1,4 @@
-﻿---
+---
 description: Implement SDD tasks — writes code following specs and design
 ---
 

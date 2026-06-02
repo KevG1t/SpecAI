@@ -1,4 +1,4 @@
-﻿# SDD Init Details
+# SDD Init Details
 
 ## Testing Capability Checklist
 

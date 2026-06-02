@@ -6,29 +6,29 @@ import (
 	"testing"
 )
 
-func TestExtractAndReplace(t *testing.T) {
+func TestExtractAssets(t *testing.T) {
 	// Create a temporary source directory
-	srcDir, err := os.MkdirTemp("", "gentle-ai-src")
+	srcDir, err := os.MkdirTemp("", "specai-src")
 	if err != nil {
 		t.Fatalf("Failed to create temp src dir: %v", err)
 	}
 	defer os.RemoveAll(srcDir)
 
 	// Create a temporary destination directory
-	dstDir, err := os.MkdirTemp("", "gentle-ai-dst")
+	dstDir, err := os.MkdirTemp("", "specai-dst")
 	if err != nil {
 		t.Fatalf("Failed to create temp dst dir: %v", err)
 	}
 	defer os.RemoveAll(dstDir)
 
-	// Create a mock skill file with "engram" in it
+	// Create a mock skill file
 	skillDir := filepath.Join(srcDir, "sdd-tasks")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		t.Fatalf("Failed to create skill dir: %v", err)
 	}
 	
 	srcFile := filepath.Join(skillDir, "SKILL.md")
-	content := "This is a test file using engram for memory. Also engram config."
+	content := "This is a test file for memory. Also config."
 	if err := os.WriteFile(srcFile, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to write mock skill file: %v", err)
 	}
@@ -40,9 +40,9 @@ func TestExtractAndReplace(t *testing.T) {
 	}
 
 	// Call the function we're testing
-	err = ExtractAndReplace(srcDir, dstDir)
+	err = ExtractAssets(srcDir, dstDir)
 	if err != nil {
-		t.Fatalf("ExtractAndReplace failed: %v", err)
+		t.Fatalf("ExtractAssets failed: %v", err)
 	}
 
 	// Verify the destination file exists
@@ -51,15 +51,14 @@ func TestExtractAndReplace(t *testing.T) {
 		t.Fatalf("Expected file %s to exist in destination", dstFile)
 	}
 
-	// Verify the content has "engram" replaced with "sdd-memory"
+	// Verify the content
 	dstContent, err := os.ReadFile(dstFile)
 	if err != nil {
 		t.Fatalf("Failed to read destination file: %v", err)
 	}
 
-	expectedContent := "This is a test file using sdd-memory for memory. Also sdd-memory config."
-	if string(dstContent) != expectedContent {
-		t.Errorf("Content replacement failed.\nExpected: %s\nGot: %s", expectedContent, string(dstContent))
+	if string(dstContent) != content {
+		t.Errorf("Content mismatch.\nExpected: %s\nGot: %s", content, string(dstContent))
 	}
 
 	// Verify the .go file was NOT copied

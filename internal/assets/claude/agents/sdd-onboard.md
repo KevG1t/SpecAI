@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-onboard
 description: >
   Guide the user through a complete SDD cycle using their real codebase. Use when the user says

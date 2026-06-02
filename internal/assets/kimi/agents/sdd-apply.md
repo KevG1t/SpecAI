@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-apply
 description: >
   Implement code changes from task definitions. Use when tasks are ready and implementation

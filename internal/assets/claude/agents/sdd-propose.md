@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-propose
 description: >
   Create a change proposal with intent, scope, and approach. Use when exploration is complete

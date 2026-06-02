@@ -1,6 +1,6 @@
-﻿# Gentle AI — SDD Orchestrator Instructions
+# SpecAI — SDD Orchestrator Instructions
 
-Bind this to the dedicated `gentle-orchestrator` agent only. Do NOT apply it to executor phase agents such as `sdd-apply` or `sdd-verify`.
+Bind this to the dedicated `specai-orchestrator` agent only. Do NOT apply it to executor phase agents such as `sdd-apply` or `sdd-verify`.
 
 ## SDD Orchestrator
 
@@ -282,7 +282,7 @@ When launching `sdd-apply`, always include the resolved `delivery_strategy`, `ch
 
 Read the configured models from `opencode.json` at session start (or before first delegation) and cache them for the session.
 
-- Treat `agent.gentle-orchestrator.model` as authoritative when it is set.
+- Treat `agent.specai-orchestrator.model` as authoritative when it is set.
 - Treat `agent.sdd-<phase>.model` as authoritative when it is set.
 - If a phase does not have an explicit model, use the default OpenCode runtime model for that agent and continue.
 - For named profiles, apply the same rule to the suffixed agent keys (for example, `sdd-apply-cheap`).

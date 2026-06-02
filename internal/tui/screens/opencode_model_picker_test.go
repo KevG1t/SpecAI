@@ -117,9 +117,9 @@ func TestOpenCodeModelPicker_NonEffortModel_SavesAndReturnsToPhaseList(t *testin
 		t.Errorf("after non-effort model selection, navLevel should be ocNavPhaseList, got %d", m.navLevel)
 	}
 
-	// Assignment should be saved for the selected phase (gentle-orchestrator)
-	if _, ok := m.assignments["gentle-orchestrator"]; !ok {
-		t.Error("assignment should be saved for 'gentle-orchestrator'")
+	// Assignment should be saved for the selected phase (specai-orchestrator)
+	if _, ok := m.assignments["specai-orchestrator"]; !ok {
+		t.Error("assignment should be saved for 'specai-orchestrator'")
 	}
 }
 
@@ -223,9 +223,9 @@ func TestOpenCodeModelPicker_EffortSelect_SavesFullAssignment(t *testing.T) {
 		t.Errorf("after effort select, navLevel should be ocNavPhaseList, got %d", m.navLevel)
 	}
 
-	a, ok := m.assignments["gentle-orchestrator"]
+	a, ok := m.assignments["specai-orchestrator"]
 	if !ok {
-		t.Fatal("assignment should be saved for 'gentle-orchestrator'")
+		t.Fatal("assignment should be saved for 'specai-orchestrator'")
 	}
 	if a.ModelID != "o3" {
 		t.Errorf("assignment model ID should be o3, got %q", a.ModelID)

@@ -1,4 +1,4 @@
-﻿---
+---
 description: Initialize SDD context — detects project stack and bootstraps persistence backend
 ---
 

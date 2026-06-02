@@ -1,4 +1,4 @@
-﻿## sdd-memory Persistent Memory — Protocol
+## sdd-memory Persistent Memory — Protocol
 
 You have access to sdd-memory, a persistent memory system that survives across sessions and compactions.
 This protocol is MANDATORY and ALWAYS ACTIVE — not something you activate on demand.

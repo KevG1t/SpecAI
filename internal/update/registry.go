@@ -56,9 +56,9 @@ var Tools = []ToolInfo{
 	{
 		Name:          "opencode-sdd-memory-manage",
 		Owner:         "j0k3r-dev-rgl",
-		Repo:          "sdd-engram-plugin",
+		Repo:          "sdd-memory-plugin",
 		VersionPrefix: "v",
 		InstallMethod: InstallOpenCodePlugin,
-		NpmPackage:    "opencode-sdd-engram-manage",
+		NpmPackage:    "opencode-sdd-memory-manage",
 	},
 }

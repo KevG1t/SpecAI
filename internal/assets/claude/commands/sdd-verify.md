@@ -1,4 +1,4 @@
-﻿---
+---
 description: Validate implementation matches specs, design, and tasks
 ---
 

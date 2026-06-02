@@ -1,4 +1,4 @@
-﻿# Skill Resolver — Universal Protocol
+# Skill Resolver — Universal Protocol
 
 Any agent that **delegates work to sub-agents** MUST use this protocol to resolve relevant skills and pass them safely.
 

@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-spec
 description: >
   Write specifications with requirements and scenarios. Use when a proposal is approved and the

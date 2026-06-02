@@ -1,9 +1,9 @@
-﻿---
+---
 description: Continue the next SDD phase in the dependency chain
 ---
 
 Follow the SDD orchestrator workflow inline using the instructions already installed in `~/.claude/CLAUDE.md`.
-The Claude Code session model is controlled by Claude Code; Gentle AI only configures models for Agent tool calls to phase sub-agents.
+The Claude Code session model is controlled by Claude Code; SpecAI only configures models for Agent tool calls to phase sub-agents.
 
 WORKFLOW:
 

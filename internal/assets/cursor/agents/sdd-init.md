@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-init
 description: >
   Initialize Spec-Driven Development context in a project. Use when the user says "sdd init",

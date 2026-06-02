@@ -1,4 +1,4 @@
-﻿---
+---
 description: Archive a completed SDD change — syncs specs and closes the cycle
 ---
 

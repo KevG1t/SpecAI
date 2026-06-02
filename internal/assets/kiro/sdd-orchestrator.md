@@ -1,4 +1,4 @@
-﻿# Agent Teams Lite — Orchestrator Instructions (Kiro IDE)
+# Agent Teams Lite — Orchestrator Instructions (Kiro IDE)
 
 Bind this to the dedicated `sdd-orchestrator` steering file only. Do NOT apply it to phase skill files such as `sdd-apply` or `sdd-verify`.
 
@@ -274,7 +274,7 @@ Kiro's `.kiro/steering/*.md` files provide persistent workspace context that app
 - Reference tech stack and project structure
 - Keep custom instructions that apply across all sessions
 
-Gentle AI writes to the global steering file (`~/.kiro/steering/specai.md`) — treat it as your active working context alongside your project steering files.
+SpecAI writes to the global steering file (`~/.kiro/steering/specai.md`) — treat it as your active working context alongside your project steering files.
 
 ### Phase Launch Deduplication (MANDATORY)
 

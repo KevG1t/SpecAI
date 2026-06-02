@@ -1,4 +1,4 @@
-﻿# Persistence Contract (shared across all SDD skills)
+# Persistence Contract (shared across all SDD skills)
 
 ## Mode Resolution
 

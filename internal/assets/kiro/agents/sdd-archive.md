@@ -1,4 +1,4 @@
-﻿---
+---
 name: sdd-archive
 description: >
   Archive a completed and verified change. Use when verification has passed and the change
