@@ -10,14 +10,26 @@ const (
 	ScreenRestoreConfirm Screen = "restoreConfirm"
 	ScreenDeleteConfirm  Screen = "deleteConfirm"
 	ScreenBackupResult   Screen = "backupResult"
-	ScreenInstall        Screen = "install"
-	ScreenAgentSelect    Screen = "agentSelect" // Agent selection before install pipeline
-	ScreenSetupLocal     Screen = "setupLocal"
+	ScreenInstall           Screen = "install"
+	ScreenAgentSelect       Screen = "agentSelect"       // Agent selection before install pipeline
+	ScreenPersona           Screen = "persona"           // Persona selection after agent select
+	ScreenPreset            Screen = "preset"            // Ecosystem preset selection after persona
+	ScreenClaudeModelPicker Screen = "claudeModelPicker" // Claude model assignments (when Claude selected)
+	ScreenKiroModelPicker   Screen = "kiroModelPicker"   // Kiro model assignments (when Kiro selected)
+	ScreenSDDMode           Screen = "sddMode"           // SDD mode for OpenCode
+	ScreenStrictTDD         Screen = "strictTDD"         // Strict TDD for OpenCode+SDD
+	ScreenSetupLocal        Screen = "setupLocal"
 	ScreenUpgrade        Screen = "upgrade"
 	ScreenSync           Screen = "sync"
 	ScreenUpgradeSync    Screen = "upgradeSync"
 	ScreenUninstall      Screen = "uninstall"
 	ScreenComplete       Screen = "complete" // Post-install completion summary
+
+	ScreenDetection           Screen = "detection"          // System detection before agent select
+	ScreenReview              Screen = "review"             // Review and confirm before install
+	ScreenDependencyTree      Screen = "dependencyTree"     // Component list with auto-dep badges
+	ScreenOpenCodeModelPicker Screen = "openCodeModelPicker" // OpenCode 4-level model picker
+	ScreenSkillPicker         Screen = "skillPicker"        // Custom preset skill selection
 )
 
 // Route defines the transitions from a screen.

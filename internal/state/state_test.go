@@ -53,7 +53,7 @@ func TestMergeAgents(t *testing.T) {
 				ModelAssignments:       existingAssignments,
 				ClaudeModelAssignments: existingClaude,
 				KiroModelAssignments:   existingKiro,
-				Persona:                "gentleman",
+				Persona:                "argentina",
 			},
 			newAgents: []string{"pi"},
 			wantIDs:   []string{"opencode", "pi"},
@@ -110,7 +110,7 @@ func TestWriteAndRead(t *testing.T) {
 // `specai sync` regenerates the persona the user actually selected — not a
 // hard-coded default.
 func TestPersonaRoundTrip(t *testing.T) {
-	for _, persona := range []string{"gentleman", "neutral", "custom"} {
+	for _, persona := range []string{"argentina", "neutral", "custom"} {
 		t.Run(persona, func(t *testing.T) {
 			home := t.TempDir()
 			if err := Write(home, InstallState{

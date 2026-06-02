@@ -39,7 +39,7 @@ func makeInstallContext(t *testing.T, adapters ...system.IDEAdapter) (*InstallCo
 func TestResolvePersona_AgentHasDedicatedPersona(t *testing.T) {
 	agentPersona := []byte("agent-specific persona content")
 	pFS := newTestPersonaFS(map[string][]byte{
-		"claude/persona-gentleman.md": agentPersona,
+		"claude/persona-argentina.md": agentPersona,
 	})
 
 	ide := makeStubIDEFull(t, t.TempDir(), "claude", model.AgentClaudeCode, "claude")
@@ -52,10 +52,10 @@ func TestResolvePersona_AgentHasDedicatedPersona(t *testing.T) {
 	}
 }
 
-func TestResolvePersona_FallbackToGenericGentleman(t *testing.T) {
-	genericGentleman := []byte("generic gentleman persona")
+func TestResolvePersona_FallbackToGenericArgentina(t *testing.T) {
+	genericArgentina := []byte("generic argentina persona")
 	pFS := newTestPersonaFS(map[string][]byte{
-		"generic/persona-gentleman.md": genericGentleman,
+		"generic/persona-argentina.md": genericArgentina,
 		// No agent-specific persona
 	})
 
@@ -64,8 +64,8 @@ func TestResolvePersona_FallbackToGenericGentleman(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolvePersona returned unexpected error: %v", err)
 	}
-	if string(got) != string(genericGentleman) {
-		t.Errorf("resolvePersona = %q, want %q", got, genericGentleman)
+	if string(got) != string(genericArgentina) {
+		t.Errorf("resolvePersona = %q, want %q", got, genericArgentina)
 	}
 }
 
@@ -73,7 +73,7 @@ func TestResolvePersona_FallbackToNeutralPersona(t *testing.T) {
 	neutralPersona := []byte("neutral persona content")
 	pFS := newTestPersonaFS(map[string][]byte{
 		"generic/persona-neutral.md": neutralPersona,
-		// No agent-specific nor generic gentleman
+		// No agent-specific nor generic argentina persona
 	})
 
 	ide := makeStubIDEFull(t, t.TempDir(), "cursor", model.AgentCursor, "cursor")

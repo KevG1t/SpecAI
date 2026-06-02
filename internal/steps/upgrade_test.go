@@ -32,7 +32,7 @@ func TestStepInstallUpdates_NoUpdatesAvailable(t *testing.T) {
 	ctx := &UpgradeContext{
 		Results: []update.UpdateResult{
 			{
-				Tool:   update.ToolInfo{Name: "gentle-ai", InstallMethod: update.InstallBinary},
+				Tool:   update.ToolInfo{Name: "specai", InstallMethod: update.InstallBinary},
 				Status: update.UpToDate,
 			},
 			{

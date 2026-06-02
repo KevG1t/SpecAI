@@ -20,7 +20,7 @@ const (
 	AgentTrae          AgentID = "trae-ide"
 )
 
-// SupportTier indicates how fully an agent supports the Gentleman AI ecosystem.
+// SupportTier indicates how fully an agent supports the SpecAI ecosystem.
 // All current agents receive the full SDD orchestrator, skill files, MCP config,
 // and system prompt injection. The tier is kept as metadata for display purposes.
 type SupportTier string
@@ -40,10 +40,9 @@ const (
 	ComponentContext7           ComponentID = "context7"
 	ComponentPersona            ComponentID = "persona"
 	ComponentPermission         ComponentID = "permissions"
-	ComponentGGA                ComponentID = "gga"
 	ComponentTheme              ComponentID = "theme"
 	ComponentClaudeTheme        ComponentID = "claude-theme"
-	ComponentOpenCodeGentleLogo ComponentID = "opencode-gentle-logo"
+	ComponentOpenCodeArgentinaLogo ComponentID = "opencode-argentina-logo"
 )
 
 type UninstallMode string
@@ -91,7 +90,7 @@ const (
 type PersonaID string
 
 const (
-	PersonaGentleman PersonaID = "gentleman"
+	PersonaArgentina PersonaID = "argentina"
 	PersonaNeutral   PersonaID = "neutral"
 	PersonaCustom    PersonaID = "custom"
 )
@@ -135,7 +134,7 @@ const (
 type PresetID string
 
 const (
-	PresetFullGentleman PresetID = "full-gentleman"
+	PresetFull PresetID = "full"
 	PresetEcosystemOnly PresetID = "ecosystem-only"
 	PresetMinimal       PresetID = "minimal"
 	PresetCustom        PresetID = "custom"
@@ -167,7 +166,7 @@ type OpenCodeCommunityPluginID string
 const (
 	OpenCodePluginSubAgentStatusline OpenCodeCommunityPluginID = "sub-agent-statusline"
 	OpenCodePluginSDDMemoryManage    OpenCodeCommunityPluginID = "sdd-engram-plugin"
-	OpenCodePluginGentleLogo         OpenCodeCommunityPluginID = "gentle-logo"
+	OpenCodePluginArgentinaLogo OpenCodeCommunityPluginID = "argentina-logo"
 )
 
 // Profile represents a named SDD orchestrator configuration with model assignments.
