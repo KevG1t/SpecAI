@@ -18,6 +18,8 @@ var mvpComponents = []Component{
 	{ID: model.ComponentTheme, Name: "Theme", Description: "SpecAI Kanagawa theme overlay"},
 	{ID: model.ComponentClaudeTheme, Name: "Claude SpecAI Theme", Description: "Claude Code SpecAI custom theme"},
 	{ID: model.ComponentOpenCodeArgentinaLogo, Name: "OpenCode Argentina Logo", Description: "OpenCode home logo TUI plugin with Braille rose"},
+	{ID: model.ComponentNotion, Name: "Notion MCP", Description: "Notion MCP server for workspace context"},
+	{ID: model.ComponentJira, Name: "Jira MCP", Description: "Jira/Confluence MCP server for issue tracking"},
 }
 
 func MVPComponents() []Component {
@@ -26,35 +28,37 @@ func MVPComponents() []Component {
 	return components
 }
 
-// ComponentsForPreset returns the base ComponentIDs for a given preset.
-// The returned slice is a fresh copy each call — callers may modify it without
-// affecting subsequent calls or the internal catalog state.
-func ComponentsForPreset(preset model.PresetID) []model.ComponentID {
-	switch preset {
-	case model.PresetFull:
-		out := make([]model.ComponentID, len(mvpComponents))
-		for i, c := range mvpComponents {
-			out[i] = c.ID
-		}
-		return out
-	case model.PresetEcosystemOnly:
-		return []model.ComponentID{
+var presetComponents = buildPresetComponents()
+
+func buildPresetComponents() map[model.PresetID][]model.ComponentID {
+	full := make([]model.ComponentID, len(mvpComponents))
+	for i, c := range mvpComponents {
+		full[i] = c.ID
+	}
+	return map[model.PresetID][]model.ComponentID{
+		model.PresetFull: full,
+		model.PresetEcosystemOnly: {
 			model.ComponentSDDMemory,
 			model.ComponentSDD,
 			model.ComponentSkills,
 			model.ComponentContext7,
+			model.ComponentNotion,
+			model.ComponentJira,
 			model.ComponentPersona,
 			model.ComponentPermission,
-		}
-	case model.PresetMinimal:
-		return []model.ComponentID{
+		},
+		model.PresetMinimal: {
 			model.ComponentSDDMemory,
 			model.ComponentSDD,
 			model.ComponentPersona,
-		}
-	case model.PresetCustom:
-		return []model.ComponentID{}
-	default:
-		return []model.ComponentID{}
+		},
 	}
+}
+
+// ComponentsForPreset returns the base ComponentIDs for a given preset.
+// The returned slice is a fresh copy each call — callers may modify it without
+// affecting subsequent calls or the internal catalog state.
+func ComponentsForPreset(preset model.PresetID) []model.ComponentID {
+	src := presetComponents[preset]
+	return append([]model.ComponentID{}, src...)
 }

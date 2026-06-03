@@ -5,6 +5,8 @@ import "fmt"
 // installHintGit returns the platform-specific install hint for git.
 func installHintGit(profile PlatformProfile) string {
 	switch {
+	case profile.IsTermux:
+		return "pkg install git"
 	case profile.OS == "darwin":
 		return "brew install git"
 	case profile.OS == "windows":
@@ -23,6 +25,8 @@ func installHintGit(profile PlatformProfile) string {
 // installHintCurl returns the platform-specific install hint for curl.
 func installHintCurl(profile PlatformProfile) string {
 	switch {
+	case profile.IsTermux:
+		return "pkg install curl"
 	case profile.OS == "darwin":
 		return "brew install curl"
 	case profile.OS == "windows":
@@ -41,6 +45,8 @@ func installHintCurl(profile PlatformProfile) string {
 // installHintNode returns the platform-specific install hint for Node.js.
 func installHintNode(profile PlatformProfile) string {
 	switch {
+	case profile.IsTermux:
+		return "pkg install nodejs"
 	case profile.OS == "darwin":
 		return "brew install node"
 	case profile.OS == "windows":
@@ -70,6 +76,8 @@ func installHintBrew() string {
 // installHintGo returns the platform-specific install hint for Go.
 func installHintGo(profile PlatformProfile) string {
 	switch {
+	case profile.IsTermux:
+		return "pkg install golang"
 	case profile.OS == "darwin":
 		return "brew install go"
 	case profile.OS == "windows":
@@ -109,6 +117,8 @@ func InstallCommandsForDep(name string, profile PlatformProfile) [][]string {
 
 func installCommandsGit(profile PlatformProfile) [][]string {
 	switch {
+	case profile.IsTermux:
+		return [][]string{{"pkg", "install", "git"}}
 	case profile.OS == "darwin":
 		return [][]string{{"brew", "install", "git"}}
 	case profile.OS == "windows":
@@ -126,6 +136,8 @@ func installCommandsGit(profile PlatformProfile) [][]string {
 
 func installCommandsCurl(profile PlatformProfile) [][]string {
 	switch {
+	case profile.IsTermux:
+		return [][]string{{"pkg", "install", "curl"}}
 	case profile.OS == "darwin":
 		return [][]string{{"brew", "install", "curl"}}
 	case profile.OS == "windows":
@@ -144,6 +156,8 @@ func installCommandsCurl(profile PlatformProfile) [][]string {
 
 func installCommandsNode(profile PlatformProfile) [][]string {
 	switch {
+	case profile.IsTermux:
+		return [][]string{{"pkg", "install", "nodejs"}}
 	case profile.OS == "darwin":
 		return [][]string{{"brew", "install", "node"}}
 	case profile.OS == "windows":
@@ -178,6 +192,8 @@ func installCommandsBrew(profile PlatformProfile) [][]string {
 
 func installCommandsGo(profile PlatformProfile) [][]string {
 	switch {
+	case profile.IsTermux:
+		return [][]string{{"pkg", "install", "golang"}}
 	case profile.OS == "darwin":
 		return [][]string{{"brew", "install", "go"}}
 	case profile.OS == "windows":

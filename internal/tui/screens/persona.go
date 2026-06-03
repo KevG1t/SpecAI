@@ -15,12 +15,14 @@ type PersonaSelectedMsg struct {
 
 var personaOptions = []model.PersonaID{
 	model.PersonaArgentina,
+	model.PersonaNicaragua,
 	model.PersonaNeutral,
 	model.PersonaCustom,
 }
 
 var personaDescriptions = map[model.PersonaID]string{
 	model.PersonaArgentina: "Managed Argentina persona with teaching-first guidance and Rioplatense tone",
+	model.PersonaNicaragua: "Managed Nicaragua persona with teaching-first guidance and Central American tone",
 	model.PersonaNeutral:   "Managed neutral persona with the same guidance and less regional tone",
 	model.PersonaCustom:    "Keep your existing persona unmanaged; SpecAI does not inject a persona",
 }

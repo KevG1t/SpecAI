@@ -54,6 +54,17 @@ func vscodeCopilotGlobalConfigDir(homeDir string) string {
 	return filepath.Join(homeDir, ".copilot")
 }
 
+// AgentConfigDir returns the primary config directory for a known agent ID.
+// Returns "" for unknown agent IDs. Used by backup/status commands.
+func AgentConfigDir(homeDir, agentID string) string {
+	for _, state := range knownAgentConfigDirs(homeDir) {
+		if state.Agent == agentID {
+			return state.Path
+		}
+	}
+	return ""
+}
+
 // ScanConfigs returns the presence state of every known managed agent's global
 // This is a compatibility shim: it preserves the ConfigState contract for TUI
 // and validation callers while the canonical discovery (agents.DiscoverInstalled)

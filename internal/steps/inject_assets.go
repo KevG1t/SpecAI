@@ -1,8 +1,10 @@
 package steps
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
+	"log"
 	"path/filepath"
 	"strings"
 
@@ -21,14 +23,25 @@ type AssetInjector interface {
 }
 
 type assetInjector struct {
-	fs afero.Fs
+	fs      afero.Fs
+	force   bool     // when true, overwrite user-modified files
+	skipped []string // paths skipped because they differ from embedded source and force=false
 }
 
+// NewAssetInjector returns an AssetInjector with force=false (preserves user edits).
 func NewAssetInjector(fsys afero.Fs) AssetInjector {
 	if fsys == nil {
 		fsys = afero.NewOsFs()
 	}
 	return &assetInjector{fs: fsys}
+}
+
+// NewAssetInjectorWithOpts returns an AssetInjector with configurable force behavior.
+func NewAssetInjectorWithOpts(fsys afero.Fs, force bool) AssetInjector {
+	if fsys == nil {
+		fsys = afero.NewOsFs()
+	}
+	return &assetInjector{fs: fsys, force: force}
 }
 
 // InjectAgentFolder copies {agentFolder}/* into targetDir.
@@ -85,6 +98,21 @@ func (a *assetInjector) walkAndCopy(srcDir, targetDir string) error {
 		mode := fs.FileMode(0644)
 		if info, err2 := d.Info(); err2 == nil {
 			mode = info.Mode()
+		}
+
+		// Idempotency check: compare existing file content with embedded source.
+		if existing, readErr := afero.ReadFile(a.fs, dstPath); readErr == nil {
+			if bytes.Equal(existing, data) {
+				// Identical — skip silently (idempotent re-install).
+				return nil
+			}
+			if !a.force {
+				// Different and not forced — preserve user edit, record in skipped.
+				a.skipped = append(a.skipped, dstPath)
+				log.Printf("specai: skipping user-modified file %s (use --force to overwrite)", dstPath)
+				return nil
+			}
+			// force=true — fall through to overwrite.
 		}
 
 		return afero.WriteFile(a.fs, dstPath, data, mode)

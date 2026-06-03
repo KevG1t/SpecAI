@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/KevG1t/SpecAI/internal/agents"
 	"github.com/KevG1t/SpecAI/internal/backup"
 	"github.com/KevG1t/SpecAI/internal/catalog"
 	"github.com/KevG1t/SpecAI/internal/model"
@@ -35,6 +36,8 @@ type MainModel struct {
 	dependencyTree      screens.DependencyTreeModel
 	openCodeModelPicker screens.OpenCodeModelPickerModel
 	skillPicker         screens.SkillPickerModel
+	mcpPicker           screens.MCPPickerModel
+	configPicker        screens.ConfigPickerModel
 
 	install    screens.InstallModel
 	setupLocal screens.SetupLocalModel
@@ -287,13 +290,43 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.installCtx != nil {
 			m.installCtx.SelectedComponents = nil // reset; skills are kept in sel
 		}
-		// Build review payload with selected skills.
+		// In the Custom preset flow, route through MCP picker before review.
+		if m.selectedPreset == model.PresetCustom {
+			m.mcpPicker = screens.NewMCPPickerModel()
+			m.setCurrentScreen(ScreenMCPPicker)
+			return m, nil
+		}
+		// Non-custom presets: build review payload and go directly to review.
 		sel := m.buildSelection()
 		sel.Components = m.resolvedPlan.OrderedComponents
 		sel.Skills = msg.Skills
 		payload := planner.BuildReviewPayload(sel, m.resolvedPlan)
 		m.review = screens.NewReviewModel(payload)
 		m.setCurrentScreen(ScreenReview)
+		return m, nil
+
+	case screens.MCPServersSelectedMsg:
+		// Store selected MCP component IDs (Custom flow).
+		if m.installCtx != nil {
+			m.installCtx.SelectedMCPServers = msg.ComponentIDs
+		}
+		m.configPicker = screens.NewConfigPickerModel()
+		m.setCurrentScreen(ScreenConfigPicker)
+		return m, nil
+
+	case screens.ConfigSelectedMsg:
+		// Store config customization (Custom flow).
+		if m.installCtx != nil {
+			m.installCtx.Theme = msg.Theme
+			m.installCtx.PermissionsLevel = msg.PermissionsLevel
+			m.installCtx.EditorMode = msg.EditorMode
+		}
+		// Proceed to dependency tree / review.
+		m.dependencyTree = screens.NewDependencyTreeModel(
+			m.selectedPreset, m.resolvedPlan, m.selectedAgents,
+			planner.NewResolver(planner.MVPGraph()).Resolve,
+		)
+		m.setCurrentScreen(ScreenDependencyTree)
 		return m, nil
 
 	case screens.ReviewConfirmedMsg:
@@ -392,19 +425,32 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 
+				// Pre-flight: validate agent selection for known conflicts.
+				agentIDs := make([]model.AgentID, len(ctx.IDEs))
+				for i, ide := range ctx.IDEs {
+					agentIDs[i] = ide.AgentID()
+				}
+				agentWarnings := agents.ValidateAgentSelection(agentIDs)
+				for _, w := range agentWarnings {
+					ctx.Warnings = append(ctx.Warnings, w.Message)
+				}
+
 				// Map ResolvedPlan to StagePlan manually
 				var applySteps []pipeline.Step
 				applySteps = append(applySteps, steps.NewStepInstallGlobalRules(ctx)) // Persona
 
-				// Inject assets (Skills, SDD, sdd-memory config)
-				injector := steps.NewAssetInjector(nil)
+				// Inject assets (Skills, SDD, sdd-memory config) — idempotent via ForceAssets flag.
+				injector := steps.NewAssetInjectorWithOpts(nil, ctx.ForceAssets)
 				applySteps = append(applySteps, steps.NewStepInjectAssets(ctx, injector, resolvedPlan))
+				applySteps = append(applySteps, steps.NewStepInstallAgents(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectSubAgents(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectOpenCodePlugins(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectSDDMemory(ctx))
+				applySteps = append(applySteps, steps.NewStepInjectSDDMemoryService(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectOpenCodeOverlay(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectSlashCommands(ctx))
 				applySteps = append(applySteps, steps.NewStepInjectMCP(ctx))
+				applySteps = append(applySteps, steps.NewStepInjectMCPComponents(ctx, resolvedPlan))
 
 				prepareSteps := []pipeline.Step{}
 				// Scan first if IDEs weren't pre-populated (fallback path).
@@ -480,10 +526,19 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var payload *screens.CompletePayload
 			if msg.Action == "Install" && installCtx != nil {
 				rollbackPerformed := res.Rollback.Stage == pipeline.StageRollback
+
+				// Convert agents.ValidationWarning → screens.ValidationWarning.
+				var screenWarnings []screens.ValidationWarning
+				for _, w := range installCtx.Warnings {
+					screenWarnings = append(screenWarnings, screens.ValidationWarning{Message: w})
+				}
+
 				payload = &screens.CompletePayload{
 					ConfiguredAgents:    len(installCtx.IDEs),
 					InstalledComponents: len(plan.Apply),
 					RollbackPerformed:   rollbackPerformed,
+					AuthGuidance:        installCtx.AuthGuidance,
+					ValidationWarnings:  screenWarnings,
 				}
 				if res.Err != nil {
 					payload.FailedSteps = append(payload.FailedSteps, screens.FailedStep{
@@ -614,6 +669,16 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		spModel, cmd = m.skillPicker.Update(msg)
 		m.skillPicker = spModel.(screens.SkillPickerModel)
 		cmds = append(cmds, cmd)
+	case ScreenMCPPicker:
+		var mpModel tea.Model
+		mpModel, cmd = m.mcpPicker.Update(msg)
+		m.mcpPicker = mpModel.(screens.MCPPickerModel)
+		cmds = append(cmds, cmd)
+	case ScreenConfigPicker:
+		var cpModel tea.Model
+		cpModel, cmd = m.configPicker.Update(msg)
+		m.configPicker = cpModel.(screens.ConfigPickerModel)
+		cmds = append(cmds, cmd)
 	case ScreenBackups, ScreenRestoreConfirm, ScreenDeleteConfirm, ScreenBackupResult:
 		m, cmd = m.UpdateBackups(msg)
 		cmds = append(cmds, cmd)
@@ -662,6 +727,10 @@ func (m MainModel) View() string {
 		return m.openCodeModelPicker.View()
 	case ScreenSkillPicker:
 		return m.skillPicker.View()
+	case ScreenMCPPicker:
+		return m.mcpPicker.View()
+	case ScreenConfigPicker:
+		return m.configPicker.View()
 	case ScreenLoading:
 		// Not used anymore as each screen handles its own "running" state
 		return ""

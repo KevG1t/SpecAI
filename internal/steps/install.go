@@ -39,6 +39,21 @@ type InstallContext struct {
 	// SelectedComponents holds the component IDs confirmed by the user
 	// (after dependency tree screen). Zero value is safe for existing consumers.
 	SelectedComponents []model.ComponentID
+
+	// Custom flow config fields (set via MCPPickerModel and ConfigPickerModel).
+	// Zero values are safe: pipeline steps gate on non-empty/non-zero values.
+	SelectedMCPServers []model.ComponentID // MCP servers selected in Custom flow
+	Theme              string              // "kanagawa" | "default"
+	PermissionsLevel   string              // "strict" | "standard" | "permissive"
+	EditorMode         string              // "vim" | "emacs" | "default"
+
+	// Side-channel fields populated by pipeline steps (ADR-1).
+	// Steps write structured results here; the goroutine reads them after orch.Execute.
+	Warnings      []string // soft non-fatal issues accumulated by steps
+	AuthGuidance  []string // post-install auth instructions for MCP servers
+	SkippedAssets []string // files skipped by walkAndCopy due to user edits
+	ForceAssets   bool     // when true, walkAndCopy overwrites user-modified files
+	Platform      system.PlatformProfile // platform detected at pipeline assembly time
 }
 
 func NewInstallContext() (*InstallContext, error) {

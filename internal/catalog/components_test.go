@@ -17,18 +17,18 @@ func TestComponentsForPreset(t *testing.T) {
 		mustMiss    []model.ComponentID
 	}{
 		{
-			name:       "Full preset returns all 9 components",
+			name:       "Full preset returns all 11 components",
 			preset:     model.PresetFull,
-			wantLen:    9,
+			wantLen:    11,
 			wantFirst:  model.ComponentSDDMemory,
 			wantNotNil: true,
 		},
 		{
-			name:        "EcosystemOnly returns 6 components without Theme",
+			name:        "EcosystemOnly returns 8 components without Theme",
 			preset:      model.PresetEcosystemOnly,
-			wantLen:     6,
+			wantLen:     8,
 			wantNotNil:  true,
-			mustContain: []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD, model.ComponentPersona},
+			mustContain: []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD, model.ComponentPersona, model.ComponentNotion, model.ComponentJira},
 			mustMiss:    []model.ComponentID{model.ComponentTheme},
 		},
 		{
@@ -90,6 +90,22 @@ func TestComponentsForPreset_Independence(t *testing.T) {
 	second := ComponentsForPreset(model.PresetFull)
 	if second[0] == model.ComponentID("tampered") {
 		t.Error("second call returned a slice that shares backing array with first call")
+	}
+}
+
+func TestComponentsForPreset_FullDerivedFromMVP(t *testing.T) {
+	presets := buildPresetComponents()
+	fullIDs := presets[model.PresetFull]
+
+	mvp := MVPComponents()
+	if len(fullIDs) != len(mvp) {
+		t.Fatalf("PresetFull has %d IDs, want %d (len of mvpComponents)", len(fullIDs), len(mvp))
+	}
+
+	for i, c := range mvp {
+		if fullIDs[i] != c.ID {
+			t.Errorf("PresetFull[%d] = %q, want %q (from mvpComponents)", i, fullIDs[i], c.ID)
+		}
 	}
 }
 

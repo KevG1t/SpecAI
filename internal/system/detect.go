@@ -6,7 +6,18 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/KevG1t/SpecAI/internal/model"
 )
+
+// wslVersionContent is injectable for testing (avoids real /proc/version reads in tests).
+var wslVersionContent = func() (string, bool) {
+	data, err := os.ReadFile("/proc/version")
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
 
 type SystemInfo struct {
 	OS        string
@@ -23,6 +34,8 @@ type PlatformProfile struct {
 	NpmWritable    bool // true when npm global prefix is user-writable (nvm/fnm/volta)
 	GoAvailable    bool // true when `go` is found on PATH (used for auto-detect: brew → go-install → binary)
 	Supported      bool
+	IsWSL          bool // true when running inside WSL2 (detected via WSL_DISTRO_NAME env or /proc/version)
+	IsTermux       bool // true when running inside Termux (detected via TERMUX_VERSION env)
 }
 
 const (
@@ -34,10 +47,11 @@ const (
 )
 
 type DetectionResult struct {
-	System       SystemInfo
-	Tools        map[string]ToolStatus
-	Configs      []ConfigState
-	Dependencies DependencyReport
+	System        SystemInfo
+	Tools         map[string]ToolStatus
+	Configs       []ConfigState
+	Dependencies  DependencyReport
+	ComponentTree ComponentDepTree // nil when no selection is active
 }
 
 func IsSupportedOS(goos string) bool {
@@ -63,6 +77,20 @@ func Detect(ctx context.Context) (DetectionResult, error) {
 	}
 	result.Dependencies = DetectDependencies(ctx, result.System.Profile)
 
+	return result, nil
+}
+
+// DetectWithSelection runs full system detection and additionally builds a
+// ComponentDepTree for the provided component selection.
+// If selection is empty, ComponentTree is nil and behavior is identical to Detect.
+func DetectWithSelection(ctx context.Context, selection []model.ComponentID) (DetectionResult, error) {
+	result, err := Detect(ctx)
+	if err != nil {
+		return result, err
+	}
+	if len(selection) > 0 {
+		result.ComponentTree = BuildComponentDepTree(ctx, selection, result.System.Profile)
+	}
 	return result, nil
 }
 
@@ -130,6 +158,28 @@ func resolvePlatformProfile(goos, linuxOSRelease string, tools map[string]ToolSt
 	case "linux":
 		distro := detectLinuxDistro(linuxOSRelease)
 		profile.LinuxDistro = distro
+
+		// Detect WSL2: check WSL_DISTRO_NAME env first (fastest), then /proc/version.
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			profile.IsWSL = true
+		} else if content, ok := wslVersionContent(); ok {
+			lower := strings.ToLower(content)
+			if strings.Contains(lower, "microsoft") || strings.Contains(lower, "wsl") {
+				profile.IsWSL = true
+			}
+		}
+
+		// Detect Termux: TERMUX_VERSION is always set by the Termux environment.
+		if os.Getenv("TERMUX_VERSION") != "" {
+			profile.IsTermux = true
+		}
+
+		// Termux has its own pkg manager; skip brew/distro detection.
+		if profile.IsTermux {
+			profile.PackageManager = "pkg"
+			profile.Supported = true
+			return profile
+		}
 
 		// Check if brew is available on Linux
 		if brew, ok := tools["brew"]; ok && brew.Installed {

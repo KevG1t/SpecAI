@@ -30,6 +30,8 @@ const (
 	ScreenDependencyTree      Screen = "dependencyTree"     // Component list with auto-dep badges
 	ScreenOpenCodeModelPicker Screen = "openCodeModelPicker" // OpenCode 4-level model picker
 	ScreenSkillPicker         Screen = "skillPicker"        // Custom preset skill selection
+	ScreenMCPPicker           Screen = "mcpPicker"          // MCP server selection (Custom flow only)
+	ScreenConfigPicker        Screen = "configPicker"       // Config customization (Custom flow only)
 )
 
 // Route defines the transitions from a screen.

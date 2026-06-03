@@ -24,6 +24,17 @@ var mvpSkills = []Skill{
 	{ID: model.SkillSDDOnboard, Name: "sdd-onboard", Category: "sdd", Priority: "p0"},
 	// Foundation skills
 	{ID: model.SkillGoTesting, Name: "go-testing", Category: "testing", Priority: "p0"},
+	// Coding skills (P0)
+	{ID: model.SkillTypeScript, Name: "typescript", Category: "coding", Priority: "p0"},
+	{ID: model.SkillClaudeDevPlatform, Name: "claude-developer-platform", Category: "coding", Priority: "p0"},
+	// Coding skills (P1)
+	{ID: model.SkillReact19, Name: "react-19", Category: "coding", Priority: "p1"},
+	{ID: model.SkillNextjs15, Name: "nextjs-15", Category: "coding", Priority: "p1"},
+	{ID: model.SkillTailwind4, Name: "tailwind-4", Category: "coding", Priority: "p1"},
+	{ID: model.SkillZod4, Name: "zod-4", Category: "coding", Priority: "p1"},
+	{ID: model.SkillAiSdk5, Name: "ai-sdk-5", Category: "coding", Priority: "p1"},
+	{ID: model.SkillPlaywright, Name: "playwright", Category: "coding", Priority: "p1"},
+	{ID: model.SkillPytest, Name: "pytest", Category: "coding", Priority: "p1"},
 	{ID: model.SkillCreator, Name: "skill-creator", Category: "workflow", Priority: "p0"},
 	{ID: model.SkillImprover, Name: "skill-improver", Category: "workflow", Priority: "p0"},
 	{ID: model.SkillJudgmentDay, Name: "judgment-day", Category: "workflow", Priority: "p0"},

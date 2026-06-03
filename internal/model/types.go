@@ -43,6 +43,8 @@ const (
 	ComponentTheme              ComponentID = "theme"
 	ComponentClaudeTheme        ComponentID = "claude-theme"
 	ComponentOpenCodeArgentinaLogo ComponentID = "opencode-argentina-logo"
+	ComponentNotion                ComponentID = "notion"
+	ComponentJira                  ComponentID = "jira"
 )
 
 type UninstallMode string
@@ -74,7 +76,16 @@ const (
 	SkillSDDTasks        SkillID = "sdd-tasks"
 	SkillSDDArchive      SkillID = "sdd-archive"
 	SkillSDDOnboard      SkillID = "sdd-onboard"
-	SkillGoTesting       SkillID = "go-testing"
+	SkillGoTesting          SkillID = "go-testing"
+	SkillTypeScript          SkillID = "typescript"
+	SkillClaudeDevPlatform   SkillID = "claude-developer-platform"
+	SkillReact19             SkillID = "react-19"
+	SkillNextjs15            SkillID = "nextjs-15"
+	SkillTailwind4           SkillID = "tailwind-4"
+	SkillZod4                SkillID = "zod-4"
+	SkillAiSdk5              SkillID = "ai-sdk-5"
+	SkillPlaywright          SkillID = "playwright"
+	SkillPytest              SkillID = "pytest"
 	SkillCreator         SkillID = "skill-creator"
 	SkillImprover        SkillID = "skill-improver"
 	SkillJudgmentDay     SkillID = "judgment-day"
@@ -91,6 +102,7 @@ type PersonaID string
 
 const (
 	PersonaArgentina PersonaID = "argentina"
+	PersonaNicaragua PersonaID = "nicaragua"
 	PersonaNeutral   PersonaID = "neutral"
 	PersonaCustom    PersonaID = "custom"
 )

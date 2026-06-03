@@ -1,13 +1,12 @@
 package steps
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 
 	"github.com/KevG1t/SpecAI/internal/assets"
+	"github.com/KevG1t/SpecAI/internal/components/filemerge"
 	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/util"
 	"github.com/spf13/afero"
 )
 
@@ -53,12 +52,6 @@ func (s *StepInjectOpenCodeOverlay) Run() error {
 		return err
 	}
 
-	// Decode overlay as map[string]any.
-	var overlay map[string]any
-	if err := json.Unmarshal(overlayBytes, &overlay); err != nil {
-		return err
-	}
-
 	configPath := filepath.Join(s.ctx.HomeDir, ".config", "opencode", "opencode.json")
 	fsys := s.filesystem()
 
@@ -71,7 +64,7 @@ func (s *StepInjectOpenCodeOverlay) Run() error {
 		return err
 	}
 
-	merged, err := util.MergeJSON(existing, overlay)
+	merged, err := filemerge.MergeJSONObjects(existing, overlayBytes)
 	if err != nil {
 		return err
 	}

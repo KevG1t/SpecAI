@@ -29,13 +29,20 @@ type MissingDep struct {
 	Name string
 }
 
+// ValidationWarning carries a non-fatal advisory shown before/after install.
+type ValidationWarning struct {
+	Message string
+}
+
 // CompletePayload carries post-install summary data used by the completion screen.
 type CompletePayload struct {
-	ConfiguredAgents    int
-	InstalledComponents int
-	FailedSteps         []FailedStep
-	RollbackPerformed   bool
-	MissingDeps         []MissingDep
+	ConfiguredAgents     int
+	InstalledComponents  int
+	FailedSteps          []FailedStep
+	RollbackPerformed    bool
+	MissingDeps          []MissingDep
+	AuthGuidance         []string            // post-install auth instructions for MCP servers
+	ValidationWarnings   []ValidationWarning // pre/post pipeline advisories
 }
 
 type PipelineFinishedMsg struct {

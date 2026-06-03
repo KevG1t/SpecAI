@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/SpecAI/internal/steps"
 	"github.com/KevG1t/SpecAI/internal/system"
 	"github.com/KevG1t/SpecAI/internal/tui/screens"
 )
@@ -203,6 +204,100 @@ func TestNextScreenAfterConfig(t *testing.T) {
 				t.Errorf("nextScreenAfterConfig() = %v, want %v", got, tt.wantScreen)
 			}
 		})
+	}
+}
+
+// TestCustomFlowSkillsSelectedGoesToMCPPicker verifies that in the Custom preset flow,
+// receiving SkillsSelectedMsg routes to ScreenMCPPicker (not ScreenReview directly).
+func TestCustomFlowSkillsSelectedGoesToMCPPicker(t *testing.T) {
+	m := NewMainModel()
+	m.selectedPreset = model.PresetCustom
+
+	skillsMsg := screens.SkillsSelectedMsg{Skills: []model.SkillID{model.SkillSDDInit}}
+	newModel, _ := m.Update(skillsMsg)
+	m = newModel.(MainModel)
+
+	if m.currentScreen != ScreenMCPPicker {
+		t.Fatalf("Custom flow: SkillsSelectedMsg should route to ScreenMCPPicker, got %v", m.currentScreen)
+	}
+}
+
+// TestCustomFlowMCPServersSelectedGoesToConfigPicker verifies that in the Custom flow,
+// receiving MCPServersSelectedMsg routes to ScreenConfigPicker.
+func TestCustomFlowMCPServersSelectedGoesToConfigPicker(t *testing.T) {
+	m := NewMainModel()
+	m.selectedPreset = model.PresetCustom
+
+	mcpMsg := screens.MCPServersSelectedMsg{ComponentIDs: []model.ComponentID{model.ComponentContext7}}
+	newModel, _ := m.Update(mcpMsg)
+	m = newModel.(MainModel)
+
+	if m.currentScreen != ScreenConfigPicker {
+		t.Fatalf("Custom flow: MCPServersSelectedMsg should route to ScreenConfigPicker, got %v", m.currentScreen)
+	}
+}
+
+// TestCustomFlowConfigSelectedGoesToDependencyTree verifies that receiving ConfigSelectedMsg
+// routes to ScreenDependencyTree.
+func TestCustomFlowConfigSelectedGoesToDependencyTree(t *testing.T) {
+	m := NewMainModel()
+	m.selectedPreset = model.PresetCustom
+
+	configMsg := screens.ConfigSelectedMsg{
+		Theme:            "kanagawa",
+		PermissionsLevel: "strict",
+		EditorMode:       "vim",
+	}
+	newModel, _ := m.Update(configMsg)
+	m = newModel.(MainModel)
+
+	if m.currentScreen != ScreenDependencyTree {
+		t.Fatalf("Custom flow: ConfigSelectedMsg should route to ScreenDependencyTree, got %v", m.currentScreen)
+	}
+}
+
+// TestCustomFlowConfigStoredInInstallContext verifies that Theme, PermissionsLevel, and
+// EditorMode from ConfigSelectedMsg are stored in installCtx.
+func TestCustomFlowConfigStoredInInstallContext(t *testing.T) {
+	m := NewMainModel()
+	m.selectedPreset = model.PresetCustom
+	ctx, err := steps.NewInstallContext()
+	if err != nil {
+		t.Fatalf("NewInstallContext() error = %v", err)
+	}
+	m.installCtx = ctx
+
+	configMsg := screens.ConfigSelectedMsg{
+		Theme:            "kanagawa",
+		PermissionsLevel: "strict",
+		EditorMode:       "vim",
+	}
+	newModel, _ := m.Update(configMsg)
+	m = newModel.(MainModel)
+
+	if m.installCtx.Theme != "kanagawa" {
+		t.Fatalf("installCtx.Theme = %q, want %q", m.installCtx.Theme, "kanagawa")
+	}
+	if m.installCtx.PermissionsLevel != "strict" {
+		t.Fatalf("installCtx.PermissionsLevel = %q, want %q", m.installCtx.PermissionsLevel, "strict")
+	}
+	if m.installCtx.EditorMode != "vim" {
+		t.Fatalf("installCtx.EditorMode = %q, want %q", m.installCtx.EditorMode, "vim")
+	}
+}
+
+// TestNonCustomFlowSkillsSelectedGoesToReview verifies that non-Custom presets
+// route SkillsSelectedMsg directly to ScreenReview (not MCPPicker).
+func TestNonCustomFlowSkillsSelectedGoesToReview(t *testing.T) {
+	m := NewMainModel()
+	m.selectedPreset = model.PresetFull
+
+	skillsMsg := screens.SkillsSelectedMsg{Skills: []model.SkillID{model.SkillSDDInit}}
+	newModel, _ := m.Update(skillsMsg)
+	m = newModel.(MainModel)
+
+	if m.currentScreen == ScreenMCPPicker {
+		t.Fatal("Non-Custom flow: SkillsSelectedMsg must NOT route to ScreenMCPPicker")
 	}
 }
 

@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/KevG1t/SpecAI/internal/assets"
+	"github.com/KevG1t/SpecAI/internal/components/filemerge"
 	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/util"
 	"github.com/spf13/afero"
 )
 
@@ -233,7 +233,12 @@ func (s *StepInjectMCP) mergeAndWrite(path string, overlay map[string]any) error
 		return err
 	}
 
-	merged, err := util.MergeJSON(existing, overlay)
+	overlayBytes, err := json.Marshal(overlay)
+	if err != nil {
+		return fmt.Errorf("marshal overlay: %w", err)
+	}
+
+	merged, err := filemerge.MergeJSONObjects(existing, overlayBytes)
 	if err != nil {
 		return err
 	}

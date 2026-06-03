@@ -52,6 +52,28 @@ func RenderComplete(data CompletePayload) string {
 		}
 	}
 
+	// Auth guidance section.
+	if len(data.AuthGuidance) > 0 {
+		b.WriteString("\n")
+		b.WriteString(styles.HeadingStyle.Render("Auth setup required"))
+		b.WriteString("\n")
+		for _, g := range data.AuthGuidance {
+			for _, line := range strings.Split(g, "\n") {
+				b.WriteString(fmt.Sprintf("  %s\n", line))
+			}
+		}
+	}
+
+	// Pipeline warnings section.
+	if len(data.ValidationWarnings) > 0 {
+		b.WriteString("\n")
+		b.WriteString(styles.WarningStyle.Render("Warnings"))
+		b.WriteString("\n")
+		for _, w := range data.ValidationWarnings {
+			b.WriteString(fmt.Sprintf("  - %s\n", w.Message))
+		}
+	}
+
 	// Next steps section — always visible.
 	b.WriteString("\n")
 	b.WriteString(styles.HeadingStyle.Render("Next steps"))

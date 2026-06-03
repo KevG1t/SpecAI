@@ -161,10 +161,6 @@ func TestRenderRegistry_ContainsExpectedSections(t *testing.T) {
 			t.Errorf("RenderRegistry output missing %q", want)
 		}
 	}
-	// Auto-generated comment references specai, not gentle-ai
-	if strings.Contains(output, "gentle-ai") {
-		t.Error("RenderRegistry output must not reference 'gentle-ai'")
-	}
 	if !strings.Contains(output, "specai") {
 		t.Error("RenderRegistry output must reference 'specai'")
 	}

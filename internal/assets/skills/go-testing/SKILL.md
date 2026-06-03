@@ -49,3 +49,28 @@ Report test files changed, scenarios covered, commands executed, golden files up
 ## References
 
 - [references/examples.md](references/examples.md) — compact table-driven, Bubbletea, teatest, golden, and command examples.
+
+## Coding Patterns (SpecAI-specific)
+
+These patterns apply when writing tests for the SpecAI codebase specifically.
+
+### Package conventions
+
+- Test files live alongside implementation (`foo_test.go` next to `foo.go`).
+- Use the `_test` package suffix only for black-box tests; prefer white-box (`package foo`) for internal state access.
+
+### Mock boundaries
+
+- Inject dependencies via unexported `var` function variables (e.g., `var osReadFile = os.ReadFile`) and reassign in tests.
+- Always restore overridden vars with `t.Cleanup(func() { osReadFile = os.ReadFile })`.
+
+### BubbleTea screen tests
+
+- Test `Model.Update()` directly by sending `tea.Msg` values; assert the returned model fields.
+- Use `teatest.NewTestModel()` only for full interactive flows that require key-press sequences.
+- Assert emitted commands by calling the returned `tea.Cmd` and inspecting the `tea.Msg` it produces.
+
+### System / platform tests
+
+- Use `t.Setenv(key, value)` for environment variable injection; `t.Setenv` auto-restores after test.
+- For file-based detection (e.g., `/proc/version`), inject a reader function var, not a raw `os.ReadFile` call.

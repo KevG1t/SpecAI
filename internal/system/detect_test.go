@@ -1,6 +1,11 @@
 package system
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/KevG1t/SpecAI/internal/model"
+)
 
 func TestIsSupportedOS(t *testing.T) {
 	tests := []struct {
@@ -347,6 +352,88 @@ func TestGoAvailableInPlatformProfile(t *testing.T) {
 	}
 }
 
+// TestWSLDetectionViaEnvVar verifies that IsWSL is set when WSL_DISTRO_NAME is present.
+func TestWSLDetectionViaEnvVar(t *testing.T) {
+	t.Setenv("WSL_DISTRO_NAME", "Ubuntu-22.04")
+	// Ensure TERMUX_VERSION is absent so IsTermux is not set.
+	t.Setenv("TERMUX_VERSION", "")
+
+	profile := resolvePlatformProfile("linux", "ID=ubuntu\nID_LIKE=debian\n", nil)
+
+	if !profile.IsWSL {
+		t.Fatal("expected IsWSL=true when WSL_DISTRO_NAME is set")
+	}
+	if profile.IsTermux {
+		t.Fatal("expected IsTermux=false when TERMUX_VERSION is absent")
+	}
+}
+
+// TestWSLDetectionViaProcVersion verifies that IsWSL is set when /proc/version
+// contains "microsoft" and WSL_DISTRO_NAME is not set.
+func TestWSLDetectionViaProcVersion(t *testing.T) {
+	t.Setenv("WSL_DISTRO_NAME", "")
+	t.Setenv("TERMUX_VERSION", "")
+
+	// Override the wslVersionContent reader to simulate WSL kernel string.
+	original := wslVersionContent
+	wslVersionContent = func() (string, bool) {
+		return "Linux version 5.15.90.1-microsoft-standard-WSL2", true
+	}
+	t.Cleanup(func() { wslVersionContent = original })
+
+	profile := resolvePlatformProfile("linux", "ID=ubuntu\nID_LIKE=debian\n", nil)
+
+	if !profile.IsWSL {
+		t.Fatal("expected IsWSL=true when /proc/version contains 'microsoft'")
+	}
+}
+
+// TestTermuxDetectionViaEnvVar verifies that IsTermux is set when TERMUX_VERSION is present.
+func TestTermuxDetectionViaEnvVar(t *testing.T) {
+	t.Setenv("TERMUX_VERSION", "0.118.1")
+	t.Setenv("WSL_DISTRO_NAME", "")
+
+	// Override /proc/version reader so WSL is not falsely detected.
+	original := wslVersionContent
+	wslVersionContent = func() (string, bool) { return "", false }
+	t.Cleanup(func() { wslVersionContent = original })
+
+	profile := resolvePlatformProfile("linux", "", nil)
+
+	if !profile.IsTermux {
+		t.Fatal("expected IsTermux=true when TERMUX_VERSION is set")
+	}
+	if profile.IsWSL {
+		t.Fatal("expected IsWSL=false when WSL_DISTRO_NAME is absent")
+	}
+	if profile.PackageManager != "pkg" {
+		t.Fatalf("expected PackageManager=pkg for Termux, got %q", profile.PackageManager)
+	}
+	if !profile.Supported {
+		t.Fatal("expected Termux profile to be marked supported")
+	}
+}
+
+// TestNativeLLinuxNotFalselyDetectedAsWSLOrTermux verifies that a plain Linux
+// environment (no WSL or Termux env vars) does not set either flag.
+func TestNativeLLinuxNotFalselyDetectedAsWSLOrTermux(t *testing.T) {
+	t.Setenv("WSL_DISTRO_NAME", "")
+	t.Setenv("TERMUX_VERSION", "")
+
+	original := wslVersionContent
+	wslVersionContent = func() (string, bool) { return "Linux version 5.15.0-generic", true }
+	t.Cleanup(func() { wslVersionContent = original })
+
+	profile := resolvePlatformProfile("linux", "ID=ubuntu\nID_LIKE=debian\n", nil)
+
+	if profile.IsWSL {
+		t.Fatal("expected IsWSL=false on native Linux")
+	}
+	if profile.IsTermux {
+		t.Fatal("expected IsTermux=false on native Linux")
+	}
+}
+
 func TestDetectFromInputsShellDefaultsToUnknown(t *testing.T) {
 	result := detectFromInputs("darwin", "arm64", "", "", nil, nil)
 	if result.System.Shell != "unknown" {
@@ -396,5 +483,40 @@ func TestDetectFromInputsProfileIsPopulatedInSystem(t *testing.T) {
 	// System.Supported should mirror profile
 	if result.System.Supported != result.System.Profile.Supported {
 		t.Fatalf("System.Supported (%v) != Profile.Supported (%v)", result.System.Supported, result.System.Profile.Supported)
+	}
+}
+
+// --- T-9: DetectWithSelection smoke tests ---
+
+// TestDetectWithSelectionEmptySelection verifies that an empty selection produces nil ComponentTree.
+func TestDetectWithSelectionEmptySelection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	result, err := DetectWithSelection(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("DetectWithSelection returned error: %v", err)
+	}
+	if result.ComponentTree != nil {
+		t.Fatalf("expected nil ComponentTree for nil selection, got %v", result.ComponentTree)
+	}
+}
+
+// TestDetectWithSelectionNonEmpty verifies that a non-empty selection produces a populated ComponentTree.
+func TestDetectWithSelectionNonEmpty(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	result, err := DetectWithSelection(context.Background(), []model.ComponentID{model.ComponentSDD})
+	if err != nil {
+		t.Fatalf("DetectWithSelection returned error: %v", err)
+	}
+	if result.ComponentTree == nil {
+		t.Fatal("expected non-nil ComponentTree for non-empty selection")
+	}
+	if _, ok := result.ComponentTree[model.ComponentSDD]; !ok {
+		t.Fatal("expected ComponentSDD key in ComponentTree")
 	}
 }
