@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/KevG1t/SpecAI/internal/pipeline"
+	"github.com/KevG1t/SpecAI/internal/skillregistry"
 	"github.com/KevG1t/SpecAI/internal/steps"
 	"github.com/KevG1t/SpecAI/internal/system"
 	"github.com/KevG1t/SpecAI/internal/tui"
@@ -31,7 +32,22 @@ func main() {
 	tui.SetVersion(v)
 
 	if len(os.Args) > 1 {
-		if os.Args[1] == "setup" {
+		if len(os.Args) > 2 && os.Args[1] == "skill-registry" && os.Args[2] == "refresh" {
+			force := len(os.Args) > 3 && os.Args[3] == "--force"
+			cwd, _ := os.Getwd()
+			homeDir, _ := os.UserHomeDir()
+			result, err := skillregistry.Regenerate(cwd, homeDir, force)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			if result.Regenerated {
+				fmt.Printf("Registry regenerated: %d skills → %s\n", result.SkillCount, result.Registry)
+			} else {
+				fmt.Printf("Registry up to date (%s)\n", result.Reason)
+			}
+			os.Exit(0)
+		} else if os.Args[1] == "setup" {
 			if len(os.Args) < 3 {
 				fmt.Println("Error: Debes especificar un IDE (ej: specai setup cursor)")
 				fmt.Println("IDEs soportados: cursor, windsurf, codex")
