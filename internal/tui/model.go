@@ -349,8 +349,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progressCh = make(chan pipeline.ProgressEvent, 100)
 		m.latestProg = screens.ProgressMsg{TaskName: "Preparando pipeline...", Status: "Iniciando"}
 
-		// Capture m.installCtx at closure creation time so it's safe to use inside goroutine.
+		// Capture at closure creation time so it's safe to use inside goroutine.
 		installCtx := m.installCtx
+		capturedPlan := m.resolvedPlan
 
 		startCmd := func() tea.Msg {
 			var plan pipeline.StagePlan
@@ -367,28 +368,28 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 
-				// Extract AgentIDs from the install context for the resolver.
-				agentIDs := make([]model.AgentID, len(ctx.IDEs))
-				for i, ide := range ctx.IDEs {
-					agentIDs[i] = ide.AgentID()
-				}
-				if len(agentIDs) == 0 {
-					// No selected agents — treat as a fatal setup error.
+				if len(ctx.IDEs) == 0 {
 					return screens.PipelineFinishedMsg{Err: fmt.Errorf("no agents selected for installation")}
 				}
 
-				resolver := planner.NewResolver(planner.MVPGraph())
-				resolvedPlan, err := resolver.Resolve(model.Selection{
-					Agents: agentIDs,
-					Components: []model.ComponentID{
-						model.ComponentSDDMemory,
-						model.ComponentSDD,
-						model.ComponentSkills,
-						model.ComponentPersona,
-					},
-				})
-				if err != nil {
-					return screens.PipelineFinishedMsg{Err: err}
+				// Use the plan built through the wizard (DependencyTree → Review).
+				// Fall back to resolving from context if the wizard plan is empty.
+				resolvedPlan := capturedPlan
+				if len(resolvedPlan.OrderedComponents) == 0 {
+					agentIDs := make([]model.AgentID, len(ctx.IDEs))
+					for i, ide := range ctx.IDEs {
+						agentIDs[i] = ide.AgentID()
+					}
+					var err error
+					resolvedPlan, err = planner.NewResolver(planner.MVPGraph()).Resolve(model.Selection{
+						Agents:     agentIDs,
+						Components: catalog.ComponentsForPreset(ctx.Preset),
+						Persona:    ctx.Persona,
+						Preset:     ctx.Preset,
+					})
+					if err != nil {
+						return screens.PipelineFinishedMsg{Err: err}
+					}
 				}
 
 				// Map ResolvedPlan to StagePlan manually
@@ -406,10 +407,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				applySteps = append(applySteps, steps.NewStepInjectMCP(ctx))
 
 				prepareSteps := []pipeline.Step{}
-				// Only scan if IDEs weren't pre-populated via agent selection.
+				// Scan first if IDEs weren't pre-populated (fallback path).
 				if len(ctx.IDEs) == 0 {
 					prepareSteps = append(prepareSteps, steps.NewStepScanGlobalIDEs(ctx))
 				}
+				prepareSteps = append(prepareSteps, steps.NewStepSnapshotBeforeInstall(ctx))
 				plan = pipeline.StagePlan{
 					Prepare: prepareSteps,
 					Apply:   applySteps,

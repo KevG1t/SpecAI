@@ -4,10 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/KevG1t/SpecAI/internal/assets"
+	"github.com/KevG1t/SpecAI/internal/backup"
 	"github.com/KevG1t/SpecAI/internal/model"
 	"github.com/KevG1t/SpecAI/internal/system"
 	"github.com/KevG1t/SpecAI/internal/templates"
@@ -68,6 +71,50 @@ func (s *StepScanGlobalIDEs) Run() error {
 		return err
 	}
 	s.ctx.IDEs = ides
+	return nil
+}
+
+// StepSnapshotBeforeInstall creates a backup of the files that install will
+// overwrite. Failure is non-fatal — logged and skipped so the install proceeds.
+type StepSnapshotBeforeInstall struct {
+	ctx *InstallContext
+}
+
+func NewStepSnapshotBeforeInstall(ctx *InstallContext) *StepSnapshotBeforeInstall {
+	return &StepSnapshotBeforeInstall{ctx: ctx}
+}
+
+func (s *StepSnapshotBeforeInstall) ID() string {
+	return "Creando backup previo a la instalación"
+}
+
+func (s *StepSnapshotBeforeInstall) Run() error {
+	var paths []string
+	for _, ide := range s.ctx.IDEs {
+		if f := ide.SystemPromptFile(s.ctx.HomeDir); f != "" {
+			paths = append(paths, f)
+		}
+		if d := ide.SkillsDir(s.ctx.HomeDir); d != "" {
+			paths = append(paths, d)
+		}
+		if d := ide.SubAgentsDir(s.ctx.HomeDir); d != "" {
+			paths = append(paths, d)
+		}
+		if d := ide.CommandsDir(s.ctx.HomeDir); d != "" {
+			paths = append(paths, d)
+		}
+	}
+
+	snapshotDir := filepath.Join(
+		s.ctx.HomeDir,
+		".specai", "backups",
+		time.Now().UTC().Format("20060102-150405"),
+	)
+
+	snapshotter := backup.NewSnapshotter()
+	if _, err := snapshotter.Create(snapshotDir, paths); err != nil {
+		log.Printf("install backup: no se pudo crear el snapshot (no bloqueante): %v", err)
+	}
 	return nil
 }
 
