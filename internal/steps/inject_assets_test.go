@@ -2,6 +2,7 @@ package steps
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/KevG1t/SpecAI/internal/model"
@@ -48,7 +49,7 @@ func (m *mockAssetInjector) InjectSharedSkills(targetDir string) error {
 }
 
 // TestInjectAssets_PerAgentWalk verifies that each adapter triggers one InjectAgentFolder
-// call with the correct agentFolder and targetDir.
+// call with agentFolder and ConfigDir as the targetDir.
 func TestInjectAssets_PerAgentWalk(t *testing.T) {
 	mock := &mockAssetInjector{}
 
@@ -72,26 +73,26 @@ func TestInjectAssets_PerAgentWalk(t *testing.T) {
 		t.Fatalf("expected 2 InjectAgentFolder calls, got %d", len(mock.agentCalls))
 	}
 
-	// First call should be for claude
+	// First call should be for claude — target is ConfigDir, not GlobalSkillsDir
 	if mock.agentCalls[0].agentFolder != "claude" {
 		t.Errorf("first agent call folder = %q, want %q", mock.agentCalls[0].agentFolder, "claude")
 	}
-	if mock.agentCalls[0].targetDir != claudeIDE.GlobalSkillsDir(base) {
-		t.Errorf("first agent call targetDir = %q, want %q", mock.agentCalls[0].targetDir, claudeIDE.GlobalSkillsDir(base))
+	if mock.agentCalls[0].targetDir != claudeIDE.ConfigDir(base) {
+		t.Errorf("first agent call targetDir = %q, want ConfigDir %q", mock.agentCalls[0].targetDir, claudeIDE.ConfigDir(base))
 	}
 
-	// Second call should be for codex
+	// Second call should be for codex — target is ConfigDir
 	if mock.agentCalls[1].agentFolder != "codex" {
 		t.Errorf("second agent call folder = %q, want %q", mock.agentCalls[1].agentFolder, "codex")
 	}
-	if mock.agentCalls[1].targetDir != codexIDE.GlobalSkillsDir(base) {
-		t.Errorf("second agent call targetDir = %q, want %q", mock.agentCalls[1].targetDir, codexIDE.GlobalSkillsDir(base))
+	if mock.agentCalls[1].targetDir != codexIDE.ConfigDir(base) {
+		t.Errorf("second agent call targetDir = %q, want ConfigDir %q", mock.agentCalls[1].targetDir, codexIDE.ConfigDir(base))
 	}
 }
 
-// TestInjectAssets_SharedSkillsOnce verifies InjectSharedSkills is called exactly once
-// regardless of how many adapters are in ctx.IDEs.
-func TestInjectAssets_SharedSkillsOnce(t *testing.T) {
+// TestInjectAssets_SharedSkillsPerAgent verifies InjectSharedSkills is called once per
+// adapter that SupportsSkills() — skills are written to each adapter's SkillsDir.
+func TestInjectAssets_SharedSkillsPerAgent(t *testing.T) {
 	mock := &mockAssetInjector{}
 
 	base := t.TempDir()
@@ -110,9 +111,27 @@ func TestInjectAssets_SharedSkillsOnce(t *testing.T) {
 		t.Fatalf("Run() failed: %v", err)
 	}
 
-	// Shared skills must be injected exactly once
-	if len(mock.sharedCalls) != 1 {
-		t.Errorf("InjectSharedSkills called %d times, want exactly 1", len(mock.sharedCalls))
+	// All 3 adapters support skills — InjectSharedSkills called 3 times (once per adapter)
+	if len(mock.sharedCalls) != 3 {
+		t.Errorf("InjectSharedSkills called %d times, want 3 (once per adapter)", len(mock.sharedCalls))
+	}
+
+	// Each call must target the adapter's SkillsDir, not ~/.specai/skills
+	if mock.sharedCalls[0] != ide1.SkillsDir(base) {
+		t.Errorf("first skills call target = %q, want SkillsDir %q", mock.sharedCalls[0], ide1.SkillsDir(base))
+	}
+	if mock.sharedCalls[1] != ide2.SkillsDir(base) {
+		t.Errorf("second skills call target = %q, want SkillsDir %q", mock.sharedCalls[1], ide2.SkillsDir(base))
+	}
+	if mock.sharedCalls[2] != ide3.SkillsDir(base) {
+		t.Errorf("third skills call target = %q, want SkillsDir %q", mock.sharedCalls[2], ide3.SkillsDir(base))
+	}
+
+	// Must NOT use ~/.specai/skills
+	for _, call := range mock.sharedCalls {
+		if strings.Contains(call, ".specai") {
+			t.Errorf("skills must not write to ~/.specai/skills, got: %q", call)
+		}
 	}
 }
 
@@ -136,7 +155,7 @@ func TestInjectAssets_MissingAgentFolderSkipped(t *testing.T) {
 	}
 }
 
-// TestInjectAssets_NoAdapters verifies zero adapters → zero agent calls, one shared call.
+// TestInjectAssets_NoAdapters verifies zero adapters → zero agent calls and zero shared calls.
 func TestInjectAssets_NoAdapters(t *testing.T) {
 	mock := &mockAssetInjector{}
 
@@ -156,9 +175,9 @@ func TestInjectAssets_NoAdapters(t *testing.T) {
 	if len(mock.agentCalls) != 0 {
 		t.Errorf("expected 0 agent calls with no adapters, got %d", len(mock.agentCalls))
 	}
-	// Shared skills still injected once
-	if len(mock.sharedCalls) != 1 {
-		t.Errorf("InjectSharedSkills called %d times, want exactly 1", len(mock.sharedCalls))
+	// No shared skills calls when there are no adapters
+	if len(mock.sharedCalls) != 0 {
+		t.Errorf("InjectSharedSkills called %d times, want 0 with no adapters", len(mock.sharedCalls))
 	}
 }
 

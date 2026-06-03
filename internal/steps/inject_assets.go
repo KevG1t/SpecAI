@@ -114,15 +114,19 @@ func (s *StepInjectAssets) ID() string {
 }
 
 func (s *StepInjectAssets) Run() error {
-	// Per-agent injection: copy {agentFolder}/ to each adapter's GlobalSkillsDir.
 	for _, ide := range s.ctx.IDEs {
-		targetDir := ide.GlobalSkillsDir(s.ctx.HomeDir)
+		// Agent-specific non-skill assets → ConfigDir
+		targetDir := ide.ConfigDir(s.ctx.HomeDir)
 		if err := s.injector.InjectAgentFolder(ide.AssetFolder(), targetDir); err != nil {
 			return err
 		}
+		// Shared skills → SkillsDir per agent
+		if ide.SupportsSkills() {
+			skillsDir := ide.SkillsDir(s.ctx.HomeDir)
+			if err := s.injector.InjectSharedSkills(skillsDir); err != nil {
+				return err
+			}
+		}
 	}
-
-	// Shared skills injection: copy skills/ exactly once to a shared location.
-	sharedSkillsDir := filepath.Join(s.ctx.HomeDir, ".specai", "skills")
-	return s.injector.InjectSharedSkills(sharedSkillsDir)
+	return nil
 }

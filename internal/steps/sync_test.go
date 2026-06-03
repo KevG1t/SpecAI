@@ -23,7 +23,12 @@ type stubIDE struct {
 func (s stubIDE) Name() string                    { return s.name }
 func (s stubIDE) AgentID() model.AgentID          { return s.agentID }
 func (s stubIDE) AssetFolder() string             { return s.assetFolder }
-func (s stubIDE) ConfigDir(_ string) string       { return "" }
+func (s stubIDE) ConfigDir(homeDir string) string {
+	if r := s.real(); r != nil {
+		return r.ConfigDir(homeDir)
+	}
+	return ""
+}
 func (s stubIDE) GlobalRulesDir(_ string) string  { return s.rulesDir }
 func (s stubIDE) GlobalSkillsDir(_ string) string { return s.skillsDir }
 func (s stubIDE) LocalRulesFile() string          { return "" }
