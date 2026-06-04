@@ -29,17 +29,29 @@ func stripANSI(s string) string {
 	return b.String()
 }
 
-// TestRenderLogoContainsSpecAI verifies the logo text spells "Spec" and "AI"
-// (SPEC-REQ1-R1, Scenario REQ1-S1).
-func TestRenderLogoContainsSpecAI(t *testing.T) {
+// TestRenderLogoIsWellFormedArt verifies the logo renders as multi-line block
+// art with vertically aligned columns. The art spells "Spec AI" visually; since
+// block letters carry no literal text, this asserts structural integrity rather
+// than a substring (SPEC-REQ1-R1, Scenario REQ1-S1).
+func TestRenderLogoIsWellFormedArt(t *testing.T) {
 	raw := RenderLogo()
 	plain := stripANSI(raw)
-	upperPlain := strings.ToUpper(plain)
-	if !strings.Contains(upperPlain, "SPEC") {
-		t.Errorf("logo plain text does not contain 'SPEC'; got:\n%s", plain)
+	if plain == "" {
+		t.Fatal("RenderLogo() returned empty output")
 	}
-	if !strings.Contains(upperPlain, "AI") {
-		t.Errorf("logo plain text does not contain 'AI'; got:\n%s", plain)
+
+	lines := strings.Split(plain, "\n")
+	if len(lines) != len(logoLines) {
+		t.Errorf("logo line count = %d, want %d", len(lines), len(logoLines))
+	}
+
+	// Every row must share the same visible width so the columns stay aligned.
+	width := len(lines[0])
+	for i, line := range lines {
+		if len(line) != width {
+			t.Errorf("logo line %d width = %d, want %d (misaligned columns); got:\n%s",
+				i, len(line), width, plain)
+		}
 	}
 }
 

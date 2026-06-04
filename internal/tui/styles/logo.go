@@ -6,18 +6,17 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// logoLines contains the ASCII art for the Spec AI logo.
-// The first line identifies the product name in plain text so automated checks
-// and screen readers can confirm the branding. The remaining lines are
-// block-letter ASCII art for the same two words.
+// logoLines contains the block-letter ASCII art for "Spec AI".
+// Each row is assembled from fixed-width per-letter segments (S, p, e, c, gap,
+// A, I) so the columns stay vertically aligned by construction. A four-space
+// gap separates the two words for legibility.
 var logoLines = []string{
-	`            Spec AI            `,
-	`  ____                    _    ___ `,
-	` / ___| _ __   ___  ___  / \  |_ _|`,
-	` \___ \| '_ \ / _ \/ __|/ _ \  | | `,
-	`  ___) | |_) |  __/ (__/ ___ \ | | `,
-	` |____/| .__/ \___|\___|_/   \_\___| `,
-	`        |_|                          `,
+	` ____  ` + `       ` + `       ` + `      ` + `    ` + `    _    ` + ` ___ `,
+	`/ ___| ` + ` _ __  ` + `  ___  ` + `  ___ ` + `    ` + `   / \   ` + `|_ _|`,
+	`\___ \ ` + `| '_ \ ` + ` / _ \ ` + ` / __|` + `    ` + `  / _ \  ` + ` | | `,
+	` ___) |` + `| |_) |` + `|  __/ ` + `| (__ ` + `    ` + ` / ___ \ ` + ` | | `,
+	`|____/ ` + `| .__/ ` + ` \___| ` + ` \___|` + `    ` + `/_/   \_\` + `|___|`,
+	`       ` + `|_|    ` + `       ` + `      ` + `    ` + `         ` + `     `,
 }
 
 // gradientColors defines the top-to-bottom gradient for the logo.
