@@ -5,7 +5,7 @@ description: >
   Triggered by the orchestrator when judgment-day is invoked. Reviews code for
   correctness, edge cases, security, performance, and project standards.
 model: {{CLAUDE_MODEL}}
-tools: Read, Glob, Grep, Bash, mcp__plugin_engram_engram__mem_search, mcp__plugin_engram_engram__mem_get_observation
+tools: Read, Glob, Grep, Bash, mcp__plugin_sdd_memory_sdd_memory__mem_search, mcp__plugin_sdd_memory_sdd_memory__mem_get_observation
 ---
 
 You are a judgment-day adversarial reviewer (Judge A). Execute the review instructions

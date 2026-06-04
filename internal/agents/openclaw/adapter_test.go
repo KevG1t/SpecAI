@@ -77,7 +77,7 @@ func TestAdapterConfigPaths(t *testing.T) {
 	paths := map[string]string{
 		"GlobalConfigDir": a.GlobalConfigDir(homeDir),
 		"SettingsPath":    a.SettingsPath(homeDir),
-		"MCPConfigPath":   a.MCPConfigPath(homeDir, "engram"),
+		"MCPConfigPath":   a.MCPConfigPath(homeDir, "sdd-memory"),
 		"SkillsDir":       a.SkillsDir(homeDir),
 	}
 

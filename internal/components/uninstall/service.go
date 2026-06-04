@@ -14,7 +14,6 @@ import (
 	"github.com/KevG1t/specai/internal/assets"
 	"github.com/KevG1t/specai/internal/backup"
 	"github.com/KevG1t/specai/internal/components/filemerge"
-	"github.com/KevG1t/specai/internal/components/gga"
 	"github.com/KevG1t/specai/internal/components/sdd"
 	"github.com/KevG1t/specai/internal/model"
 	"github.com/KevG1t/specai/internal/state"
@@ -54,9 +53,9 @@ type Service struct {
 	profileNamesToRemove   []string
 	profileSelectionScoped bool
 
-	// engramUninstallScope controls whether Engram cleanup removes global
-	// integration files/config (global) or project-local .engram data only.
-	engramUninstallScope model.EngramUninstallScope
+	// sddMemoryUninstallScope controls whether SddMemory cleanup removes global
+	// integration files/config (global) or project-local .sdd-memory data only.
+	sddMemoryUninstallScope model.SddMemoryUninstallScope
 }
 
 type workflowCapability interface {
@@ -77,30 +76,28 @@ const (
 var (
 	allManagedComponents = []model.ComponentID{
 		model.ComponentPersona,
-		model.ComponentEngram,
+		model.ComponentSddMemory,
 		model.ComponentContext7,
 		model.ComponentPermission,
 		model.ComponentSDD,
 		model.ComponentSkills,
 		model.ComponentTheme,
 		model.ComponentClaudeTheme,
-		model.ComponentOpenCodeGentleLogo,
-		model.ComponentGGA,
 	}
 	fullAgentRemovalComponents = []model.ComponentID{
 		model.ComponentPersona,
-		model.ComponentEngram,
+		model.ComponentSddMemory,
 		model.ComponentContext7,
 		model.ComponentPermission,
 		model.ComponentSDD,
 		model.ComponentSkills,
 		model.ComponentTheme,
 		model.ComponentClaudeTheme,
-		model.ComponentOpenCodeGentleLogo,
 	}
 	configuredAgents = []string{
-		"gentle-orchestrator",
-		"sdd-orchestrator", // legacy key — kept for backward-compat cleanup
+		"specai-orchestrator",
+		"specai-orchestrator", // legacy key — kept for backward-compat cleanup
+		"sdd-orchestrator",    // legacy key — kept for backward-compat cleanup
 		"sdd-init",
 		"sdd-explore",
 		"sdd-propose",
@@ -148,14 +145,14 @@ func NewService(homeDir, workspaceDir, appVersion string) (*Service, error) {
 	}
 
 	return &Service{
-		homeDir:              homeDir,
-		workspaceDir:         workspaceDir,
-		backupRoot:           backupRoot,
-		appVersion:           appVersion,
-		snapshotter:          backup.NewSnapshotter(),
-		registry:             registry,
-		now:                  time.Now,
-		engramUninstallScope: model.EngramUninstallScopeGlobal,
+		homeDir:                 homeDir,
+		workspaceDir:            workspaceDir,
+		backupRoot:              backupRoot,
+		appVersion:              appVersion,
+		snapshotter:             backup.NewSnapshotter(),
+		registry:                registry,
+		now:                     time.Now,
+		sddMemoryUninstallScope: model.SddMemoryUninstallScopeGlobal,
 	}, nil
 }
 
@@ -178,7 +175,7 @@ func PartialUninstall(homeDir, workspaceDir, appVersion string, agentIDs []strin
 	return svc.PartialUninstall(agentsTyped, componentsTyped)
 }
 
-func PartialUninstallWithProfileSelection(homeDir, workspaceDir, appVersion string, agentIDs []string, componentIDs []string, profileNames []string, engramScope model.EngramUninstallScope) (Result, error) {
+func PartialUninstallWithProfileSelection(homeDir, workspaceDir, appVersion string, agentIDs []string, componentIDs []string, profileNames []string, sddMemoryScope model.SddMemoryUninstallScope) (Result, error) {
 	svc, err := NewService(homeDir, workspaceDir, appVersion)
 	if err != nil {
 		return Result{}, err
@@ -194,7 +191,7 @@ func PartialUninstallWithProfileSelection(homeDir, workspaceDir, appVersion stri
 		componentsTyped = append(componentsTyped, model.ComponentID(componentID))
 	}
 
-	return svc.PartialUninstallWithProfiles(agentsTyped, componentsTyped, profileNames, engramScope)
+	return svc.PartialUninstallWithProfiles(agentsTyped, componentsTyped, profileNames, sddMemoryScope)
 }
 
 func CompleteUninstall(homeDir, workspaceDir, appVersion string) (Result, error) {
@@ -208,7 +205,7 @@ func CompleteUninstall(homeDir, workspaceDir, appVersion string) (Result, error)
 func (s *Service) PartialUninstall(agentIDs []model.AgentID, componentIDs []model.ComponentID) (Result, error) {
 	s.profileNamesToRemove = nil
 	s.profileSelectionScoped = false
-	s.engramUninstallScope = model.EngramUninstallScopeGlobal
+	s.sddMemoryUninstallScope = model.SddMemoryUninstallScopeGlobal
 
 	if len(agentIDs) == 0 {
 		return Result{}, fmt.Errorf("partial uninstall requires at least one agent")
@@ -228,13 +225,13 @@ func (s *Service) PartialUninstall(agentIDs []model.AgentID, componentIDs []mode
 	return s.executePlan(plan, stateRemovals)
 }
 
-func (s *Service) PartialUninstallWithProfiles(agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, engramScope model.EngramUninstallScope) (Result, error) {
+func (s *Service) PartialUninstallWithProfiles(agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, sddMemoryScope model.SddMemoryUninstallScope) (Result, error) {
 	s.SetProfileNamesToRemove(profileNames)
-	s.SetEngramUninstallScope(engramScope)
+	s.SetSddMemoryUninstallScope(sddMemoryScope)
 	defer func() {
 		s.profileNamesToRemove = nil
 		s.profileSelectionScoped = false
-		s.engramUninstallScope = model.EngramUninstallScopeGlobal
+		s.sddMemoryUninstallScope = model.SddMemoryUninstallScopeGlobal
 	}()
 
 	if len(agentIDs) == 0 {
@@ -260,18 +257,18 @@ func (s *Service) SetProfileNamesToRemove(profileNames []string) {
 	s.profileSelectionScoped = true
 }
 
-func (s *Service) SetEngramUninstallScope(scope model.EngramUninstallScope) {
-	if scope == model.EngramUninstallScopeProject {
-		s.engramUninstallScope = model.EngramUninstallScopeProject
+func (s *Service) SetSddMemoryUninstallScope(scope model.SddMemoryUninstallScope) {
+	if scope == model.SddMemoryUninstallScopeProject {
+		s.sddMemoryUninstallScope = model.SddMemoryUninstallScopeProject
 		return
 	}
-	s.engramUninstallScope = model.EngramUninstallScopeGlobal
+	s.sddMemoryUninstallScope = model.SddMemoryUninstallScopeGlobal
 }
 
 func (s *Service) CompleteUninstall() (Result, error) {
 	s.profileNamesToRemove = nil
 	s.profileSelectionScoped = false
-	s.engramUninstallScope = model.EngramUninstallScopeGlobal
+	s.sddMemoryUninstallScope = model.SddMemoryUninstallScopeGlobal
 
 	allAgents := s.registry.SupportedAgents()
 	plan, err := s.buildPlan(allAgents, allManagedComponents)
@@ -283,7 +280,7 @@ func (s *Service) CompleteUninstall() (Result, error) {
 		return result, err
 	}
 
-	result.ManualActions = append(result.ManualActions, "To completely remove gentle-ai from your system, delete the executable (e.g., rm -f $(which gentle-ai))")
+	result.ManualActions = append(result.ManualActions, "To completely remove specai from your system, delete the executable (e.g., rm -f $(which specai))")
 	return result, nil
 }
 
@@ -320,7 +317,7 @@ func (s *Service) buildPlan(agentIDs []model.AgentID, componentIDs []model.Compo
 				key := operationKey(op)
 				if existing, ok := operationsByKey[key]; ok && op.typeID == opRewriteFile {
 					// Merge rewrite operations on the same file so both
-					// mutations apply (e.g. persona + engram on system prompt).
+					// mutations apply (e.g. persona + sdd-memory on system prompt).
 					operationsByKey[key] = mergeRewriteOps(existing, op)
 				} else {
 					operationsByKey[key] = op
@@ -451,7 +448,7 @@ func (s *Service) componentOperations(adapter agents.Adapter, componentID model.
 			}))
 		}
 		if adapter.SupportsOutputStyles() {
-			path := filepath.Join(adapter.OutputStyleDir(homeDir), "gentleman.md")
+			path := filepath.Join(adapter.OutputStyleDir(homeDir), "modism.md")
 			targets = append(targets, path)
 			ops = append(ops, removeFile(path))
 			ops = append(ops, removeDirIfEmpty(adapter.OutputStyleDir(homeDir)))
@@ -460,16 +457,16 @@ func (s *Service) componentOperations(adapter agents.Adapter, componentID model.
 			targets = append(targets, path)
 			jsonPaths := []jsonPath{{"outputStyle"}}
 			if adapter.Agent() == model.AgentOpenCode {
-				jsonPaths = append(jsonPaths, jsonPath{"agent", "gentleman"})
+				jsonPaths = append(jsonPaths, jsonPath{"agent", "modism"})
 			}
 			ops = append(ops, rewriteJSONFile(path, jsonPaths...))
 		}
 	case model.ComponentContext7:
 		targets = append(targets, context7Targets(adapter, homeDir)...)
 		ops = append(ops, context7Operations(adapter, homeDir)...)
-	case model.ComponentEngram:
-		if s.engramUninstallScope == model.EngramUninstallScopeProject {
-			projectDataPath := filepath.Join(s.workspaceDir, ".engram")
+	case model.ComponentSddMemory:
+		if s.sddMemoryUninstallScope == model.SddMemoryUninstallScopeProject {
+			projectDataPath := filepath.Join(s.workspaceDir, ".sdd-memory")
 			if strings.TrimSpace(s.workspaceDir) != "" {
 				targets = append(targets, projectDataPath)
 				ops = append(ops, removeTree(projectDataPath))
@@ -477,13 +474,13 @@ func (s *Service) componentOperations(adapter agents.Adapter, componentID model.
 			break
 		}
 
-		targets = append(targets, engramTargets(adapter, homeDir)...)
-		ops = append(ops, engramOperations(adapter, homeDir)...)
+		targets = append(targets, sddMemoryTargets(adapter, homeDir)...)
+		ops = append(ops, sddMemoryOperations(adapter, homeDir)...)
 		if adapter.SupportsSystemPrompt() {
 			path := adapter.SystemPromptFile(homeDir)
 			targets = append(targets, path)
 			ops = append(ops, rewriteMarkdownFile(path, func(content string) (string, bool) {
-				return removeMarkdownSections(content, "engram-protocol")
+				return removeMarkdownSections(content, "sdd-memory-protocol")
 			}))
 		}
 	case model.ComponentPermission:
@@ -507,14 +504,10 @@ func (s *Service) componentOperations(adapter agents.Adapter, componentID model.
 		}
 	case model.ComponentClaudeTheme:
 		if adapter.Agent() == model.AgentClaudeCode {
-			path := filepath.Join(homeDir, ".claude", "themes", "gentleman.json")
+			path := filepath.Join(homeDir, ".claude", "themes", "modism.json")
 			targets = append(targets, path)
 			ops = append(ops, removeFile(path), removeDirIfEmpty(filepath.Dir(path)))
 		}
-	case model.ComponentOpenCodeGentleLogo:
-		pluginPath := filepath.Join(homeDir, ".config", "opencode", "tui-plugins", "gentle-logo.tsx")
-		targets = append(targets, pluginPath)
-		ops = append(ops, removeFile(pluginPath), removeDirIfEmpty(filepath.Dir(pluginPath)))
 	case model.ComponentSkills:
 		if !adapter.SupportsSkills() {
 			break
@@ -657,12 +650,6 @@ func (s *Service) componentOperations(adapter agents.Adapter, componentID model.
 			}
 			ops = append(ops, removeDirIfEmpty(agentsDir))
 		}
-	case model.ComponentGGA:
-		for _, path := range globalBackupTargets(homeDir) {
-			targets = append(targets, path)
-			ops = append(ops, removeFile(path))
-		}
-		ops = append(ops, removeDirIfEmpty(filepath.Dir(gga.ConfigPath(homeDir))))
 	default:
 		return nil, nil, fmt.Errorf("unsupported component ID %q", componentID)
 	}
@@ -707,46 +694,46 @@ func context7Operations(adapter agents.Adapter, homeDir string) []operation {
 	}
 }
 
-func engramTargets(adapter agents.Adapter, homeDir string) []string {
+func sddMemoryTargets(adapter agents.Adapter, homeDir string) []string {
 	targets := make([]string, 0, 3)
 	switch adapter.MCPStrategy() {
 	case model.StrategySeparateMCPFiles:
-		targets = append(targets, adapter.MCPConfigPath(homeDir, "engram"))
+		targets = append(targets, adapter.MCPConfigPath(homeDir, "sdd-memory"))
 	case model.StrategyMergeIntoSettings:
 		targets = append(targets, adapter.SettingsPath(homeDir))
 	case model.StrategyMCPConfigFile:
-		targets = append(targets, adapter.MCPConfigPath(homeDir, "engram"))
+		targets = append(targets, adapter.MCPConfigPath(homeDir, "sdd-memory"))
 	case model.StrategyTOMLFile:
 		targets = append(targets,
-			adapter.MCPConfigPath(homeDir, "engram"),
-			filepath.Join(homeDir, ".codex", "engram-instructions.md"),
-			filepath.Join(homeDir, ".codex", "engram-compact-prompt.md"),
+			adapter.MCPConfigPath(homeDir, "sdd-memory"),
+			filepath.Join(homeDir, ".codex", "sdd-memory-instructions.md"),
+			filepath.Join(homeDir, ".codex", "sdd-memory-compact-prompt.md"),
 		)
 	}
 	return targets
 }
 
-func engramOperations(adapter agents.Adapter, homeDir string) []operation {
+func sddMemoryOperations(adapter agents.Adapter, homeDir string) []operation {
 	switch adapter.MCPStrategy() {
 	case model.StrategySeparateMCPFiles:
-		path := adapter.MCPConfigPath(homeDir, "engram")
+		path := adapter.MCPConfigPath(homeDir, "sdd-memory")
 		return []operation{removeFile(path), removeDirIfEmpty(filepath.Dir(path))}
 	case model.StrategyMergeIntoSettings:
 		path := adapter.SettingsPath(homeDir)
 		if adapter.Agent() == model.AgentOpenCode {
-			return []operation{rewriteJSONFile(path, jsonPath{"mcp", "engram"})}
+			return []operation{rewriteJSONFile(path, jsonPath{"mcp", "sdd-memory"})}
 		}
-		return []operation{rewriteJSONFile(path, jsonPath{"mcpServers", "engram"})}
+		return []operation{rewriteJSONFile(path, jsonPath{"mcpServers", "sdd-memory"})}
 	case model.StrategyMCPConfigFile:
-		path := adapter.MCPConfigPath(homeDir, "engram")
+		path := adapter.MCPConfigPath(homeDir, "sdd-memory")
 		if adapter.Agent() == model.AgentVSCodeCopilot {
-			return []operation{rewriteJSONFile(path, jsonPath{"servers", "engram"})}
+			return []operation{rewriteJSONFile(path, jsonPath{"servers", "sdd-memory"})}
 		}
-		return []operation{rewriteJSONFile(path, jsonPath{"mcpServers", "engram"})}
+		return []operation{rewriteJSONFile(path, jsonPath{"mcpServers", "sdd-memory"})}
 	case model.StrategyTOMLFile:
-		configPath := adapter.MCPConfigPath(homeDir, "engram")
-		instructionsPath := filepath.Join(homeDir, ".codex", "engram-instructions.md")
-		compactPath := filepath.Join(homeDir, ".codex", "engram-compact-prompt.md")
+		configPath := adapter.MCPConfigPath(homeDir, "sdd-memory")
+		instructionsPath := filepath.Join(homeDir, ".codex", "sdd-memory-instructions.md")
+		compactPath := filepath.Join(homeDir, ".codex", "sdd-memory-compact-prompt.md")
 		return []operation{
 			rewriteTOMLFile(configPath, cleanCodexTOML),
 			removeFile(instructionsPath),
@@ -887,7 +874,7 @@ func removeClaudeSkillRegistryHook(raw []byte) ([]byte, bool, error) {
 			for _, hook := range hooks {
 				hookMap, ok := hook.(map[string]any)
 				cmd, _ := hookMap["command"].(string)
-				if ok && strings.Contains(cmd, "gentle-ai skill-registry refresh") {
+				if ok && strings.Contains(cmd, "specai skill-registry refresh") {
 					changed = true
 					continue
 				}
@@ -1118,11 +1105,8 @@ func managedSDDSkillIDs() []string {
 	return append(ids, "judgment-day")
 }
 
-func globalBackupTargets(homeDir string) []string {
-	return []string{
-		gga.ConfigPath(homeDir),
-		gga.AgentsTemplatePath(homeDir),
-	}
+func globalBackupTargets(_ string) []string {
+	return nil
 }
 
 func stateAgentsToRemove(agentIDs []model.AgentID, componentIDs []model.ComponentID) []model.AgentID {

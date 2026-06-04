@@ -22,7 +22,7 @@ const (
 	piMCPAdapterDependency   = "pi-mcp-adapter"
 	piMCPAdapterVersion      = "2.6.0"
 	piMCPAdapterVersionRange = "^2.6.0"
-	piEngramMCPConfigFile    = "mcp.json"
+	piSddMemoryMCPConfigFile = "mcp.json"
 	piSettingsFile           = "settings.json"
 	piNPMDirectory           = "npm"
 	piNPMPackageFile         = "package.json"
@@ -71,10 +71,10 @@ func (a *Adapter) SupportsAutoInstall() bool { return true }
 
 func (a *Adapter) InstallCommand(system.PlatformProfile) ([][]string, error) {
 	return [][]string{
-		{"pi", "install", "npm:gentle-pi"},
-		{"pi", "install", "npm:gentle-engram"},
+		{"pi", "install", "npm:specai-pi"},
+		{"pi", "install", "npm:sdd-memory-kevg1t"},
 		{"pi", "install", "npm:pi-mcp-adapter"},
-		a.engramInitCommand(),
+		a.sddMemoryInitCommand(),
 		{"pi", "install", "npm:pi-subagents"},
 		{"pi", "install", "npm:pi-intercom"},
 		{"pi", "install", "npm:@juicesharp/rpiv-ask-user-question"},
@@ -85,11 +85,11 @@ func (a *Adapter) InstallCommand(system.PlatformProfile) ([][]string, error) {
 	}, nil
 }
 
-func (a *Adapter) engramInitCommand() []string {
+func (a *Adapter) sddMemoryInitCommand() []string {
 	if _, err := a.lookPath("pnpm"); err == nil {
-		return []string{"pnpm", "dlx", "gentle-engram@" + versions.GentleEngram, "pi-engram", "init"}
+		return []string{"pnpm", "dlx", "sdd-memory-kevg1t@" + versions.SDDMemory, "pi-sdd-memory", "init"}
 	}
-	return []string{"npm", "exec", "--yes", "--package", "gentle-engram@" + versions.GentleEngram, "--", "pi-engram", "init"}
+	return []string{"npm", "exec", "--yes", "--package", "sdd-memory-kevg1t@" + versions.SDDMemory, "--", "pi-sdd-memory", "init"}
 }
 
 func (a *Adapter) GlobalConfigDir(homeDir string) string { return ConfigPath(homeDir) }
@@ -111,7 +111,7 @@ func (a *Adapter) SystemPromptStrategy() model.SystemPromptStrategy {
 func (a *Adapter) MCPStrategy() model.MCPStrategy { return model.StrategyMCPConfigFile }
 
 func (a *Adapter) MCPConfigPath(homeDir string, _ string) string {
-	return filepath.Join(AgentConfigPath(homeDir), piEngramMCPConfigFile)
+	return filepath.Join(AgentConfigPath(homeDir), piSddMemoryMCPConfigFile)
 }
 
 func (a *Adapter) SupportsOutputStyles() bool { return false }
@@ -140,14 +140,14 @@ func ConfigPath(homeDir string) string { return filepath.Join(homeDir, ".pi") }
 // AgentConfigPath returns Pi's current agent-owned config directory path.
 func AgentConfigPath(homeDir string) string { return filepath.Join(ConfigPath(homeDir), "agent") }
 
-// ProvisionEngramMCP declares pi-mcp-adapter in Pi's settings.json and
-// package.json. It is invoked by ComponentEngram; keeping it here lets Pi
-// own the exact config shape without teaching the generic Engram injector
+// ProvisionSddMemoryMCP declares pi-mcp-adapter in Pi's settings.json and
+// package.json. It is invoked by ComponentSddMemory; keeping it here lets Pi
+// own the exact config shape without teaching the generic SddMemory injector
 // about Pi internals.
 //
-// mcp.json is NOT written here. pi-engram init (invoked by InstallCommand)
+// mcp.json is NOT written here. pi-sdd-memory init (invoked by InstallCommand)
 // is the sole writer of that file and owns its schema.
-func (a *Adapter) ProvisionEngramMCP(homeDir string) (bool, []string, error) {
+func (a *Adapter) ProvisionSddMemoryMCP(homeDir string) (bool, []string, error) {
 	paths := []string{
 		a.SettingsPath(homeDir),
 		filepath.Join(ConfigPath(homeDir), piNPMDirectory, piNPMPackageFile),

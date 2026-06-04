@@ -43,7 +43,7 @@ type InjectOptions struct {
 	Profiles []model.Profile
 
 	// PreserveOpenCodeOrchestratorPrompt keeps the existing
-	// opencode.json agent.gentle-orchestrator.prompt value during sync.
+	// opencode.json agent.specai-orchestrator.prompt value during sync.
 	// Used by external-single-active profile strategy integrations where
 	// external tools extend orchestrator policy/prompt at runtime.
 	PreserveOpenCodeOrchestratorPrompt bool
@@ -135,7 +135,7 @@ type bootstrapper interface {
 //  3. Weak marker (package.json only) — record as candidate but keep walking
 //     upward, since a monorepo marker may exist higher up.
 //
-// Walking upward means users can run gentle-ai from any subdirectory of their
+// Walking upward means users can run specai from any subdirectory of their
 // project (e.g. repo/packages/app) and still detect the correct workspace root.
 // In a JS/TS monorepo, every package has package.json, so we must not stop at
 // the first one — we keep walking to find the highest ancestor with package.json
@@ -219,7 +219,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 
 	// 1. Inject SDD orchestrator into the global system prompt for agents that
 	// rely on prompt files. OpenCode and Kilocode are handled differently: their
-	// orchestrator instructions must be scoped to the OpenCode gentle-orchestrator agent only,
+	// orchestrator instructions must be scoped to the OpenCode specai-orchestrator agent only,
 	// otherwise the SDD phase sub-agents inherit coordinator-only delegation rules.
 	if adapter.Agent() != model.AgentOpenCode && adapter.Agent() != model.AgentKilocode {
 		switch adapter.SystemPromptStrategy() {
@@ -336,7 +336,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 2b. OpenCode /sdd-* commands reference agent: gentle-orchestrator.
+	// 2b. OpenCode /sdd-* commands reference agent: specai-orchestrator.
 	// Ensure that agent is present even when persona component is not installed.
 	//
 	// mergedSettingsBytes holds the final merged opencode.json bytes produced by
@@ -462,7 +462,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			sharedFiles := []string{
 				"SKILL.md",
 				"persistence-contract.md",
-				"engram-convention.md",
+				"sdd-memory-convention.md",
 				"openspec-convention.md",
 				"sdd-phase-common.md",
 				"skill-resolver.md",
@@ -514,7 +514,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 
 	// 3b. Write native workflow files (Windsurf Hybrid-First, and any future
 	// agent that implements the workflowInjector optional interface).
-	// findProjectRoot walks upward from WorkspaceDir so gentle-ai can be
+	// findProjectRoot walks upward from WorkspaceDir so specai can be
 	// invoked from any subdirectory (e.g. repo/internal/foo) and still inject
 	// workflows at the real project root. Skips silently if no root is found
 	// (e.g. running from home dir without a project).
@@ -655,13 +655,13 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			}
 		}
 
-		if !hasOpenCodeAgentKey(settingsText, "gentle-orchestrator") {
+		if !hasOpenCodeAgentKey(settingsText, "specai-orchestrator") {
 			// In-memory check failed — try reading from disk as last resort.
 			if diskBytes, readErr := os.ReadFile(settingsPath); readErr == nil {
 				settingsText = string(diskBytes)
 			}
-			if !hasOpenCodeAgentKey(settingsText, "gentle-orchestrator") {
-				return InjectionResult{}, fmt.Errorf("post-check: %q missing gentle-orchestrator agent definition — OpenCode /sdd-* commands will fail", settingsPath)
+			if !hasOpenCodeAgentKey(settingsText, "specai-orchestrator") {
+				return InjectionResult{}, fmt.Errorf("post-check: %q missing specai-orchestrator agent definition — OpenCode /sdd-* commands will fail", settingsPath)
 			}
 		}
 		if hasOpenCodeAgentKey(settingsText, "sdd-orchestrator") {
@@ -744,7 +744,7 @@ func inlineOpenCodeSDDPrompts(overlayBytes []byte, homeDir, settingsPath string,
 
 	// Inline the orchestrator prompt (always inlined, not a file reference),
 	// unless an external strategy requested preserving the existing prompt.
-	orchestratorRaw, ok := agentsMap["gentle-orchestrator"]
+	orchestratorRaw, ok := agentsMap["specai-orchestrator"]
 	if !ok {
 		return overlayBytes, nil
 	}
@@ -753,9 +753,15 @@ func inlineOpenCodeSDDPrompts(overlayBytes []byte, homeDir, settingsPath string,
 		return overlayBytes, nil
 	}
 	if preserveExistingOrchestratorPrompt {
-		existingPrompt, err := readOpenCodeAgentPrompt(settingsPath, "gentle-orchestrator")
+		existingPrompt, err := readOpenCodeAgentPrompt(settingsPath, "specai-orchestrator")
 		if err != nil {
 			return nil, err
+		}
+		if existingPrompt == "" {
+			existingPrompt, err = readOpenCodeAgentPrompt(settingsPath, "gentle-orchestrator")
+			if err != nil {
+				return nil, err
+			}
 		}
 		if existingPrompt == "" {
 			existingPrompt, err = readOpenCodeAgentPrompt(settingsPath, "sdd-orchestrator")
@@ -764,7 +770,7 @@ func inlineOpenCodeSDDPrompts(overlayBytes []byte, homeDir, settingsPath string,
 			}
 		}
 		if existingPrompt == "" {
-			existingPrompt, err = readMisnamedOpenCodeGentlemanSDDPrompt(settingsPath)
+			existingPrompt, err = readMisnamedOpenCodeLegacySDDPrompt(settingsPath)
 			if err != nil {
 				return nil, err
 			}
@@ -813,9 +819,9 @@ func migratePreservedOpenCodeOrchestratorPrompt(prompt string) string {
 
 	replacer := strings.NewReplacer(
 		"Bind this to the dedicated `sdd-orchestrator` agent only.",
-		"Bind this to the dedicated `gentle-orchestrator` agent only.",
+		"Bind this to the dedicated `specai-orchestrator` agent only.",
 		"agent.sdd-orchestrator.model",
-		"agent.gentle-orchestrator.model",
+		"agent.specai-orchestrator.model",
 	)
 	return ensurePreservedOpenCodeOrchestratorPreflight(replacer.Replace(prompt))
 }
@@ -846,8 +852,8 @@ A. Pace
 
 B. Artifacts
    B1 OpenSpec (recommended): repo files, traceable in review.
-   B2 Engram: faster, no spec files in the repo.
-   B3 Both: OpenSpec files plus Engram copy.
+   B2 SddMemory: faster, no spec files in the repo.
+   B3 Both: OpenSpec files plus SddMemory copy.
 
 C. PRs
    C1 Ask me (recommended): stop and ask if the forecast exceeds the budget.
@@ -875,8 +881,8 @@ A. Ritmo
 
 B. Artefactos
    B1 OpenSpec (recomendado): archivos en el repo, trazables en revisión.
-   B2 Engram: más rápido, sin archivos de especificación en el repo.
-   B3 Ambos: archivos OpenSpec más copia en Engram.
+   B2 SddMemory: más rápido, sin archivos de especificación en el repo.
+   B3 Ambos: archivos OpenSpec más copia en SddMemory.
 
 C. PRs
    C1 Preguntarme (recomendado): frenar y preguntar si la estimación supera el presupuesto.
@@ -890,7 +896,7 @@ D. Revisión
    D3 Otro: preguntar el número después.
 ` + "```" + `
 
-Map answers to canonical values: A1/Interactive -> ` + "`interactive`" + `; A2/Automatic -> ` + "`auto`" + `; B1/OpenSpec -> ` + "`openspec`" + `; B2/Engram -> ` + "`engram`" + `; B3/Both -> ` + "`both`" + `; C1/Ask me -> ` + "`ask-always`" + `; C2/Single PR -> ` + "`single-pr-default`" + `; C3/Chained -> ` + "`force-chained`" + `; C4/Auto -> ` + "`auto-forecast`" + `; D1/400 lines -> ` + "`review_budget_lines: 400`" + `; D2/800 lines -> ` + "`review_budget_lines: 800`" + `; D3/Other -> ask one follow-up for the number.
+Map answers to canonical values: A1/Interactive -> ` + "`interactive`" + `; A2/Automatic -> ` + "`auto`" + `; B1/OpenSpec -> ` + "`openspec`" + `; B2/SddMemory -> ` + "`sdd-memory`" + `; B3/Both -> ` + "`both`" + `; C1/Ask me -> ` + "`ask-always`" + `; C2/Single PR -> ` + "`single-pr-default`" + `; C3/Chained -> ` + "`force-chained`" + `; C4/Auto -> ` + "`auto-forecast`" + `; D1/400 lines -> ` + "`review_budget_lines: 400`" + `; D2/800 lines -> ` + "`review_budget_lines: 800`" + `; D3/Other -> ask one follow-up for the number.
 
 Hard gate rules:
 
@@ -978,7 +984,9 @@ func readOpenCodeAgentPrompt(settingsPath, agentKey string) (string, error) {
 	return prompt, nil
 }
 
-func readMisnamedOpenCodeGentlemanSDDPrompt(settingsPath string) (string, error) {
+// readMisnamedOpenCodeLegacySDDPrompt reads an SDD prompt from the legacy
+// "specai" agent key in opencode.json, which was used by older installer versions.
+func readMisnamedOpenCodeLegacySDDPrompt(settingsPath string) (string, error) {
 	if strings.TrimSpace(settingsPath) == "" {
 		return "", nil
 	}
@@ -1003,7 +1011,7 @@ func readMisnamedOpenCodeGentlemanSDDPrompt(settingsPath string) (string, error)
 	if !ok {
 		return "", nil
 	}
-	agentRaw, ok := agentsMap["gentleman"]
+	agentRaw, ok := agentsMap["specai"]
 	if !ok || !looksLikeOpenCodeSDDConductor(agentRaw) {
 		return "", nil
 	}
@@ -1040,7 +1048,7 @@ func ensureClaudeSkillRegistryHook(settingsPath string) (bool, error) {
 		return false, err
 	}
 
-	const command = `gentle-ai skill-registry refresh --quiet --no-gitignore --cwd "${CLAUDE_PROJECT_DIR:-$PWD}" || true`
+	const command = `specai skill-registry refresh --quiet --no-gitignore --cwd "${CLAUDE_PROJECT_DIR:-$PWD}" || true`
 	if claudeHookExists(root, command) {
 		return false, nil
 	}
@@ -1304,12 +1312,13 @@ func openCodeSettingsHasShare(settingsPath string) bool {
 
 // migrateLegacyOpenCodeSDDOrchestrator removes legacy or accidentally renamed
 // base OpenCode SDD conductor agents. The base SDD coordinator is now the
-// gentle-orchestrator primary agent; named profile agents such as
+// specai-orchestrator primary agent; named profile agents such as
 // sdd-orchestrator-cheap intentionally remain untouched because they are
-// generated profile-specific coordinators. The old OpenCode "gentleman" agent
-// key is revoked and is removed during sync; if it clearly contains the old SDD
-// conductor prompt and no gentle-orchestrator exists yet, its prompt is migrated
-// before the revoked key is deleted.
+// generated profile-specific coordinators. The old OpenCode "gentle-orchestrator"
+// and "specai" agent keys (from pre-SpecAI installer versions) are revoked and
+// removed during sync; if they clearly contain the old SDD conductor prompt and
+// no specai-orchestrator exists yet, the prompt is migrated before the revoked
+// key is deleted.
 func migrateLegacyOpenCodeSDDOrchestrator(baseJSON []byte) ([]byte, error) {
 	if len(strings.TrimSpace(string(baseJSON))) == 0 {
 		return baseJSON, nil
@@ -1330,22 +1339,30 @@ func migrateLegacyOpenCodeSDDOrchestrator(baseJSON []byte) ([]byte, error) {
 	}
 
 	legacy, hasLegacy := agentsMap["sdd-orchestrator"]
-	revokedGentleman, hasRevokedGentleman := agentsMap["gentleman"]
-	gentlemanLooksLikeConductor := hasRevokedGentleman && looksLikeOpenCodeSDDConductor(revokedGentleman)
-	if !hasLegacy && !hasRevokedGentleman {
+	revokedGentleOrchestrator, hasGentleOrchestrator := agentsMap["gentle-orchestrator"]
+	revokedLegacy, hasRevokedLegacy := agentsMap["specai"]
+	legacyLooksLikeConductor := hasRevokedLegacy && looksLikeOpenCodeSDDConductor(revokedLegacy)
+	gentleOrchestratorLooksLikeConductor := hasGentleOrchestrator && looksLikeOpenCodeSDDConductor(revokedGentleOrchestrator)
+	if !hasLegacy && !hasRevokedLegacy && !hasGentleOrchestrator {
 		return baseJSON, nil
 	}
-	if !hasLegacy && gentlemanLooksLikeConductor {
-		legacy = revokedGentleman
+	// Prefer gentle-orchestrator as source if no sdd-orchestrator migration source exists.
+	if !hasLegacy && gentleOrchestratorLooksLikeConductor {
+		legacy = revokedGentleOrchestrator
+		hasLegacy = true
+	}
+	if !hasLegacy && legacyLooksLikeConductor {
+		legacy = revokedLegacy
 		hasLegacy = true
 	}
 
-	if _, hasGentleOrchestrator := agentsMap["gentle-orchestrator"]; !hasGentleOrchestrator && hasLegacy {
-		agentsMap["gentle-orchestrator"] = legacy
+	if _, hasSpecAIOrchestrator := agentsMap["specai-orchestrator"]; !hasSpecAIOrchestrator && hasLegacy {
+		agentsMap["specai-orchestrator"] = legacy
 	}
 	delete(agentsMap, "sdd-orchestrator")
-	if hasRevokedGentleman {
-		delete(agentsMap, "gentleman")
+	delete(agentsMap, "gentle-orchestrator")
+	if hasRevokedLegacy {
+		delete(agentsMap, "specai")
 	}
 
 	encoded, err := json.MarshalIndent(root, "", "  ")
@@ -1570,7 +1587,7 @@ func hasLegacyBareOrchestrator(content string) bool {
 //
 // Unlike CLAUDE.md markdown-section files, these prompt files often carry the
 // whole orchestrator as a contiguous block followed by other managed sections
-// (for example engram-protocol markers). The legacy block also contains many
+// (for example sdd-memory-protocol markers). The legacy block also contains many
 // "##" headings, so trimming until the next "##" is not enough.
 //
 // Strategy:
@@ -1637,8 +1654,8 @@ func stripBareOrchestratorForFilePrompt(content string) string {
 }
 
 const instructionsFrontmatter = "---\n" +
-	"name: Gentle AI Persona\n" +
-	"description: Gentleman persona with SDD orchestration and Engram protocol\n" +
+	"name: SpecAI Persona\n" +
+	"description: Modism persona with SDD orchestration and sdd-memory protocol\n" +
 	"applyTo: \"**\"\n" +
 	"---\n"
 
@@ -1823,7 +1840,7 @@ func renderClaudeModelAssignmentsSection(assignments map[string]model.ClaudeMode
 	var b strings.Builder
 	b.WriteString("## Model Assignments\n\n")
 	b.WriteString("Read this table at session start (or before first delegation), cache it for the session, and pass the mapped alias in every Agent tool call via the `model` parameter. If a phase is missing, use the `default` row. If you do not have access to the assigned model (for example, no Opus access), substitute `sonnet` and continue.\n\n")
-	b.WriteString("The Claude Code session model is controlled by Claude Code itself; Gentle AI does not configure the main orchestrator model. This table applies only to Agent tool calls for SDD phase sub-agents and general delegation.\n\n")
+	b.WriteString("The Claude Code session model is controlled by Claude Code itself; SpecAI does not configure the main orchestrator model. This table applies only to Agent tool calls for SDD phase sub-agents and general delegation.\n\n")
 	b.WriteString("**Mandatory model gate:** Every Agent tool call MUST include `model`. Calling Agent without `model` is invalid. Before each Agent call, resolve the target phase to an alias from this table; for general/non-SDD delegation use `default`. If you are about to call Agent and have not chosen a `model`, STOP and choose the mapped alias first.\n\n")
 	b.WriteString("| Phase | Default Model | Reason |\n")
 	b.WriteString("|-------|---------------|--------|\n")
@@ -1931,28 +1948,33 @@ func injectModelAssignments(overlayBytes []byte, assignments map[string]model.Mo
 }
 
 // normalizeOpenCodeSDDModelAssignments accepts the historical
-// sdd-orchestrator assignment key as an input alias, but writes it to the
-// current base coordinator key: gentle-orchestrator. Named profile keys remain unchanged.
+// sdd-orchestrator and gentle-orchestrator assignment keys as input aliases,
+// but writes them to the current base coordinator key: specai-orchestrator.
+// Named profile keys remain unchanged.
 func normalizeOpenCodeSDDModelAssignments(assignments map[string]model.ModelAssignment) map[string]model.ModelAssignment {
 	if len(assignments) == 0 {
 		return assignments
 	}
-	legacyAssignment, hasLegacy := assignments["sdd-orchestrator"]
-	if !hasLegacy {
+	if _, hasSpecAI := assignments["specai-orchestrator"]; hasSpecAI {
 		return assignments
 	}
-	if _, hasGentleOrchestrator := assignments["gentle-orchestrator"]; hasGentleOrchestrator {
+	// Accept any legacy key as a migration source.
+	legacyAssignment, hasLegacy := assignments["sdd-orchestrator"]
+	if !hasLegacy {
+		legacyAssignment, hasLegacy = assignments["gentle-orchestrator"]
+	}
+	if !hasLegacy {
 		return assignments
 	}
 
 	normalized := make(map[string]model.ModelAssignment, len(assignments))
 	for key, assignment := range assignments {
-		if key == "sdd-orchestrator" {
+		if key == "sdd-orchestrator" || key == "gentle-orchestrator" {
 			continue
 		}
 		normalized[key] = assignment
 	}
-	normalized["gentle-orchestrator"] = legacyAssignment
+	normalized["specai-orchestrator"] = legacyAssignment
 	return normalized
 }
 

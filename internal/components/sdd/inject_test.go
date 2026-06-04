@@ -266,7 +266,7 @@ func TestInjectClaudeCustomModelAssignments(t *testing.T) {
 	for _, want := range []string{
 		"| sdd-design | sonnet | Architecture decisions |",
 		"| default | haiku | Non-SDD general delegation |",
-		"Gentle AI does not configure the main orchestrator model",
+		"SpecAI does not configure the main orchestrator model",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("CLAUDE.md missing custom table row %q", want)
@@ -349,11 +349,14 @@ func TestInjectOpenCodeWritesCommandFiles(t *testing.T) {
 	if !strings.Contains(settingsText, `"agent"`) {
 		t.Fatal("opencode.json missing agent key for SDD commands")
 	}
-	if !strings.Contains(settingsText, `"gentle-orchestrator"`) {
-		t.Fatal("opencode.json missing gentle-orchestrator agent")
+	if !strings.Contains(settingsText, `"specai-orchestrator"`) {
+		t.Fatal("opencode.json missing specai-orchestrator agent")
 	}
 	if strings.Contains(settingsText, `"sdd-orchestrator"`) {
 		t.Fatal("opencode.json should not install legacy sdd-orchestrator agent")
+	}
+	if strings.Contains(settingsText, `"gentle-orchestrator"`) {
+		t.Fatal("opencode.json should not contain legacy gentle-orchestrator agent")
 	}
 
 	sharedPath := filepath.Join(home, ".config", "opencode", "skills", "_shared", "persistence-contract.md")
@@ -421,7 +424,7 @@ func TestInjectOpenCodeUsesOpenCodeSpecificOrchestratorPrompt(t *testing.T) {
 			}
 
 			for _, wanted := range []string{
-				"Gentle AI",
+				"SpecAI",
 				"Read the configured models from `opencode.json`",
 			} {
 				if !strings.Contains(text, wanted) {
@@ -444,7 +447,7 @@ func TestInjectOpenCodePreservesExistingOrchestratorPromptWhenRequested(t *testi
 	const customPrompt = "EXTERNAL_PROFILE_MANAGER_CUSTOM_PROMPT_DO_NOT_OVERWRITE"
 	seed := `{
   "agent": {
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary",
       "prompt": "` + customPrompt + `"
     }
@@ -479,10 +482,10 @@ func TestInjectOpenCodeMigratesPreservedLegacyOrchestratorPromptReferences(t *te
 		t.Fatalf("MkdirAll(settings dir) error = %v", err)
 	}
 
-	const stalePrompt = "# Gentle AI — SDD Orchestrator Instructions\n\nBind this to the dedicated `sdd-orchestrator` agent only.\n\n- Treat `agent.sdd-orchestrator.model` as authoritative when it is set.\n"
+	const stalePrompt = "# SpecAI — SDD Orchestrator Instructions\n\nBind this to the dedicated `sdd-orchestrator` agent only.\n\n- Treat `agent.sdd-orchestrator.model` as authoritative when it is set.\n"
 	seed := `{
   "agent": {
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary",
       "prompt": ` + strconv.Quote(stalePrompt) + `
     }
@@ -513,8 +516,8 @@ func TestInjectOpenCodeMigratesPreservedLegacyOrchestratorPromptReferences(t *te
 		}
 	}
 	for _, wanted := range []string{
-		"Bind this to the dedicated `gentle-orchestrator` agent only.",
-		"agent.gentle-orchestrator.model",
+		"Bind this to the dedicated `specai-orchestrator` agent only.",
+		"agent.specai-orchestrator.model",
 		"### SDD Session Preflight (HARD GATE)",
 		"ask the localized user-facing preflight prompt above and STOP",
 		"Match the user's current language",
@@ -542,7 +545,7 @@ func TestInjectOpenCodeMigratesPartialPreflightPrompt(t *testing.T) {
 	const partialPrompt = "# Custom prompt\n\nBefore continuing with SDD, choose one option per group.\n"
 	seed := `{
   "agent": {
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary",
       "prompt": ` + strconv.Quote(partialPrompt) + `
     }
@@ -613,7 +616,7 @@ Hard gate rules:
 `
 	seed := `{
   "agent": {
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary",
       "prompt": ` + strconv.Quote(stalePrompt) + `
     }
@@ -659,7 +662,7 @@ Hard gate rules:
 	}
 }
 
-func TestInjectOpenCodeMigratesLegacyBaseOrchestratorToGentleOrchestrator(t *testing.T) {
+func TestInjectOpenCodeMigratesLegacyBaseOrchestratorToSpecAIOrchestrator(t *testing.T) {
 	home := t.TempDir()
 	mockNoPackageManager(t)
 
@@ -709,20 +712,20 @@ func TestInjectOpenCodeMigratesLegacyBaseOrchestratorToGentleOrchestrator(t *tes
 	if _, exists := agentMap["sdd-orchestrator-cheap"]; !exists {
 		t.Fatal("named profile orchestrator should be preserved")
 	}
-	gentleOrchestratorAgent, ok := agentMap["gentle-orchestrator"].(map[string]any)
+	specaiOrchestratorAgent, ok := agentMap["specai-orchestrator"].(map[string]any)
 	if !ok {
-		t.Fatal("gentle-orchestrator agent not found or wrong type")
+		t.Fatal("specai-orchestrator agent not found or wrong type")
 	}
-	prompt, _ := gentleOrchestratorAgent["prompt"].(string)
+	prompt, _ := specaiOrchestratorAgent["prompt"].(string)
 	if !strings.Contains(prompt, legacyPrompt) {
-		t.Fatalf("gentle-orchestrator prompt = %q, want it to preserve migrated legacy prompt", prompt)
+		t.Fatalf("specai-orchestrator prompt = %q, want it to preserve migrated legacy prompt", prompt)
 	}
 	if !strings.Contains(prompt, "### SDD Session Preflight (HARD GATE)") {
-		t.Fatalf("gentle-orchestrator prompt = %q, want appended preflight migration", prompt)
+		t.Fatalf("specai-orchestrator prompt = %q, want appended preflight migration", prompt)
 	}
 }
 
-func TestInjectOpenCodeMigratesMisnamedGentlemanSDDOrchestrator(t *testing.T) {
+func TestInjectOpenCodeMigratesMisnamedSpecAISDDOrchestrator(t *testing.T) {
 	home := t.TempDir()
 	mockNoPackageManager(t)
 
@@ -731,12 +734,12 @@ func TestInjectOpenCodeMigratesMisnamedGentlemanSDDOrchestrator(t *testing.T) {
 		t.Fatalf("MkdirAll(settings dir) error = %v", err)
 	}
 
-	const priorPrompt = "MISNAMED_GENTLEMAN_SDD_ORCHESTRATOR_PROMPT_TO_MIGRATE"
+	const priorPrompt = "MISNAMED_SPECAI_SDD_ORCHESTRATOR_PROMPT_TO_MIGRATE"
 	seed := `{
   "agent": {
-    "gentleman": {
+    "specai": {
       "mode": "primary",
-      "description": "Gentleman SDD Orchestrator - coordinates sub-agents",
+      "description": "SpecAI SDD Orchestrator - coordinates sub-agents",
       "prompt": "` + priorPrompt + `"
     }
   }
@@ -764,23 +767,23 @@ func TestInjectOpenCodeMigratesMisnamedGentlemanSDDOrchestrator(t *testing.T) {
 	if !ok {
 		t.Fatal("opencode.json missing agent map")
 	}
-	if _, exists := agentMap["gentleman"]; exists {
-		t.Fatal("misnamed SDD gentleman agent should be removed")
+	if _, exists := agentMap["specai"]; exists {
+		t.Fatal("misnamed SDD specai agent should be removed")
 	}
-	gentleOrchestratorAgent, ok := agentMap["gentle-orchestrator"].(map[string]any)
+	specaiOrchestratorAgent, ok := agentMap["specai-orchestrator"].(map[string]any)
 	if !ok {
-		t.Fatal("gentle-orchestrator agent not found or wrong type")
+		t.Fatal("specai-orchestrator agent not found or wrong type")
 	}
-	prompt, _ := gentleOrchestratorAgent["prompt"].(string)
+	prompt, _ := specaiOrchestratorAgent["prompt"].(string)
 	if !strings.Contains(prompt, priorPrompt) {
-		t.Fatalf("gentle-orchestrator prompt = %q, want it to preserve migrated misnamed prompt", prompt)
+		t.Fatalf("specai-orchestrator prompt = %q, want it to preserve migrated misnamed prompt", prompt)
 	}
 	if !strings.Contains(prompt, "### SDD Session Preflight (HARD GATE)") {
-		t.Fatalf("gentle-orchestrator prompt = %q, want appended preflight migration", prompt)
+		t.Fatalf("specai-orchestrator prompt = %q, want appended preflight migration", prompt)
 	}
 }
 
-func TestInjectOpenCodeDeletesRevokedGentlemanAgent(t *testing.T) {
+func TestInjectOpenCodeDeletesRevokedSpecAIAgent(t *testing.T) {
 	home := t.TempDir()
 	mockNoPackageManager(t)
 
@@ -791,14 +794,14 @@ func TestInjectOpenCodeDeletesRevokedGentlemanAgent(t *testing.T) {
 
 	seed := `{
   "agent": {
-    "gentleman": {
+    "specai": {
       "mode": "primary",
       "description": "Senior Architect mentor - revoked OpenCode persona",
-      "prompt": "REVOKED_GENTLEMAN_PROMPT_SHOULD_NOT_SURVIVE"
+      "prompt": "REVOKED_SPECAI_PROMPT_SHOULD_NOT_SURVIVE"
     },
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary",
-      "prompt": "CURRENT_GENTLE_ORCHESTRATOR_PROMPT"
+      "prompt": "CURRENT_SPECAI_ORCHESTRATOR_PROMPT"
     }
   }
 }`
@@ -825,19 +828,19 @@ func TestInjectOpenCodeDeletesRevokedGentlemanAgent(t *testing.T) {
 	if !ok {
 		t.Fatal("opencode.json missing agent map")
 	}
-	if _, exists := agentMap["gentleman"]; exists {
-		t.Fatal("revoked gentleman agent should be removed")
+	if _, exists := agentMap["specai"]; exists {
+		t.Fatal("revoked specai agent should be removed")
 	}
-	gentleOrchestratorAgent, ok := agentMap["gentle-orchestrator"].(map[string]any)
+	specaiOrchestratorAgent, ok := agentMap["specai-orchestrator"].(map[string]any)
 	if !ok {
-		t.Fatal("gentle-orchestrator agent not found or wrong type")
+		t.Fatal("specai-orchestrator agent not found or wrong type")
 	}
-	prompt, _ := gentleOrchestratorAgent["prompt"].(string)
-	if !strings.Contains(prompt, "CURRENT_GENTLE_ORCHESTRATOR_PROMPT") {
-		t.Fatalf("gentle-orchestrator prompt = %q, want it to preserve current prompt", prompt)
+	prompt, _ := specaiOrchestratorAgent["prompt"].(string)
+	if !strings.Contains(prompt, "CURRENT_SPECAI_ORCHESTRATOR_PROMPT") {
+		t.Fatalf("specai-orchestrator prompt = %q, want it to preserve current prompt (migrated from specai-orchestrator)", prompt)
 	}
 	if !strings.Contains(prompt, "### SDD Session Preflight (HARD GATE)") {
-		t.Fatalf("gentle-orchestrator prompt = %q, want appended preflight migration", prompt)
+		t.Fatalf("specai-orchestrator prompt = %q, want appended preflight migration", prompt)
 	}
 }
 
@@ -853,7 +856,7 @@ func TestInjectOpenCodeOverwritesOrchestratorPromptByDefault(t *testing.T) {
 	const customPrompt = "EXTERNAL_PROFILE_MANAGER_CUSTOM_PROMPT_DO_NOT_OVERWRITE"
 	seed := `{
   "agent": {
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary",
       "prompt": "` + customPrompt + `"
     }
@@ -932,11 +935,14 @@ func TestInjectOpenCodeMigratesLegacyAgentsKey(t *testing.T) {
 	if _, ok := agentMap["legacy-agent"]; !ok {
 		t.Fatal("legacy agent was not migrated under agent key")
 	}
-	if _, ok := agentMap["gentle-orchestrator"]; !ok {
-		t.Fatal("gentle-orchestrator agent missing after merge")
+	if _, ok := agentMap["specai-orchestrator"]; !ok {
+		t.Fatal("specai-orchestrator agent missing after merge")
 	}
 	if _, ok := agentMap["sdd-orchestrator"]; ok {
 		t.Fatal("legacy sdd-orchestrator agent should not remain after merge")
+	}
+	if _, ok := agentMap["gentle-orchestrator"]; ok {
+		t.Fatal("legacy gentle-orchestrator agent should not remain after merge")
 	}
 }
 
@@ -1040,21 +1046,21 @@ func TestInjectKimiWritesNativeAgentFilesAndGlobalSkills(t *testing.T) {
 		t.Fatal("sdd-orchestrator.md should reference Kimi's documented Task tool for custom subagent delegation")
 	}
 
-	rootAgentPath := filepath.Join(home, ".kimi", "agents", "gentleman.yaml")
+	rootAgentPath := filepath.Join(home, ".kimi", "agents", "modism.yaml")
 	rootAgent, err := os.ReadFile(rootAgentPath)
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v", rootAgentPath, err)
 	}
 
 	rootText := string(rootAgent)
-	if !strings.Contains(rootText, "name: gentleman") {
-		t.Fatal("gentleman.yaml should define a named root custom agent")
+	if !strings.Contains(rootText, "name: modism") {
+		t.Fatal("modism.yaml should define a named root custom agent")
 	}
 	if strings.Contains(rootText, "kimi_cli.tools.agent:Agent") {
-		t.Fatal("gentleman.yaml should inherit Kimi's default tool set instead of hardcoding the old Agent tool path")
+		t.Fatal("modism.yaml should inherit Kimi's default tool set instead of hardcoding the old Agent tool path")
 	}
 	if !strings.Contains(rootText, "../KIMI.md") {
-		t.Fatal("gentleman.yaml should load the installed KIMI.md system prompt")
+		t.Fatal("modism.yaml should load the installed KIMI.md system prompt")
 	}
 
 	for _, want := range []string{
@@ -1236,7 +1242,7 @@ func TestInjectVSCodeWritesSDDOrchestratorAndSkills(t *testing.T) {
 		t.Fatalf("expected SDD skill file %q: %v", skillPath, err)
 	}
 
-	sharedPath := filepath.Join(home, ".copilot", "skills", "_shared", "engram-convention.md")
+	sharedPath := filepath.Join(home, ".copilot", "skills", "_shared", "sdd-memory-convention.md")
 	if _, err := os.Stat(sharedPath); err != nil {
 		t.Fatalf("expected shared SDD convention file %q: %v", sharedPath, err)
 	}
@@ -1337,9 +1343,9 @@ func TestInjectFileAppendMigratesFullLegacyOrchestratorBlock(t *testing.T) {
 		"Each phase returns: `status`, `executive_summary`, `artifacts`, `next_recommended`, `risks`.\n\n" +
 		"### Sub-Agent Launch Pattern\n\n" +
 		"SKILL: Load `{skill-path}` before starting.\n\n" +
-		"<!-- specai:engram-protocol -->\n" +
-		"## Engram Persistent Memory - Protocol\n" +
-		"<!-- /specai:engram-protocol -->\n"
+		"<!-- specai:sdd-memory-protocol -->\n" +
+		"## SddMemory Persistent Memory - Protocol\n" +
+		"<!-- /specai:sdd-memory-protocol -->\n"
 
 	if err := os.WriteFile(promptPath, []byte(existing), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
@@ -1371,8 +1377,8 @@ func TestInjectFileAppendMigratesFullLegacyOrchestratorBlock(t *testing.T) {
 	if !strings.Contains(text, "## Skills to load before work") {
 		t.Fatal("current skill-path launch pattern missing after migration")
 	}
-	if strings.Count(text, "<!-- specai:engram-protocol -->") != 1 {
-		t.Fatal("engram protocol marker should be preserved exactly once")
+	if strings.Count(text, "<!-- specai:sdd-memory-protocol -->") != 1 {
+		t.Fatal("sdd-memory protocol marker should be preserved exactly once")
 	}
 }
 
@@ -1502,28 +1508,28 @@ func TestInjectOpenCodeMultiMode(t *testing.T) {
 		t.Fatalf("agent key has unexpected type: %T", agentRaw)
 	}
 
-	// Multi overlay must contain gentle-orchestrator + 10 sub-agents + 3 JD agents = 14 agents.
+	// Multi overlay must contain specai-orchestrator + 10 sub-agents + 3 JD agents = 14 agents.
 	if len(agentMap) != 14 {
 		t.Fatalf("agent count = %d, want 14", len(agentMap))
 	}
 
-	// Verify gentle-orchestrator is present.
-	orchestratorRaw, ok := agentMap["gentle-orchestrator"]
+	// Verify specai-orchestrator is present.
+	orchestratorRaw, ok := agentMap["specai-orchestrator"]
 	if !ok {
-		t.Fatal("missing gentle-orchestrator agent")
+		t.Fatal("missing specai-orchestrator agent")
 	}
 	orchestratorAgent, ok := orchestratorRaw.(map[string]any)
 	if !ok {
-		t.Fatalf("gentle-orchestrator has unexpected type: %T", orchestratorRaw)
+		t.Fatalf("specai-orchestrator has unexpected type: %T", orchestratorRaw)
 	}
 	toolsRaw, ok := orchestratorAgent["tools"].(map[string]any)
 	if !ok {
-		t.Fatalf("gentle-orchestrator tools has unexpected type: %T", orchestratorAgent["tools"])
+		t.Fatalf("specai-orchestrator tools has unexpected type: %T", orchestratorAgent["tools"])
 	}
 	for _, toolName := range []string{"delegate", "delegation_read", "delegation_list"} {
 		value, ok := toolsRaw[toolName].(bool)
 		if !ok || !value {
-			t.Fatalf("gentle-orchestrator missing multi-mode tool %q", toolName)
+			t.Fatalf("specai-orchestrator missing multi-mode tool %q", toolName)
 		}
 	}
 
@@ -1744,25 +1750,25 @@ func TestInjectOpenCodeEmptySDDModeDefaultsSingle(t *testing.T) {
 		t.Fatalf("agent key has unexpected type: %T", agentRaw)
 	}
 
-	// Empty mode defaults to single — gentle-orchestrator + 10 sub-agents = 11 agents.
-	if _, ok := agentMap["gentle-orchestrator"]; !ok {
-		t.Fatal("missing gentle-orchestrator agent")
+	// Empty mode defaults to single — specai-orchestrator + 10 sub-agents = 11 agents.
+	if _, ok := agentMap["specai-orchestrator"]; !ok {
+		t.Fatal("missing specai-orchestrator agent")
 	}
 	if len(agentMap) != 11 {
 		t.Fatalf("agent count = %d, want 11", len(agentMap))
 	}
 
 	// Verify orchestrator mode is "primary".
-	orchestratorRaw, ok := agentMap["gentle-orchestrator"]
+	orchestratorRaw, ok := agentMap["specai-orchestrator"]
 	if !ok {
-		t.Fatal("missing gentle-orchestrator agent")
+		t.Fatal("missing specai-orchestrator agent")
 	}
 	orchestratorAgent, ok := orchestratorRaw.(map[string]any)
 	if !ok {
-		t.Fatalf("gentle-orchestrator has unexpected type: %T", orchestratorRaw)
+		t.Fatalf("specai-orchestrator has unexpected type: %T", orchestratorRaw)
 	}
 	if mode, _ := orchestratorAgent["mode"].(string); mode != "primary" {
-		t.Fatalf("gentle-orchestrator mode = %q, want %q", mode, "primary")
+		t.Fatalf("specai-orchestrator mode = %q, want %q", mode, "primary")
 	}
 
 	// Verify sub-agents are present with mode "subagent".
@@ -1851,11 +1857,14 @@ func TestInjectOpenCodeSingleToMultiSwitch(t *testing.T) {
 	}
 
 	agentMap, _ := root["agent"].(map[string]any)
-	if _, ok := agentMap["gentle-orchestrator"]; !ok {
-		t.Fatal("missing gentle-orchestrator after switch to multi")
+	if _, ok := agentMap["specai-orchestrator"]; !ok {
+		t.Fatal("missing specai-orchestrator after switch to multi")
 	}
 	if _, ok := agentMap["sdd-orchestrator"]; ok {
 		t.Fatal("legacy sdd-orchestrator should not remain after switch to multi")
+	}
+	if _, ok := agentMap["gentle-orchestrator"]; ok {
+		t.Fatal("legacy gentle-orchestrator should not remain after switch to multi")
 	}
 	if _, ok := agentMap["sdd-apply"]; !ok {
 		t.Fatal("missing sdd-apply after switch to multi")
@@ -2044,7 +2053,7 @@ func TestInjectOpenClawWritesWorkspaceAgentsProtocolSectionsAndNoToolsProtocol(t
 		t.Fatalf("ReadFile(TOOLS.md) error = %v", err)
 	}
 	toolsText := string(toolsContent)
-	if strings.Contains(toolsText, "gentle-ai:sdd-orchestrator") || strings.Contains(toolsText, "Strict TDD Mode") {
+	if strings.Contains(toolsText, "specai:sdd-orchestrator") || strings.Contains(toolsText, "Strict TDD Mode") {
 		t.Fatalf("TOOLS.md must not receive OpenClaw protocol sections; got:\n%s", toolsText)
 	}
 	if !strings.Contains(toolsText, "Keep this.") {
@@ -2270,7 +2279,7 @@ func TestInjectOpenCodeMultiModeUsesRootModelForUnassignedAgents(t *testing.T) {
 	// pre-existing in the user's config should get the root model injected.
 	// Since we started with only {"model":"openai/gpt-5"} (no agent entries),
 	// ALL agents are "new" from the 3-way logic perspective and should get rootModel.
-	for _, phase := range []string{"gentle-orchestrator", "sdd-init", "sdd-verify"} {
+	for _, phase := range []string{"specai-orchestrator", "sdd-init", "sdd-verify"} {
 		agentDef, ok := agentMap[phase].(map[string]any)
 		if !ok {
 			t.Fatalf("phase %q agent not found or wrong type", phase)
@@ -2607,7 +2616,7 @@ func TestInjectWritesAllFourSharedFilesToDisk(t *testing.T) {
 	sharedDir := filepath.Join(home, ".config", "opencode", "skills", "_shared")
 	expectedFiles := []string{
 		"persistence-contract.md",
-		"engram-convention.md",
+		"sdd-memory-convention.md",
 		"openspec-convention.md",
 		"sdd-phase-common.md",
 		"skill-resolver.md",
@@ -2663,7 +2672,7 @@ func TestInjectSharedDirCreatedWithAllFiles(t *testing.T) {
 		names[e.Name()] = true
 	}
 
-	for _, want := range []string{"persistence-contract.md", "engram-convention.md", "openspec-convention.md", "sdd-phase-common.md", "skill-resolver.md"} {
+	for _, want := range []string{"persistence-contract.md", "sdd-memory-convention.md", "openspec-convention.md", "sdd-phase-common.md", "skill-resolver.md"} {
 		if !names[want] {
 			t.Errorf("_shared directory missing %q after Inject()", want)
 		}
@@ -3611,7 +3620,7 @@ func TestInjectWindsurf_WorkflowsFoundFromSubdirectory(t *testing.T) {
 		t.Fatalf("write go.mod: %v", err)
 	}
 
-	// Simulate running gentle-ai from a subdirectory inside that project.
+	// Simulate running specai from a subdirectory inside that project.
 	subDir := filepath.Join(projectRoot, "internal", "foo")
 	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		t.Fatalf("mkdir subDir: %v", err)
@@ -3772,7 +3781,7 @@ func TestInjectCodexWritesSDDOrchestratorAndSkills(t *testing.T) {
 	}
 
 	// Shared files should also be written.
-	sharedPath := filepath.Join(home, ".codex", "skills", "_shared", "engram-convention.md")
+	sharedPath := filepath.Join(home, ".codex", "skills", "_shared", "sdd-memory-convention.md")
 	if _, err := os.Stat(sharedPath); err != nil {
 		t.Fatalf("expected shared SDD convention file %q: %v", sharedPath, err)
 	}
@@ -3863,11 +3872,14 @@ func TestInjectOpenCodeMultiModeWithPreExistingMinimalConfig(t *testing.T) {
 	if !ok {
 		t.Fatal("opencode.json missing agent key after merge")
 	}
-	if _, ok := agentMap["gentle-orchestrator"]; !ok {
-		t.Fatal("missing gentle-orchestrator after merge with pre-existing config")
+	if _, ok := agentMap["specai-orchestrator"]; !ok {
+		t.Fatal("missing specai-orchestrator after merge with pre-existing config")
 	}
 	if _, ok := agentMap["sdd-orchestrator"]; ok {
 		t.Fatal("legacy sdd-orchestrator should be removed after merge with pre-existing config")
+	}
+	if _, ok := agentMap["gentle-orchestrator"]; ok {
+		t.Fatal("legacy gentle-orchestrator should be removed after merge with pre-existing config")
 	}
 	if _, ok := agentMap["sdd-apply"]; !ok {
 		t.Fatal("missing sdd-apply after merge with pre-existing config — post-check regression")
@@ -3939,9 +3951,9 @@ func TestInjectOpenCodeMultiModeWithPreExistingFullConfig(t *testing.T) {
 		t.Fatal("opencode.json missing agent key after merge")
 	}
 
-	// All multi-mode agents must be present with gentle-orchestrator as the base orchestrator.
+	// All multi-mode agents must be present with specai-orchestrator as the base orchestrator.
 	for _, agentName := range []string{
-		"gentle-orchestrator", "sdd-init", "sdd-explore", "sdd-propose",
+		"specai-orchestrator", "sdd-init", "sdd-explore", "sdd-propose",
 		"sdd-spec", "sdd-design", "sdd-tasks", "sdd-apply", "sdd-verify", "sdd-archive",
 	} {
 		if _, ok := agentMap[agentName]; !ok {
@@ -3951,13 +3963,13 @@ func TestInjectOpenCodeMultiModeWithPreExistingFullConfig(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// gentle-orchestrator agent model assignment from SDD coordinator selection
+// specai-orchestrator agent model assignment from SDD coordinator selection
 // ---------------------------------------------------------------------------
 
-// TestInjectOpenCodeMultiModeAssignsGentleOrchestratorModelFromLegacyOrchestratorKey
-// verifies that historical TUI assignments keyed by sdd-orchestrator are
-// migrated to the current gentle-orchestrator base coordinator.
-func TestInjectOpenCodeMultiModeAssignsGentleOrchestratorModelFromLegacyOrchestratorKey(t *testing.T) {
+// TestInjectOpenCodeMultiModeAssignsSpecAIOrchestratorModelFromLegacyOrchestratorKey
+// verifies that historical TUI assignments keyed by sdd-orchestrator or specai-orchestrator are
+// migrated to the current specai-orchestrator base coordinator.
+func TestInjectOpenCodeMultiModeAssignsSpecAIOrchestratorModelFromLegacyOrchestratorKey(t *testing.T) {
 	home := t.TempDir()
 	mockNoPackageManager(t)
 
@@ -3966,10 +3978,10 @@ func TestInjectOpenCodeMultiModeAssignsGentleOrchestratorModelFromLegacyOrchestr
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 
-	// Pre-existing opencode.json with gentle-orchestrator agent.
+	// Pre-existing opencode.json with specai-orchestrator agent (legacy — will be migrated).
 	existing := `{
   "agent": {
-    "gentle-orchestrator": {
+    "specai-orchestrator": {
       "mode": "primary"
     }
   }
@@ -4008,20 +4020,23 @@ func TestInjectOpenCodeMultiModeAssignsGentleOrchestratorModelFromLegacyOrchestr
 	if _, exists := agentMap["sdd-orchestrator"]; exists {
 		t.Fatal("legacy sdd-orchestrator agent should not be installed")
 	}
-
-	// gentle-orchestrator must receive the historical sdd-orchestrator assignment.
-	gentleOrchestratorAgent, ok := agentMap["gentle-orchestrator"].(map[string]any)
-	if !ok {
-		t.Fatal("gentle-orchestrator agent not found or wrong type")
+	if _, exists := agentMap["gentle-orchestrator"]; exists {
+		t.Fatal("legacy gentle-orchestrator agent should not be installed")
 	}
-	if m, _ := gentleOrchestratorAgent["model"].(string); m != "openai/gpt-4o" {
-		t.Fatalf("gentle-orchestrator model = %q, want %q", m, "openai/gpt-4o")
+
+	// specai-orchestrator must receive the historical sdd-orchestrator assignment.
+	specaiOrchestratorAgent, ok := agentMap["specai-orchestrator"].(map[string]any)
+	if !ok {
+		t.Fatal("specai-orchestrator agent not found or wrong type")
+	}
+	if m, _ := specaiOrchestratorAgent["model"].(string); m != "openai/gpt-4o" {
+		t.Fatalf("specai-orchestrator model = %q, want %q", m, "openai/gpt-4o")
 	}
 }
 
-// TestInjectOpenCodeMultiModeInstallsGentleOrchestratorWithModel verifies that the base
-// SDD overlay owns the gentle-orchestrator coordinator.
-func TestInjectOpenCodeMultiModeInstallsGentleOrchestratorWithModel(t *testing.T) {
+// TestInjectOpenCodeMultiModeInstallsSpecAIOrchestratorWithModel verifies that the base
+// SDD overlay owns the specai-orchestrator coordinator.
+func TestInjectOpenCodeMultiModeInstallsSpecAIOrchestratorWithModel(t *testing.T) {
 	home := t.TempDir()
 	mockNoPackageManager(t)
 
@@ -4054,15 +4069,18 @@ func TestInjectOpenCodeMultiModeInstallsGentleOrchestratorWithModel(t *testing.T
 		t.Fatal("opencode.json missing agent map")
 	}
 
-	gentleOrchestratorAgent, ok := agentMap["gentle-orchestrator"].(map[string]any)
+	specaiOrchestratorAgent, ok := agentMap["specai-orchestrator"].(map[string]any)
 	if !ok {
-		t.Fatal("gentle-orchestrator agent not found or wrong type")
+		t.Fatal("specai-orchestrator agent not found or wrong type")
 	}
-	if m, _ := gentleOrchestratorAgent["model"].(string); m != "openai/gpt-4o" {
-		t.Fatalf("gentle-orchestrator model = %q, want %q", m, "openai/gpt-4o")
+	if m, _ := specaiOrchestratorAgent["model"].(string); m != "openai/gpt-4o" {
+		t.Fatalf("specai-orchestrator model = %q, want %q", m, "openai/gpt-4o")
 	}
 	if _, exists := agentMap["sdd-orchestrator"]; exists {
 		t.Fatal("legacy sdd-orchestrator agent should not be installed")
+	}
+	if _, exists := agentMap["gentle-orchestrator"]; exists {
+		t.Fatal("legacy gentle-orchestrator agent should not be installed")
 	}
 }
 
@@ -4650,19 +4668,18 @@ func TestFindProjectRootAllMarkers(t *testing.T) {
 func TestInjectOpenCodePostCheckDiskFallback(t *testing.T) {
 	home := t.TempDir()
 
-	// Pre-create a minimal config file with gentle-orchestrator already present.
-	// This simulates a previous successful install where the file on disk
-	// is correct but in-memory buffer might be stale.
+	// Pre-create a minimal config file with specai-orchestrator (legacy — will be migrated).
+	// This simulates a previous install with the old key that needs migration.
 	settingsPath := filepath.Join(home, ".config", "opencode", "opencode.json")
 	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 
-	// Write a config that already has gentle-orchestrator (simulating previous install)
+	// Write a config that has the old specai-orchestrator key (simulating previous install)
 	existingConfig := `{
   "agent": {
-    "gentle-orchestrator": {
-      "description": "Gentle AI SDD Orchestrator",
+    "specai-orchestrator": {
+      "description": "SpecAI SDD Orchestrator",
       "mode": "primary"
     }
   }
@@ -4692,13 +4709,13 @@ func TestInjectOpenCodePostCheckDiskFallback(t *testing.T) {
 		t.Log("Note: result.Changed = false, but that's OK for idempotent runs")
 	}
 
-	// Verify the file on disk still has gentle-orchestrator and not the legacy base key.
+	// Verify the file on disk has specai-orchestrator (migrated from specai-orchestrator).
 	diskContent, err := os.ReadFile(settingsPath)
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if !strings.Contains(string(diskContent), "gentle-orchestrator") {
-		t.Fatal("File on disk lost gentle-orchestrator after inject")
+	if !strings.Contains(string(diskContent), "specai-orchestrator") {
+		t.Fatal("File on disk missing specai-orchestrator after inject (migration from specai-orchestrator)")
 	}
 	if strings.Contains(string(diskContent), `"sdd-orchestrator"`) {
 		t.Fatal("File on disk still has legacy sdd-orchestrator after inject")
@@ -4926,42 +4943,42 @@ func TestInjectClaudeSubAgentsScopedTools(t *testing.T) {
 	}{
 		{
 			phase:       "sdd-explore",
-			mustContain: []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch", "mcp__plugin_engram_engram__mem_save"},
+			mustContain: []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch", "mcp__plugin_sdd_memory_sdd_memory__mem_save"},
 			mustNotHave: []string{"Edit", "Write", "Bash", "Task"},
 		},
 		{
 			phase:       "sdd-propose",
-			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_engram_engram__mem_search", "mcp__plugin_engram_engram__mem_get_observation", "mcp__plugin_engram_engram__mem_save"},
+			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_sdd_memory_sdd_memory__mem_search", "mcp__plugin_sdd_memory_sdd_memory__mem_get_observation", "mcp__plugin_sdd_memory_sdd_memory__mem_save"},
 			mustNotHave: []string{"Bash", "Task"},
 		},
 		{
 			phase:       "sdd-spec",
-			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_engram_engram__mem_search", "mcp__plugin_engram_engram__mem_get_observation", "mcp__plugin_engram_engram__mem_save"},
+			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_sdd_memory_sdd_memory__mem_search", "mcp__plugin_sdd_memory_sdd_memory__mem_get_observation", "mcp__plugin_sdd_memory_sdd_memory__mem_save"},
 			mustNotHave: []string{"Bash", "Task"},
 		},
 		{
 			phase:       "sdd-design",
-			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_engram_engram__mem_search", "mcp__plugin_engram_engram__mem_get_observation", "mcp__plugin_engram_engram__mem_save"},
+			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_sdd_memory_sdd_memory__mem_search", "mcp__plugin_sdd_memory_sdd_memory__mem_get_observation", "mcp__plugin_sdd_memory_sdd_memory__mem_save"},
 			mustNotHave: []string{"Bash", "Task"},
 		},
 		{
 			phase:       "sdd-tasks",
-			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_engram_engram__mem_search", "mcp__plugin_engram_engram__mem_get_observation", "mcp__plugin_engram_engram__mem_save"},
+			mustContain: []string{"Read", "Edit", "Write", "Grep", "Glob", "mcp__plugin_sdd_memory_sdd_memory__mem_search", "mcp__plugin_sdd_memory_sdd_memory__mem_get_observation", "mcp__plugin_sdd_memory_sdd_memory__mem_save"},
 			mustNotHave: []string{"Bash", "Task"},
 		},
 		{
 			phase:       "sdd-apply",
-			mustContain: []string{"Read", "Edit", "Write", "Bash", "mcp__plugin_engram_engram__mem_search", "mcp__plugin_engram_engram__mem_get_observation", "mcp__plugin_engram_engram__mem_save", "mcp__plugin_engram_engram__mem_update"},
+			mustContain: []string{"Read", "Edit", "Write", "Bash", "mcp__plugin_sdd_memory_sdd_memory__mem_search", "mcp__plugin_sdd_memory_sdd_memory__mem_get_observation", "mcp__plugin_sdd_memory_sdd_memory__mem_save", "mcp__plugin_sdd_memory_sdd_memory__mem_update"},
 			mustNotHave: []string{"Task"},
 		},
 		{
 			phase:       "sdd-verify",
-			mustContain: []string{"Read", "Bash", "mcp__plugin_engram_engram__mem_search", "mcp__plugin_engram_engram__mem_get_observation", "mcp__plugin_engram_engram__mem_save"},
+			mustContain: []string{"Read", "Bash", "mcp__plugin_sdd_memory_sdd_memory__mem_search", "mcp__plugin_sdd_memory_sdd_memory__mem_get_observation", "mcp__plugin_sdd_memory_sdd_memory__mem_save"},
 			mustNotHave: []string{"Edit", "Write", "Task"},
 		},
 		{
 			phase:       "sdd-archive",
-			mustContain: []string{"Read", "Edit", "Write", "mcp__plugin_engram_engram__mem_search", "mcp__plugin_engram_engram__mem_get_observation", "mcp__plugin_engram_engram__mem_save"},
+			mustContain: []string{"Read", "Edit", "Write", "mcp__plugin_sdd_memory_sdd_memory__mem_search", "mcp__plugin_sdd_memory_sdd_memory__mem_get_observation", "mcp__plugin_sdd_memory_sdd_memory__mem_save"},
 			mustNotHave: []string{"Bash", "Task"},
 		},
 	}
@@ -5050,7 +5067,7 @@ func TestEnsureClaudeSkillRegistryHookAppendsIdempotently(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	if strings.Count(text, "gentle-ai skill-registry refresh") != 1 {
+	if strings.Count(text, "specai skill-registry refresh") != 1 {
 		t.Fatalf("hook command count mismatch:\n%s", text)
 	}
 	if !strings.Contains(text, "echo keep") || !strings.Contains(text, "echo existing") {

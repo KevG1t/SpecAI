@@ -62,8 +62,8 @@ func TestDetectInstalledVersion(t *testing.T) {
 			wantVersion: "dev",
 		},
 		{
-			name: "gga not installed",
-			tool: ToolInfo{Name: "gga", DetectCmd: []string{"gga", "--version"}},
+			name: "tool not installed",
+			tool: ToolInfo{Name: "some-tool", DetectCmd: []string{"some-tool", "--version"}},
 			lookPathFn: func(string) (string, error) {
 				return "", fmt.Errorf("not found")
 			},
@@ -82,12 +82,12 @@ func TestDetectInstalledVersion(t *testing.T) {
 		},
 		{
 			name: "unparseable version output",
-			tool: ToolInfo{Name: "gga", DetectCmd: []string{"gga", "--version"}},
+			tool: ToolInfo{Name: "some-tool", DetectCmd: []string{"some-tool", "--version"}},
 			lookPathFn: func(string) (string, error) {
-				return "/usr/local/bin/gga", nil
+				return "/usr/local/bin/some-tool", nil
 			},
 			execCommandFn: func(name string, args ...string) *exec.Cmd {
-				return mockCmd("echo", "gga - no version info")
+				return mockCmd("echo", "some-tool - no version info")
 			},
 			wantVersion: "",
 		},
@@ -135,8 +135,8 @@ func TestDetectInstalledVersionFallbackPaths(t *testing.T) {
 	}
 
 	tool := ToolInfo{
-		Name:          "mytool",
-		DetectCmd:     []string{binaryName, "--version"},
+		Name:      "mytool",
+		DetectCmd: []string{binaryName, "--version"},
 		FallbackPaths: func(homeDir, localAppData string) []string {
 			return []string{filepath.Join(tmpDir, binaryName)}
 		},
@@ -315,7 +315,7 @@ func TestCheckSingleToolOpenCodePluginRegisteredNotMaterialized(t *testing.T) {
 
 func TestParseVersionFromOutput_DevSentinel(t *testing.T) {
 	if got := parseVersionFromOutput("sdd-memory dev"); got != "dev" {
-		t.Fatalf("parseVersionFromOutput(engram dev) = %q, want %q", got, "dev")
+		t.Fatalf("parseVersionFromOutput(sdd-memory dev) = %q, want %q", got, "dev")
 	}
 }
 
@@ -460,7 +460,7 @@ func TestFetchLatestReleaseMatchingPatternRejectsPaginationLoop(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	_, err := fetchLatestReleaseMatchingPattern(context.Background(), "Gentleman-Programming", "sdd-memory", `^v[0-9]+\.[0-9]+\.[0-9]+$`)
+	_, err := fetchLatestReleaseMatchingPattern(context.Background(), "KevG1t", "sdd-memory", `^v[0-9]+\.[0-9]+\.[0-9]+$`)
 	if err == nil || !strings.Contains(err.Error(), "pagination loop detected") {
 		t.Fatalf("expected pagination loop error, got %v", err)
 	}
@@ -578,8 +578,6 @@ func TestCheckAll(t *testing.T) {
 		switch {
 		case contains(path, "SpecAI"):
 			release = githubRelease{TagName: "v1.5.0", HTMLURL: "https://github.com/KevG1t/SpecAI/releases/tag/v1.5.0"}
-		case contains(path, "gentleman-guardian-angel"):
-			release = githubRelease{TagName: "v2.0.0", HTMLURL: "https://github.com/Gentleman-Programming/gentleman-guardian-angel/releases/tag/v2.0.0"}
 		case contains(path, "sub-agent-statusline"):
 			release = githubRelease{TagName: "v0.4.0", HTMLURL: "https://github.com/Joaquinvesapa/sub-agent-statusline/releases/tag/v0.4.0"}
 		case contains(path, "sdd-memory-plugin"):
@@ -605,13 +603,11 @@ func TestCheckAll(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	// Mock: sdd-memory is installed at v0.3.2, gga is not installed.
+	// Mock: sdd-memory is installed at v0.3.2.
 	lookPath = func(name string) (string, error) {
 		switch name {
 		case "sdd-memory":
 			return "/usr/local/bin/sdd-memory", nil
-		case "gga":
-			return "", fmt.Errorf("not found")
 		default:
 			return "", fmt.Errorf("not found")
 		}
@@ -628,8 +624,8 @@ func TestCheckAll(t *testing.T) {
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
 	results := CheckAll(context.Background(), "1.5.0", profile)
 
-	if len(results) != 5 {
-		t.Fatalf("len(results) = %d, want 5", len(results))
+	if len(results) != 4 {
+		t.Fatalf("len(results) = %d, want 4", len(results))
 	}
 
 	// specai: 1.5.0 local == 1.5.0 remote → UpToDate
@@ -638,10 +634,8 @@ func TestCheckAll(t *testing.T) {
 	// sdd-memory: 0.3.2 local < 0.4.0 remote → UpdateAvailable
 	assertResult(t, results[1], "sdd-memory", UpdateAvailable, "0.3.2", "0.4.0")
 
-	// gga: not installed
-	assertResult(t, results[2], "gga", NotInstalled, "", "2.0.0")
-	assertResult(t, results[3], "opencode-subagent-statusline", NotInstalled, "", "0.4.0")
-	assertResult(t, results[4], "opencode-sdd-memory-manage", NotInstalled, "", "1.1.7")
+	assertResult(t, results[2], "opencode-subagent-statusline", NotInstalled, "", "0.4.0")
+	assertResult(t, results[3], "opencode-sdd-memory-manage", NotInstalled, "", "1.1.7")
 }
 
 func TestCheckSingleTool_SDDMemoryUsesBinaryReleaseChannel(t *testing.T) {
@@ -734,9 +728,6 @@ func TestCheckAll_NetworkError(t *testing.T) {
 	if results[1].Status != CheckFailed {
 		t.Fatalf("sdd-memory status = %q, want %q", results[1].Status, CheckFailed)
 	}
-	if results[2].Status != CheckFailed {
-		t.Fatalf("gga status = %q, want %q", results[2].Status, CheckFailed)
-	}
 }
 
 func TestCheckFiltered_FetchErrorPreservesCheckFailedForMissingTool(t *testing.T) {
@@ -820,18 +811,6 @@ func TestUpdateHint(t *testing.T) {
 			tool:    ToolInfo{Name: "sdd-memory"},
 			profile: system.PlatformProfile{OS: "windows", PackageManager: "winget"},
 			want:    "specai upgrade (downloads pre-built binary)",
-		},
-		{
-			name:    "gga macOS brew",
-			tool:    ToolInfo{Name: "gga"},
-			profile: system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			want:    "brew upgrade gga",
-		},
-		{
-			name:    "gga linux",
-			tool:    ToolInfo{Name: "gga"},
-			profile: system.PlatformProfile{OS: "linux", PackageManager: "apt"},
-			want:    "See https://github.com/Gentleman-Programming/gentleman-guardian-angel",
 		},
 		{
 			name:    "unknown tool",
@@ -962,7 +941,7 @@ func TestParseVersionFromOutput(t *testing.T) {
 		want   string
 	}{
 		{name: "sdd-memory v0.3.2", output: "sdd-memory v0.3.2", want: "0.3.2"},
-		{name: "gga 1.0.0", output: "gga version 1.0.0", want: "1.0.0"},
+		{name: "tool 1.0.0", output: "some-tool version 1.0.0", want: "1.0.0"},
 		{name: "bare version", output: "2.1.0", want: "2.1.0"},
 		{name: "no version", output: "no version info here", want: ""},
 		{name: "empty", output: "", want: ""},
@@ -980,8 +959,8 @@ func TestParseVersionFromOutput(t *testing.T) {
 
 // TestRegistryContents verifies the registry has all expected tools.
 func TestRegistryContents(t *testing.T) {
-	if len(Tools) != 5 {
-		t.Fatalf("len(Tools) = %d, want 5", len(Tools))
+	if len(Tools) != 4 {
+		t.Fatalf("len(Tools) = %d, want 4", len(Tools))
 	}
 
 	expected := map[string]struct {
@@ -990,7 +969,6 @@ func TestRegistryContents(t *testing.T) {
 	}{
 		"specai":                       {owner: "KevG1t", repo: "SpecAI"},
 		"sdd-memory":                   {owner: "KevG1t", repo: "sdd-memory"},
-		"gga":                          {owner: "Gentleman-Programming", repo: "gentleman-guardian-angel"},
 		"opencode-subagent-statusline": {owner: "Joaquinvesapa", repo: "sub-agent-statusline"},
 		"opencode-sdd-memory-manage":   {owner: "j0k3r-dev-rgl", repo: "sdd-memory-plugin"},
 	}
@@ -1013,17 +991,15 @@ func TestRegistryContents(t *testing.T) {
 		t.Fatalf("specai DetectCmd should be nil")
 	}
 
-	// sdd-memory and gga must have non-nil DetectCmd.
+	// sdd-memory must have non-nil DetectCmd.
 	if Tools[1].DetectCmd == nil {
 		t.Fatalf("sdd-memory DetectCmd should not be nil")
 	}
 	if Tools[1].ReleaseTagPattern != `^v[0-9]+\.[0-9]+\.[0-9]+$` {
 		t.Fatalf("sdd-memory ReleaseTagPattern = %q, want binary v* channel pattern", Tools[1].ReleaseTagPattern)
 	}
-	if Tools[2].DetectCmd == nil {
-		t.Fatalf("gga DetectCmd should not be nil")
-	}
-	if Tools[3].NpmPackage == "" || Tools[4].NpmPackage == "" {
+	// OpenCode plugin tools must declare NpmPackage.
+	if Tools[2].NpmPackage == "" || Tools[3].NpmPackage == "" {
 		t.Fatalf("OpenCode plugin tools should declare NpmPackage")
 	}
 }
@@ -1114,10 +1090,10 @@ func TestCheckFiltered_SubsetOfTools(t *testing.T) {
 	// Request only "sdd-memory" — should return exactly 1 result.
 	results := CheckFiltered(context.Background(), "1.0.0", profile, []string{"sdd-memory"})
 	if len(results) != 1 {
-		t.Fatalf("CheckFiltered(engram) len = %d, want 1", len(results))
+		t.Fatalf("CheckFiltered(sdd-memory) len = %d, want 1", len(results))
 	}
 	if results[0].Tool.Name != "sdd-memory" {
-		t.Fatalf("CheckFiltered(engram) tool = %q, want %q", results[0].Tool.Name, "sdd-memory")
+		t.Fatalf("CheckFiltered(sdd-memory) tool = %q, want %q", results[0].Tool.Name, "sdd-memory")
 	}
 }
 
@@ -1185,14 +1161,14 @@ func TestCheckFiltered_UnknownToolIgnored(t *testing.T) {
 	}
 }
 
-// TestCheckFiltered_DevBuildSemanticsForGentleAI verifies the design requirement:
+// TestCheckFiltered_DevBuildSemanticsForSpecAI verifies the design requirement:
 // when the running specai binary reports version "dev", it is identified as a
 // DevBuild and NOT reported as UpdateAvailable or VersionUnknown.
 //
 // The spec says:
 //   - Dev build MUST be reported as development-build semantic
-//   - specai self-upgrade is skipped while engram/gga remain eligible
-func TestCheckFiltered_DevBuildSemanticsForGentleAI(t *testing.T) {
+//   - specai self-upgrade is skipped while sdd-memory/n remain eligible
+func TestCheckFiltered_DevBuildSemanticsForSpecAI(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -1236,7 +1212,7 @@ func TestCheckFiltered_DevBuildSemanticsForGentleAI(t *testing.T) {
 }
 
 // TestCheckFiltered_DevBuildSkipNotEligible verifies that in a mixed run,
-// specai with "dev" version gets DevBuild while engram with a real version stays eligible.
+// specai with "dev" version gets DevBuild while sdd-memory with a real version stays eligible.
 func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1270,7 +1246,7 @@ func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	// engram is installed at v1.0.0
+	// sdd-memory is installed at v1.0.0
 	lookPath = func(name string) (string, error) {
 		if name == "sdd-memory" {
 			return "/usr/local/bin/sdd-memory", nil
@@ -1283,7 +1259,7 @@ func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 		}
 		return mockCmd("false")
 	}
-	// Only specai and engram for this test
+	// Only specai and sdd-memory for this test
 	Tools = []ToolInfo{Tools[0], Tools[1]}
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
@@ -1298,7 +1274,7 @@ func TestCheckFiltered_DevBuildSkipNotEligible(t *testing.T) {
 		t.Fatalf("specai status = %q, want DevBuild", results[0].Status)
 	}
 
-	// engram should be UpdateAvailable (1.0.0 < 2.0.0)
+	// sdd-memory should be UpdateAvailable (1.0.0 < 2.0.0)
 	if results[1].Status != UpdateAvailable {
 		t.Fatalf("sdd-memory status = %q, want UpdateAvailable", results[1].Status)
 	}
@@ -1315,8 +1291,6 @@ func TestNoUpdatesPath(t *testing.T) {
 		switch {
 		case contains(path, "sdd-memory"):
 			release = githubRelease{TagName: "v0.3.2"}
-		case contains(path, "gentleman-guardian-angel"):
-			release = githubRelease{TagName: "v1.0.0"}
 		default:
 			release = githubRelease{TagName: "v1.0.0"}
 		}
@@ -1338,7 +1312,7 @@ func TestNoUpdatesPath(t *testing.T) {
 	httpClient = server.Client()
 	httpClient.Transport = &testTransport{server: server}
 
-	// engram is at v0.3.2 (same as remote), gga is not installed
+	// sdd-memory is at v0.3.2 (same as remote)
 	lookPath = func(name string) (string, error) {
 		if name == "sdd-memory" {
 			return "/usr/local/bin/sdd-memory", nil
@@ -1351,33 +1325,28 @@ func TestNoUpdatesPath(t *testing.T) {
 		}
 		return mockCmd("false")
 	}
-	// Only engram and gga for this test (skip specai to avoid dev-build behavior)
-	Tools = []ToolInfo{Tools[1], Tools[2]}
+	// Only sdd-memory for this test (skip specai to avoid dev-build behavior)
+	Tools = []ToolInfo{Tools[1]}
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true}
 
 	results := CheckFiltered(context.Background(), "1.0.0", profile, nil)
-	if len(results) != 2 {
-		t.Fatalf("len = %d, want 2", len(results))
+	if len(results) != 1 {
+		t.Fatalf("len = %d, want 1", len(results))
 	}
 
-	// engram: up to date
+	// sdd-memory: up to date
 	if results[0].Status != UpToDate {
 		t.Fatalf("sdd-memory status = %q, want UpToDate", results[0].Status)
 	}
-
-	// gga: not installed
-	if results[1].Status != NotInstalled {
-		t.Fatalf("gga status = %q, want NotInstalled", results[1].Status)
-	}
 }
 
-// --- TestEngramHintNoBrew ---
+// --- TestSddMemoryHintNoBrew ---
 
-// TestSDDMemoryHintNoBrew verifies that on non-brew platforms, sddMemoryHint
+// TestSddMemoryHintNoBrew verifies that on non-brew platforms, sddMemoryHint
 // no longer returns "go install..." — it should reflect binary download.
 // This is the regression test for issue #160.
-func TestEngramHintNoBrew(t *testing.T) {
+func TestSddMemoryHintNoBrew(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile system.PlatformProfile
@@ -1418,7 +1387,7 @@ func TestInstallMethodFieldsOnRegistry(t *testing.T) {
 		}
 	}
 
-	// engram: uses binary download (not go-install) — GoImportPath must be empty.
+	// sdd-memory: uses binary download (not go-install) — GoImportPath must be empty.
 	for _, tool := range Tools {
 		switch tool.Name {
 		case "sdd-memory":
@@ -1429,147 +1398,6 @@ func TestInstallMethodFieldsOnRegistry(t *testing.T) {
 				t.Errorf("sdd-memory GoImportPath should be empty (binary download, not go-install), got %q", tool.GoImportPath)
 			}
 		}
-	}
-}
-
-// TestBuildExecCmd_Ps1UsesPoershellFile verifies that buildExecCmd wraps a .ps1
-// binary via "powershell -NoProfile -File <path> <args>" instead of passing the
-// .ps1 path as argv[0]. This is a regression test for the Windows gga detection
-// bug (issue #177): exec.Command("gga.ps1", "--version") fails on Windows because
-// CreateProcess cannot launch a .ps1 file directly — it is not an executable image.
-// A regression to direct .ps1 exec causes detectInstalledVersion to always return ""
-// for gga on Windows even when the file exists on disk.
-func TestBuildExecCmd_Ps1UsesPoershellFile(t *testing.T) {
-	ps1Path := `C:\Users\test\bin\gga.ps1`
-
-	gotBin, gotArgs := buildExecCmd(ps1Path, []string{"--version"})
-
-	if gotBin == ps1Path {
-		t.Fatalf("buildExecCmd returned the .ps1 path as argv[0]: %q — "+
-			"exec.Command cannot launch .ps1 directly on Windows (CreateProcess rejects non-PE images). "+
-			"Must be wrapped via powershell -NoProfile -File.", gotBin)
-	}
-
-	// The binary must be the powershell host (or the testable override).
-	// We don't hard-code the exact powershell binary name to allow CI overrides,
-	// but it must NOT be the .ps1 path itself.
-	wantArgs := []string{"-NoProfile", "-File", ps1Path, "--version"}
-	if len(gotArgs) != len(wantArgs) {
-		t.Fatalf("buildExecCmd args len = %d, want %d; args = %v", len(gotArgs), len(wantArgs), gotArgs)
-	}
-	for i, want := range wantArgs {
-		if gotArgs[i] != want {
-			t.Fatalf("buildExecCmd args[%d] = %q, want %q; full args = %v", i, gotArgs[i], want, gotArgs)
-		}
-	}
-}
-
-// TestBuildExecCmd_NonPs1Passthrough verifies that non-.ps1 binaries (real
-// executables, shell scripts on Linux/macOS) are passed through unchanged.
-func TestBuildExecCmd_NonPs1Passthrough(t *testing.T) {
-	cases := []struct {
-		binary string
-		args   []string
-	}{
-		{"/usr/local/bin/sdd-memory", []string{"version"}},
-		{`C:\Users\user\AppData\Local\sdd-memory\bin\sdd-memory.exe`, []string{"version"}},
-		{"/home/user/.local/bin/gga", []string{"--version"}},
-	}
-
-	for _, c := range cases {
-		gotBin, gotArgs := buildExecCmd(c.binary, c.args)
-		if gotBin != c.binary {
-			t.Errorf("buildExecCmd(%q) binary = %q, want passthrough %q", c.binary, gotBin, c.binary)
-		}
-		if len(gotArgs) != len(c.args) {
-			t.Errorf("buildExecCmd(%q) args = %v, want %v", c.binary, gotArgs, c.args)
-			continue
-		}
-		for i := range c.args {
-			if gotArgs[i] != c.args[i] {
-				t.Errorf("buildExecCmd(%q) args[%d] = %q, want %q", c.binary, i, gotArgs[i], c.args[i])
-			}
-		}
-	}
-}
-
-// TestDetectInstalledVersionPs1FallbackInvokesViaPowershell verifies the full
-// integration path: when LookPath fails for gga, the fallback finds a .ps1
-// file on disk, and detectInstalledVersion builds the exec as
-// "powershell -NoProfile -File <path> --version" — NOT as "<path> --version".
-// This is the regression test for issue #177 gga half: the prior implementation
-// passed gga.ps1 as argv[0] to exec.Command which always errors on Windows.
-func TestDetectInstalledVersionPs1FallbackInvokesViaPowershell(t *testing.T) {
-	tmpDir := t.TempDir()
-	ps1Path := filepath.Join(tmpDir, "gga.ps1")
-	if err := os.WriteFile(ps1Path, []byte(""), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	tool := ToolInfo{
-		Name:      "gga",
-		DetectCmd: []string{"gga", "--version"},
-		FallbackPaths: func(homeDir, localAppData string) []string {
-			return []string{ps1Path}
-		},
-	}
-
-	origLookPath := lookPath
-	origExecCommand := execCommand
-	origOsStat := osStat
-	origUserHomeDir := userHomeDir
-	origPowershellPath := powershellPath
-	t.Cleanup(func() {
-		lookPath = origLookPath
-		execCommand = origExecCommand
-		osStat = origOsStat
-		userHomeDir = origUserHomeDir
-		powershellPath = origPowershellPath
-	})
-
-	// Simulate stale PATH: gga not found via LookPath.
-	lookPath = func(string) (string, error) { return "", fmt.Errorf("not found") }
-	osStat = os.Stat // real stat so the .ps1 file is found
-	userHomeDir = func() (string, error) { return t.TempDir(), nil }
-	powershellPath = "echo" // replace powershell with echo so the cmd succeeds and outputs "gga 1.2.3"
-
-	// Capture the binary and args that execCommand was called with.
-	var capturedBinary string
-	var capturedArgs []string
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		capturedBinary = name
-		capturedArgs = append([]string{}, args...)
-		// Return a command that outputs a fake version so detectInstalledVersion succeeds.
-		return mockCmd("echo", "gga 1.2.3")
-	}
-
-	got := detectInstalledVersion(context.Background(), tool, "")
-
-	// Primary assertion: the binary must NOT be the .ps1 path itself.
-	if capturedBinary == ps1Path {
-		t.Fatalf("execCommand was called with the .ps1 path as binary (%q) — "+
-			"this WILL fail on Windows (CreateProcess cannot exec .ps1). "+
-			"Must be wrapped via powershell -NoProfile -File.", capturedBinary)
-	}
-
-	// The first arg must be -NoProfile (powershell wrapping).
-	if len(capturedArgs) == 0 || capturedArgs[0] != "-NoProfile" {
-		t.Fatalf("execCommand args[0] = %q, want \"-NoProfile\"; full args = %v", func() string {
-			if len(capturedArgs) > 0 {
-				return capturedArgs[0]
-			}
-			return "(empty)"
-		}(), capturedArgs)
-	}
-
-	// The -File flag must point to the .ps1 path.
-	if len(capturedArgs) < 3 || capturedArgs[1] != "-File" || capturedArgs[2] != ps1Path {
-		t.Fatalf("expected args [-NoProfile, -File, %q, ...], got %v", ps1Path, capturedArgs)
-	}
-
-	// The version must still be extracted from output.
-	if got != "1.2.3" {
-		t.Fatalf("detectInstalledVersion() = %q, want \"1.2.3\"", got)
 	}
 }
 

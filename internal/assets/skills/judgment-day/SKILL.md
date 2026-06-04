@@ -3,7 +3,7 @@ name: judgment-day
 description: "Trigger: judgment day, dual review, adversarial review, juzgar. Run blind dual review, fix confirmed issues, then re-judge."
 license: Apache-2.0
 metadata:
-  author: gentleman-programming
+  author: kevg1t
   version: "1.4"
 ---
 

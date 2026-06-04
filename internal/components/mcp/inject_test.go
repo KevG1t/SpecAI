@@ -384,9 +384,9 @@ func TestInjectOpenCodePreservesOtherMCPEntriesWhenReplacingContext7(t *testing.
 	      "env": {"TOKEN": "x"},
 	      "enabled": false
 	    },
-	    "engram": {
+	    "sdd-memory": {
 	      "type": "local",
-	      "command": ["engram-server"],
+	      "command": ["sdd-memory-server"],
 	      "args": ["--port", "9000"]
 	    }
 	  }
@@ -417,16 +417,16 @@ func TestInjectOpenCodePreservesOtherMCPEntriesWhenReplacingContext7(t *testing.
 		t.Fatalf("opencode.json missing object key mcp; got %#v", parsed["mcp"])
 	}
 
-	engram, ok := mcp["engram"].(map[string]any)
+	sddMemory, ok := mcp["sdd-memory"].(map[string]any)
 	if !ok {
-		t.Fatalf("opencode.json mcp.engram missing after inject; got %#v", mcp["engram"])
+		t.Fatalf("opencode.json mcp.sdd-memory missing after inject; got %#v", mcp["sdd-memory"])
 	}
-	if engram["type"] != "local" {
-		t.Fatalf("mcp.engram.type = %#v; want %q", engram["type"], "local")
+	if sddMemory["type"] != "local" {
+		t.Fatalf("mcp.sdd-memory.type = %#v; want %q", sddMemory["type"], "local")
 	}
-	cmd, _ := engram["command"].([]any)
-	if len(cmd) == 0 || cmd[0] != "engram-server" {
-		t.Fatalf("mcp.engram.command = %#v; want [engram-server ...]", engram["command"])
+	cmd, _ := sddMemory["command"].([]any)
+	if len(cmd) == 0 || cmd[0] != "sdd-memory-server" {
+		t.Fatalf("mcp.sdd-memory.command = %#v; want [sdd-memory-server ...]", sddMemory["command"])
 	}
 }
 

@@ -1,34 +1,34 @@
 ---
-name: gentle-ai-issue-creation
-description: "Create Gentle AI issues with issue-first checks. Trigger: creating GitHub issues, bug reports, or feature requests."
+name: specai-issue-creation
+description: "Create SpecAI issues with issue-first checks. Trigger: creating GitHub issues, bug reports, or feature requests."
 license: Apache-2.0
 metadata:
-  author: gentleman-programming
+  author: kevg1t
   version: "1.0"
 ---
 
-# Gentle AI — Issue Creation Skill
+# SpecAI — Issue Creation Skill
 
 ## When to Use
 
 Load this skill whenever you need to:
-- Report a bug in `gga`
+- Report a bug in `specai`
 - Request a new feature or enhancement
-- Open any GitHub issue on the [Gentleman-Programming/gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) repository
+- Open any GitHub issue on the [kevg1t/specai](https://github.com/kevg1t/specai) repository
 
 ## Critical Rules
 
 1. **Blank issues are DISABLED** — `blank_issues_enabled: false` in `.github/ISSUE_TEMPLATE/config.yml`. You MUST use a template.
 2. **`status:needs-review` is applied automatically** — every new issue gets this label; you do NOT add it manually.
 3. **`status:approved` is REQUIRED before ANY work begins** — a maintainer must label the issue before you or anyone opens a PR.
-4. **Questions go to Discussions** — use [GitHub Discussions](https://github.com/Gentleman-Programming/gentle-ai/discussions), NOT issues, for questions and general conversation.
+4. **Questions go to Discussions** — use [GitHub Discussions](https://github.com/kevg1t/specai/discussions), NOT issues, for questions and general conversation.
 5. **No Co-Authored-By trailers** — never add AI attribution to commits.
 
 ## Workflow
 
 ```
 1. Search existing issues → confirm it's not a duplicate
-   https://github.com/Gentleman-Programming/gentle-ai/issues
+   https://github.com/kevg1t/specai/issues
 
 2. Choose the correct template:
    - Bug   → .github/ISSUE_TEMPLATE/bug_report.yml
@@ -59,7 +59,7 @@ Load this skill whenever you need to:
 | Steps to Reproduce | Numbered steps to reproduce the behavior |
 | Expected Behavior | What should happen |
 | Actual Behavior | What actually happens |
-| Gentle AI Version | Output of `gga version` |
+| SpecAI Version | Output of `specai version` |
 | Operating System | macOS / Linux distro / Windows / WSL |
 | AI Agent / Client | Claude Code / OpenCode / Gemini CLI / Cursor / Windsurf / Other |
 | Affected Area | See area list below |
@@ -72,14 +72,14 @@ Load this skill whenever you need to:
 
 ```bash
 gh issue create \
-  --repo Gentleman-Programming/gentle-ai \
+  --repo kevg1t/specai \
   --template bug_report.yml \
   --title "fix(agent): Claude Code not detected on Linux Arch"
 ```
 
 Or open the web form directly:
 ```
-https://github.com/Gentleman-Programming/gentle-ai/issues/new?template=bug_report.yml
+https://github.com/kevg1t/specai/issues/new?template=bug_report.yml
 ```
 
 ---
@@ -94,9 +94,9 @@ https://github.com/Gentleman-Programming/gentle-ai/issues/new?template=bug_repor
 | Field | Description |
 |-------|-------------|
 | Pre-flight Checklist | Confirm no duplicate exists; confirm PR-approval understanding |
-| Affected Area | Which area of `gga` this feature affects |
+| Affected Area | Which area of `specai` this feature affects |
 | Problem Statement | Describe the problem this feature solves |
-| Proposed Solution | Specific description — include example `gga` command/output if relevant |
+| Proposed Solution | Specific description — include example `specai` command/output if relevant |
 | Alternatives Considered | (optional) Other approaches you thought about |
 | Additional Context | (optional) Screenshots, config files, etc. |
 
@@ -104,14 +104,14 @@ https://github.com/Gentleman-Programming/gentle-ai/issues/new?template=bug_repor
 
 ```bash
 gh issue create \
-  --repo Gentleman-Programming/gentle-ai \
+  --repo kevg1t/specai \
   --template feature_request.yml \
   --title "feat(tui): add keyboard shortcut help overlay"
 ```
 
 Or open the web form directly:
 ```
-https://github.com/Gentleman-Programming/gentle-ai/issues/new?template=feature_request.yml
+https://github.com/kevg1t/specai/issues/new?template=feature_request.yml
 ```
 
 ---
@@ -186,8 +186,8 @@ PR opened with `Closes #<N>`
 ```
 Do you have a question or idea to discuss?
 ├── YES → GitHub Discussions (NOT issues)
-│         https://github.com/Gentleman-Programming/gentle-ai/discussions
-└── NO  → Is it a defect in gga?
+│         https://github.com/kevg1t/specai/discussions
+└── NO  → Is it a defect in specai?
           ├── YES → Bug Report template
           └── NO  → Feature Request template
                     │
@@ -205,17 +205,17 @@ Do you have a question or idea to discuss?
 
 ```bash
 # Search open issues
-gh issue list --repo Gentleman-Programming/gentle-ai --state open --search "your keywords"
+gh issue list --repo kevg1t/specai --state open --search "your keywords"
 
 # Search all issues including closed
-gh issue list --repo Gentleman-Programming/gentle-ai --state all --search "your keywords"
+gh issue list --repo kevg1t/specai --state all --search "your keywords"
 ```
 
 ### Create a Bug Report
 
 ```bash
 gh issue create \
-  --repo Gentleman-Programming/gentle-ai \
+  --repo kevg1t/specai \
   --template bug_report.yml \
   --title "fix(<scope>): <short description>"
 ```
@@ -224,7 +224,7 @@ gh issue create \
 
 ```bash
 gh issue create \
-  --repo Gentleman-Programming/gentle-ai \
+  --repo kevg1t/specai \
   --template feature_request.yml \
   --title "feat(<scope>): <short description>"
 ```
@@ -232,7 +232,7 @@ gh issue create \
 ### Check Issue Status
 
 ```bash
-gh issue view <number> --repo Gentleman-Programming/gentle-ai
+gh issue view <number> --repo kevg1t/specai
 ```
 
 ### Valid Scopes for Issue Titles

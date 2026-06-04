@@ -26,7 +26,7 @@ type InstallState struct {
 
 	// ClaudeModelAssignments maps SDD phase names (e.g. "sdd-explore") to a
 	// Claude model alias ("opus", "sonnet", "haiku"). Persisted so that
-	// `gentle-ai sync` preserves the user's model choices instead of falling
+	// `specai sync` preserves the user's model choices instead of falling
 	// back to the "balanced" preset every time.
 	ClaudeModelAssignments map[string]string `json:"claude_model_assignments,omitempty"`
 
@@ -38,11 +38,11 @@ type InstallState struct {
 	// ModelAssignments maps sub-agent names to provider/model pairs (OpenCode).
 	ModelAssignments map[string]ModelAssignmentState `json:"model_assignments,omitempty"`
 
-	// Persona records the persona the user installed ("gentleman", "neutral",
-	// "custom"). Persisted so that `gentle-ai sync` regenerates the same persona
-	// the user originally chose instead of defaulting to Gentleman every time.
+	// Persona records the persona the user installed ("modism", "neutral",
+	// "custom"). Persisted so that `specai sync` regenerates the same persona
+	// the user originally chose instead of defaulting to Modism every time.
 	// Empty for state files written before persona persistence was added —
-	// callers fall back to PersonaGentleman in that case.
+	// callers fall back to PersonaModism in that case.
 	Persona string `json:"persona,omitempty"`
 }
 

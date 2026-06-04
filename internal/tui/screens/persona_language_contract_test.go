@@ -7,26 +7,25 @@ import (
 	"github.com/KevG1t/specai/internal/model"
 )
 
-func TestPersonaOptionsIncludeGentlemanNeutralArtifacts(t *testing.T) {
+func TestPersonaOptionsIncludeModismNeutralArtifacts(t *testing.T) {
 	options := PersonaOptions()
 	found := false
 	for _, option := range options {
-		if option == model.PersonaGentlemanNeutralArtifacts {
+		if option == model.PersonaModismNeutralArtifacts {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("PersonaOptions() = %v, missing %q", options, model.PersonaGentlemanNeutralArtifacts)
+		t.Fatalf("PersonaOptions() = %v, missing %q", options, model.PersonaModismNeutralArtifacts)
 	}
 }
 
-func TestRenderPersonaDescribesGentlemanNeutralArtifacts(t *testing.T) {
-	out := RenderPersona(model.PersonaGentlemanNeutralArtifacts, 2)
+func TestRenderPersonaDescribesModismNeutralArtifacts(t *testing.T) {
+	out := RenderPersona(model.PersonaModismNeutralArtifacts, 1)
 	for _, want := range []string{
-		"gentleman-neutral-artifacts",
-		"Gentleman conversation",
+		"modism-neutral-artifacts",
+		"Modism conversation",
 		"English technical artifacts",
-		"context language",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("RenderPersona() missing %q; output:\n%s", want, out)

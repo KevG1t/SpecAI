@@ -1,9 +1,9 @@
-# PRD: Gentleman AI Installer
+# PRD: Specai Installer
 
-> **One command. Any agent. Any OS. The Gentleman AI ecosystem — configured and ready.**
+> **One command. Any agent. Any OS. The Specai ecosystem — configured and ready.**
 
 **Version**: 0.1.0-draft
-**Author**: Gentleman Programming
+**Author**: KevG1t
 **Date**: 2026-02-27
 **Status**: Draft
 
@@ -17,7 +17,7 @@ AI-assisted development in 2026 is no longer optional — it's the standard. Eve
 
 A raw AI agent out of the box is like a sports car with no tuning — it runs, but it's nowhere near its potential. To get real value you need:
 
-1. **Persistent memory** (Engram) — so the agent remembers decisions, bugs, and conventions across sessions
+1. **Persistent memory** (SddMemory) — so the agent remembers decisions, bugs, and conventions across sessions
 2. **MCP servers** (Context7, Notion, Jira, etc.) — so the agent can access real documentation and project management tools
 3. **Coding skills** — curated best-practice patterns for React 19, Next.js 15, TypeScript, Tailwind 4, Zod 4, testing, etc.
 4. **SDD workflow** (Spec-Driven Development) — so the agent plans before coding, not the other way around
@@ -30,17 +30,17 @@ Most developers either:
 - Spend DAYS manually configuring one agent, then can't replicate it on another machine or tool
 - Never set up memory, MCP, or skills because the setup is fragmented across 5 different repos
 
-**This installer eliminates that gap entirely.** You pick your agent(s), you pick your config level, and the entire Gentleman AI ecosystem gets injected into your tools — ready to go. From zero to championship-level AI development in minutes.
+**This installer eliminates that gap entirely.** You pick your agent(s), you pick your config level, and the entire Specai ecosystem gets injected into your tools — ready to go. From zero to championship-level AI development in minutes.
 
 ---
 
 ## 2. Vision
 
-**The Gentleman AI ecosystem — installable by anyone, on any agent, on any OS, in one command.**
+**The Specai ecosystem — installable by anyone, on any agent, on any OS, in one command.**
 
-This is NOT an "AI agent installer." Most agents are already easy to install (`npm i -g @anthropic-ai/claude-code`, `brew install opencode`, etc.). This is an **ecosystem configurator**: it takes whatever AI agent(s) you use and supercharges them with the Gentleman stack:
+This is NOT an "AI agent installer." Most agents are already easy to install (`npm i -g @anthropic-ai/claude-code`, `brew install opencode`, etc.). This is an **ecosystem configurator**: it takes whatever AI agent(s) you use and supercharges them with the SpecAI stack:
 
-- **Engram** — persistent cross-session memory
+- **SddMemory** — persistent cross-session memory
 - **SDD** — Spec-Driven Development workflow (plan before you code)
 - **Skills** — curated coding patterns for modern stacks
 - **MCP servers** — real documentation, Notion, Jira, and more
@@ -48,7 +48,7 @@ This is NOT an "AI agent installer." Most agents are already easy to install (`n
 
 **Before**: "I installed Claude Code / OpenCode / Cursor / whatever, but it's just a chatbot that writes code."
 
-**After**: `curl -sL get.gentleman.ai/ai | sh` → Pick your agent(s) → Pick your config → Your agent now has memory, skills, workflow, MCP tools, and a persona that actually teaches you. Same ecosystem regardless of which tool you use.
+**After**: `curl -sL get.specai.ai/ai | sh` → Pick your agent(s) → Pick your config → Your agent now has memory, skills, workflow, MCP tools, and a persona that actually teaches you. Same ecosystem regardless of which tool you use.
 
 ---
 
@@ -114,8 +114,7 @@ The installer follows a **dependency-first** approach:
 │    ◌ OpenCode (native binary)                                    │
 │                                                                  │
 │  Ecosystem:                                                      │
-│    ◌ Engram (via Homebrew — no runtime deps)                     │
-│    ◌ GGA (via Homebrew — needs bash + git + provider CLI)        │
+│    ◌ SddMemory (via Homebrew — no runtime deps)                     │
 │    ◌ SDD skills (file copy — no deps)                            │
 │    ◌ Skills library (file copy — no deps)                        │
 └──────────────────────────────────────────────────────────────────┘
@@ -129,20 +128,20 @@ These are the base tools the installer itself and the ecosystem need.
 
 | Dependency | Min Version | Why | Install Method |
 |-----------|-------------|-----|----------------|
-| `bash` | 3.2+ | GGA, install scripts, Engram plugin hooks | Pre-installed on all targets |
-| `git` | 2.x | GGA (diff/staging), Engram (git sync), skills clone, agent integrations | `brew`/`apt`/`pacman`/`dnf`/`pkg` |
-| `curl` | Any | Binary downloads, GGA providers (lmstudio, github), installer script | Pre-installed on most systems |
+| `bash` | 3.2+ | Install scripts, SddMemory plugin hooks | Pre-installed on all targets |
+| `git` | 2.x | SddMemory (git sync), skills clone, agent integrations | `brew`/`apt`/`pacman`/`dnf`/`pkg` |
+| `curl` | Any | Binary downloads, installer script | Pre-installed on most systems |
 
 #### Conditionally Required (based on user's selections)
 
 | Dependency | Min Version | When Needed | Install Method |
 |-----------|-------------|-------------|----------------|
-| **Homebrew** | Any | macOS (primary pkg manager), Linux (recommended for Engram, agents) | Official install script |
+| **Homebrew** | Any | macOS (primary pkg manager), Linux (recommended for SddMemory, agents) | Official install script |
 | **Node.js** | 20+ | Claude Code (needs 18+), Gemini CLI (needs 20+) — installer picks the highest required version | `brew install node` / `nvm` / `fnm` / distro package |
 | **npm** | Comes with Node.js | Installing Claude Code, Gemini CLI, Codex | Bundled with Node.js |
-| **Go** | 1.25+ | ONLY if building Engram from source (NOT needed for binary/Homebrew install) | `brew install go` / distro package |
-| **python3** | 3.x | GGA with Ollama API mode or LM Studio provider (has fallback without it) | Pre-installed on macOS, `apt`/`pacman`/`dnf` on Linux |
-| **gh** (GitHub CLI) | Any | GGA with `github:<model>` provider | `brew install gh` / distro package |
+| **Go** | 1.25+ | ONLY if building SddMemory from source (NOT needed for binary/Homebrew install) | `brew install go` / distro package |
+| **python3** | 3.x | SddMemory plugin (optional mode) | Pre-installed on macOS, `apt`/`pacman`/`dnf` on Linux |
+| **gh** (GitHub CLI) | Any | Optional: agent auth | `brew install gh` / distro package |
 
 #### Platform-Specific Notes
 
@@ -153,7 +152,7 @@ These are the base tools the installer itself and the ecosystem need.
 | **Arch** | bash, curl, git, python3, sha256sum | Node.js (`pacman -S nodejs npm`) | Arch packages are usually current — `pacman` versions are fine |
 | **Fedora/RHEL** | bash, curl, git, sha256sum | Node.js (`dnf install nodejs`) | May need `dnf module enable nodejs:20` for correct version |
 | **WSL 2** | Same as host Linux distro | Same as Linux + note about Windows-side agents (Cursor, VSCode) | Windows-side agents use Windows paths; WSL agents use Linux paths |
-| **Windows native** | None guaranteed | Everything: git (Git for Windows), Node.js (winget/scoop), bash (Git Bash) | GGA needs bash — Git for Windows includes Git Bash |
+| **Windows native** | None guaranteed | Everything: git (Git for Windows), Node.js (winget/scoop), bash (Git Bash) | Everything needs bash — Git for Windows includes Git Bash |
 | **Termux** | bash, curl, git | Node.js (`pkg install nodejs`), python (`pkg install python`) | No sudo, no Homebrew. Commands run directly, not via `sh -c`. Go cross-compile has limitations on Android. |
 
 ### 5.0.3 Node.js Version Management
@@ -174,7 +173,7 @@ Node.js is the most critical dependency — multiple agents depend on it, and di
 - R-DEP-02: The installer MUST show the complete dependency tree to the user and get confirmation before installing anything
 - R-DEP-03: The installer MUST install missing dependencies automatically (with user consent) using the platform's preferred package manager
 - R-DEP-04: The installer MUST handle Node.js version requirements intelligently — Claude Code needs 18+, Gemini CLI needs 20+, so install 20+ to satisfy both
-- R-DEP-05: The installer MUST NOT install Go unless the user explicitly chooses to build Engram from source (pre-compiled binaries are the default)
+- R-DEP-05: The installer MUST NOT install Go unless the user explicitly chooses to build SddMemory from source (pre-compiled binaries are the default)
 - R-DEP-06: On Linux, the installer MUST NOT use distro-default Node.js if it's below v20 — use NodeSource, fnm, or Homebrew instead
 - R-DEP-07: The installer MUST handle platform-specific differences transparently (BSD sed vs GNU sed, sha256sum vs shasum, Xcode CLT on macOS)
 - R-DEP-08: The installer MUST detect existing version managers (fnm, nvm, n) and use them instead of installing Node.js system-wide
@@ -186,8 +185,7 @@ Node.js is the most critical dependency — multiple agents depend on it, and di
 
 | Component | bash | git | curl | Node.js | Homebrew | python3 | gh CLI |
 |-----------|------|-----|------|---------|----------|---------|--------|
-| **Engram** (binary) | — | — | ✓ (download) | — | ✓ (preferred) | — | — |
-| **GGA** | ✓ | ✓ | ◌ (some providers) | — | ✓ (preferred) | ◌ (some providers) | ◌ (github provider) |
+| **SddMemory** (binary) | — | — | ✓ (download) | — | ✓ (preferred) | — | — |
 | **Claude Code** | ✓ (hooks) | ✓ | — | ✓ (20+) | ◌ | — | — |
 | **OpenCode** | — | — | ✓ (download) | — | — | — | — |
 | **Gemini CLI** | — | — | — | ✓ (20+) | ◌ | — | — |
@@ -203,7 +201,7 @@ Node.js is the most critical dependency — multiple agents depend on it, and di
 
 ### 6.1 AI Coding Agents
 
-The installer supports configuring the Gentleman ecosystem into ANY AI coding agent. The user selects which ones they use (or want to use). **The primary job is CONFIGURATION, not installation** — most agents have their own install methods. The installer CAN install agents that are missing, but the core value is injecting the ecosystem.
+The installer supports configuring the SpecAI ecosystem into ANY AI coding agent. The user selects which ones they use (or want to use). **The primary job is CONFIGURATION, not installation** — most agents have their own install methods. The installer CAN install agents that are missing, but the core value is injecting the ecosystem.
 
 #### Terminal-Based Agents (CLI)
 
@@ -231,12 +229,12 @@ The installer supports configuring the Gentleman ecosystem into ANY AI coding ag
 
 | Tier | What Gets Configured | Agents |
 |------|---------------------|--------|
-| **Full** | Engram plugin + MCP servers + skills + SDD orchestrator + GGA integration + persona + theme + permissions + statusline + hooks | Claude Code, OpenCode |
-| **Good** | Skills + MCP servers + SDD (inline mode, no sub-agents) + GGA as review provider + persona rules | Cursor, VSCode |
-| **Partial** | Skills via system instructions + MCP where supported + GGA provider config + persona | Gemini CLI, Codex, Windsurf, JetBrains, Zed |
+| **Full** | SddMemory plugin + MCP servers + skills + SDD orchestrator + persona + theme + permissions + statusline + hooks | Claude Code, OpenCode |
+| **Good** | Skills + MCP servers + SDD (inline mode, no sub-agents) + persona rules | Cursor, VSCode |
+| **Partial** | Skills via system instructions + MCP where supported + persona | Gemini CLI, Codex, Windsurf, JetBrains, Zed |
 | **Minimal** | Persona and coding conventions via project/workspace rules | Xcode, Antigravity, any emerging agent |
 
-> **Note:** GGA (Guardian Angel) is agent-agnostic — it works with ANY provider for review execution, independent of which AI coding agent the user chose. It's a cross-cutting concern, not tied to a specific agent tier.
+> **Note:** SddMemory is agent-agnostic — it works with ANY provider for memory execution, independent of which AI coding agent the user chose. It's a cross-cutting concern, not tied to a specific agent tier.
 
 **Requirements:**
 - R-AGENT-01: The installer MUST detect already-installed agents and offer configuration only (not re-install)
@@ -248,22 +246,22 @@ The installer supports configuring the Gentleman ecosystem into ANY AI coding ag
 - R-AGENT-07: The installer architecture MUST allow adding new agents by implementing a single interface — no changes to TUI or core logic required
 - R-AGENT-08: The installer MUST be forward-compatible: when new AI agents emerge, a community contributor can add support by implementing the Agent interface and submitting a PR
 
-### 6.2 Engram (Persistent Memory System)
+### 6.2 SddMemory (Persistent Memory System)
 
 | Component | Method | Notes |
 |-----------|--------|-------|
-| Engram binary | Go install / Homebrew / direct download | Single binary, no deps |
-| Engram plugin for Claude Code | `claude plugin marketplace add` | Automatic |
-| Engram plugin for OpenCode | Copy `engram.ts` to plugins dir | Automatic |
-| Engram config for Gemini CLI | Write `~/.gemini/settings.json` + `system.md` | Automatic |
-| Engram config for Codex | Write `~/.codex/config.toml` entries | Automatic |
+| SddMemory binary | Go install / Homebrew / direct download | Single binary, no deps |
+| SddMemory plugin for Claude Code | `claude plugin marketplace add` | Automatic |
+| SddMemory plugin for OpenCode | Copy `sdd-memory.ts` to plugins dir | Automatic |
+| SddMemory config for Gemini CLI | Write `~/.gemini/settings.json` + `system.md` | Automatic |
+| SddMemory config for Codex | Write `~/.codex/config.toml` entries | Automatic |
 
 **Requirements:**
-- R-ENGRAM-01: Engram MUST be installed as a prerequisite for any agent that supports it
-- R-ENGRAM-02: The installer MUST configure Engram integration for EVERY selected agent automatically
-- R-ENGRAM-03: The installer MUST verify Engram is running (health check on port 7437) after installation
-- R-ENGRAM-04: The installer SHOULD configure Engram to start automatically on system boot (launchd on macOS, systemd on Linux)
-- R-ENGRAM-05: If Engram is already installed, the installer MUST check the version and offer to upgrade
+- R-SDD-MEMORY-01: SddMemory MUST be installed as a prerequisite for any agent that supports it
+- R-SDD-MEMORY-02: The installer MUST configure SddMemory integration for EVERY selected agent automatically
+- R-SDD-MEMORY-03: The installer MUST verify SddMemory is running (health check on port 7437) after installation
+- R-SDD-MEMORY-04: The installer SHOULD configure SddMemory to start automatically on system boot (launchd on macOS, systemd on Linux)
+- R-SDD-MEMORY-05: If SddMemory is already installed, the installer MUST check the version and offer to upgrade
 
 ### 6.3 SDD (Spec-Driven Development) Skills
 
@@ -285,43 +283,7 @@ The full SDD Agent Team skill set (9 skills):
 - R-SDD-01: SDD skills MUST be installed to the correct path for each selected agent (Claude Code: `~/.claude/skills/`, OpenCode: `~/.config/opencode/skills/`, Cursor: `~/.cursor/skills/`)
 - R-SDD-02: The SDD orchestrator configuration MUST be injected into the agent's global config (CLAUDE.md, opencode.json agents, .cursorrules)
 - R-SDD-03: OpenCode slash commands for SDD phases MUST be installed when OpenCode is selected, enabling the agent to invoke SDD organically when it detects a substantial change
-- R-SDD-04: The installer MUST pull SDD skills from the latest release of `Gentleman-Programming/sdd-agent-team`
-
-### 6.4 GGA — Gentleman Guardian Angel (AI Code Review)
-
-GGA is a zero-dependency, pure Bash CLI tool that performs **AI-powered code review on every git commit**. It acts as a pre-commit git hook: staged files are sent to any AI provider, validated against team coding standards (defined in `AGENTS.md`), and the commit is allowed or blocked based on the AI's verdict.
-
-**This is the quality gate of the ecosystem.** While skills teach the agent HOW to write code, and SDD ensures the agent PLANS before coding, GGA ensures the code that gets committed actually meets standards — even code the developer wrote manually.
-
-| Component | What It Does |
-|-----------|-------------|
-| `gga` binary | Pure Bash CLI, installs via Homebrew or direct download |
-| Git hook | Pre-commit or commit-msg hook that runs `gga run` |
-| `AGENTS.md` rules file | Team coding standards the AI validates against — single source of truth |
-| Smart cache | SHA256-based, two-level invalidation (metadata + file content). Only `PASSED` files are cached. |
-| PR mode | `gga run --pr-mode` reviews all changed files in a branch vs base |
-| CI mode | `gga run --ci` for pipeline integration |
-
-#### Supported AI Providers (for review execution)
-
-| Provider | Config Value | Mechanism |
-|----------|-------------|-----------|
-| Claude Code | `claude` | Pipes prompt to `claude --print` |
-| Gemini CLI | `gemini` | `gemini -p` CLI |
-| Codex | `codex` | `codex exec` |
-| OpenCode | `opencode[:model]` | `opencode run` |
-| Ollama (local) | `ollama:<model>` | REST API or CLI fallback |
-| LM Studio (local) | `lmstudio[:model]` | OpenAI-compatible REST API |
-| GitHub Models | `github:<model>` | Azure-hosted API via `gh auth` |
-
-**Requirements:**
-- R-GGA-01: The installer MUST offer GGA installation as an ecosystem component (opt-in, not forced)
-- R-GGA-02: When GGA is selected, the installer MUST install the `gga` binary to the system PATH (via Homebrew or direct download)
-- R-GGA-03: The installer MUST ask which AI provider to configure for GGA reviews and write the appropriate `.gga` config
-- R-GGA-04: The installer SHOULD offer to install the git hook globally (`git config --global core.hooksPath`) or explain per-project setup via `gga install`
-- R-GGA-05: The installer MUST NOT configure GGA's provider with API keys — only the provider name. Keys are managed separately by the user.
-- R-GGA-06: The installer SHOULD create a starter `AGENTS.md` template in the user's home directory with common coding standards, or link to examples
-- R-GGA-07: If the user selected an AI agent (e.g., Claude Code) AND GGA, the installer SHOULD auto-configure GGA to use that same provider (e.g., `GGA_PROVIDER=claude`)
+- R-SDD-04: The installer MUST pull SDD skills from the latest release of `kevg1t/sdd-agent-team`
 
 ### 6.5 MCP Servers
 
@@ -363,13 +325,13 @@ Beyond SDD, additional coding skills that encode best practices:
 
 ### 6.7 Agent Configuration (Persona, Theme, Permissions)
 
-#### Persona Selection — "Your own Gentleman!"
+#### Persona Selection — "Your own SpecAI!"
 
-The Gentleman persona is the heart of this ecosystem, but it's **100% optional**. The user chooses their experience:
+The SpecAI persona is the heart of this ecosystem, but it's **100% optional**. The user chooses their experience:
 
 | Persona Option | Description | What it Configures |
 |---------------|-------------|-------------------|
-| **Gentleman Mode** | "Your own Gentleman!" — The Senior Architect mentor who teaches, challenges, and pushes you to understand concepts before code. Rioplatense Spanish for Spanish input, direct English otherwise. Uses Tony Stark/Jarvis analogies. | Full persona in CLAUDE.md / opencode agents / .cursorrules, custom thinking verbs, teaching-first behavior |
+| **SpecAI Mode** | "Your own SpecAI!" — The Senior Architect mentor who teaches, challenges, and pushes you to understand concepts before code. Rioplatense Spanish for Spanish input, direct English otherwise. Uses Tony Stark/Jarvis analogies. | Full persona in CLAUDE.md / opencode agents / .cursorrules, custom thinking verbs, teaching-first behavior |
 | **Neutral Mode** | Professional, helpful, no personality overlay. The agent stays with its default behavior. | Security permissions only, no persona injection |
 | **Custom Persona** | Bring your own! User provides a persona description or selects from community presets. | User-provided text injected into agent instructions |
 
@@ -377,21 +339,21 @@ The Gentleman persona is the heart of this ecosystem, but it's **100% optional**
 
 | Config Aspect | What Gets Configured |
 |---------------|---------------------|
-| Theme | Gentleman dark theme (navy/steel/gold) or default |
+| Theme | SpecAI dark theme (navy/steel/gold) or default |
 | Permissions | Security-first defaults: deny .env, ask on destructive git ops, allow standard tools |
 | Editor mode | vim / emacs / default |
 | Statusline | Custom statusline with model info, git status, context usage (Claude Code) |
-| Thinking verbs | Custom spinner text — Rioplatense phrases like "Tomando un Cafecito mientras Pienso" (only with Gentleman persona) |
+| Thinking verbs | Custom spinner text — Rioplatense phrases like "Tomando un Cafecito mientras Pienso" (only with SpecAI persona) |
 | Keybindings | Vim-style or default |
 
 **Requirements:**
 - R-CONFIG-01: The persona selection MUST be a first-class step in the installation flow, presented clearly with personality descriptions
-- R-CONFIG-02: Selecting "Gentleman Mode" MUST display the tagline "Your own Gentleman!" and a brief preview of how the agent will behave
+- R-CONFIG-02: Selecting "SpecAI Mode" MUST display the tagline "Your own SpecAI!" and a brief preview of how the agent will behave
 - R-CONFIG-03: The installer MUST offer a "Custom" mode where the user can pick individual config aspects
 - R-CONFIG-04: Permission defaults MUST follow the security-first model: block .env access, require confirmation for destructive git operations — REGARDLESS of persona choice (security is not optional)
 - R-CONFIG-05: The installer MUST NOT overwrite existing agent configurations without explicit user consent
-- R-CONFIG-06: The installer SHOULD offer to backup existing configs before making changes (same pattern as Gentleman.Dots)
-- R-CONFIG-07: Thinking verbs and Rioplatense expressions MUST only be configured when Gentleman persona is selected
+- R-CONFIG-06: The installer SHOULD offer to backup existing configs before making changes (same pattern as SpecAI.Dots)
+- R-CONFIG-07: Thinking verbs and Rioplatense expressions MUST only be configured when SpecAI persona is selected
 - R-CONFIG-08: The installer SHOULD support community-contributed personas in the future (out of scope for v1, but architecture must allow it)
 
 ---
@@ -401,7 +363,7 @@ The Gentleman persona is the heart of this ecosystem, but it's **100% optional**
 ### 7.1 Installation Flow
 
 ```
-curl -sL get.gentleman.ai/ai | sh
+curl -sL get.specai.ai/ai | sh
                   │
                   ▼
      ┌─────────────────────┐
@@ -412,7 +374,7 @@ curl -sL get.gentleman.ai/ai | sh
                 ▼
      ┌─────────────────────────────────┐
      │   TUI: Welcome                   │
-     │   "Gentleman AI Ecosystem"       │
+     │   "Specai Ecosystem"       │
      │   Supercharge your AI agents.    │
      └──────────┬──────────────────────┘
                 │
@@ -422,7 +384,7 @@ curl -sL get.gentleman.ai/ai | sh
      │  Detected: Claude Code ✓         │
      │            OpenCode ✓            │
      │            Cursor ✗              │
-     │            Engram ✗              │
+     │            SddMemory ✗              │
      │  OS: macOS (Apple Silicon)       │
      └──────────┬──────────────────────┘
                 │
@@ -441,7 +403,7 @@ curl -sL get.gentleman.ai/ai | sh
      ┌─────────────────────────────────┐
      │  Choose your Persona             │
      │                                  │
-     │  ★ "Your own Gentleman!"         │  ← Senior Architect mentor, teaches,
+     │  ★ "Your own SpecAI!"         │  ← Senior Architect mentor, teaches,
      │     The mentor who pushes you     │     challenges, Rioplatense Spanish
      │     to understand before coding.  │
      │                                  │
@@ -453,12 +415,12 @@ curl -sL get.gentleman.ai/ai | sh
      ┌─────────────────────────────────┐
      │  Select Ecosystem Preset         │
      │                                  │
-     │  ★ Dev Stack + Polish             │  ← Everything: Engram + SDD + Skills
-     │     (Engram + SDD + All Skills   │     + MCP + Theme + Permissions
+     │  ★ Dev Stack + Polish             │  ← Everything: SddMemory + SDD + Skills
+     │     (SddMemory + SDD + All Skills   │     + MCP + Theme + Permissions
      │      + MCP + Theme)              │
      │                                  │
      │  ○ Dev Stack                     │  ← Tools without persona
-     │  ○ Memory Only                   │  ← Just Engram + basics
+     │  ○ Memory Only                   │  ← Just SddMemory + basics
      │  ○ Custom                        │  ← Pick each component
      └──────────┬──────────────────────┘
                 │
@@ -466,9 +428,8 @@ curl -sL get.gentleman.ai/ai | sh
         │ If "Custom":  │
         │               ▼
         │  ┌──────────────────────┐
-        │  │ ☑ Engram (memory)    │
+        │  │ ☑ SddMemory (memory)    │
         │  │ ☑ SDD (workflow)     │
-        │  │ ☑ GGA (code review)  │
         │  │ Select Skills...     │
         │  │ Select MCP servers...│
         │  │ Select Theme...      │
@@ -481,13 +442,12 @@ curl -sL get.gentleman.ai/ai | sh
      │  Review & Confirm                │
      │                                  │
      │  Agents: Claude Code, OpenCode   │
-     │  Persona: Gentleman              │
-     │  Memory: Engram ✓                │
+     │  Persona: SpecAI              │
+     │  Memory: SddMemory ✓                │
      │  Workflow: SDD (9 skills) ✓      │
-     │  Code Review: GGA (claude) ✓     │
      │  Coding Skills: 15 skills ✓      │
      │  MCP: Context7, Notion ✓         │
-     │  Theme: Gentleman Dark ✓         │
+     │  Theme: SpecAI Dark ✓         │
      │                                  │
      │  [Install]  [Back]               │
      └──────────┬──────────────────────┘
@@ -496,14 +456,12 @@ curl -sL get.gentleman.ai/ai | sh
      ┌─────────────────────────────────┐
      │  Configuring...                  │
      │                                  │
-     │  ✓ Installing Engram             │
-     │  ✓ Installing GGA               │
+     │  ✓ Installing SddMemory             │
      │  ✓ Configuring Claude Code       │
      │    ✓ Skills (22 files)           │
      │    ✓ MCP servers                 │
-     │    ✓ Engram plugin               │
+     │    ✓ SddMemory plugin               │
      │    ✓ Permissions & theme         │
-     │  ✓ Configuring GGA (claude)      │
      │  ◌ Configuring OpenCode...       │
      │    [████████░░] 80%              │
      └──────────┬──────────────────────┘
@@ -523,7 +481,7 @@ curl -sL get.gentleman.ai/ai | sh
      │                                  │
      │  Agents configured: 2            │
      │  Skills installed: 22            │
-     │  Memory: Engram running ✓        │
+     │  Memory: SddMemory running ✓        │
      └─────────────────────────────────┘
 ```
 
@@ -532,9 +490,9 @@ curl -sL get.gentleman.ai/ai | sh
 For CI, automation, and team provisioning:
 
 ```bash
-gentle-ai install \
+specai install \
   --agents claude-code,opencode \
-  --preset gentleman \
+  --preset specai \
   --skills full-stack \
   --mcp context7,notion \
   --non-interactive
@@ -542,7 +500,7 @@ gentle-ai install \
 
 **Requirements:**
 - R-UX-01: The installer MUST support both interactive TUI and non-interactive CLI modes
-- R-UX-02: The TUI MUST use the Bubbletea framework with Lipgloss styling (consistent with Gentleman.Dots)
+- R-UX-02: The TUI MUST use the Bubbletea framework with Lipgloss styling (consistent with SpecAI.Dots)
 - R-UX-03: Installation progress MUST stream real-time logs to the TUI
 - R-UX-04: The installer MUST show a summary of all changes before applying them
 - R-UX-05: The installer MUST show clear "Next Steps" after completion (API key setup, first commands to try)
@@ -556,7 +514,7 @@ gentle-ai install \
 | Welcome | Branding, version, what this tool does |
 | System Detection | Show detected OS, existing tools, existing configs, installed dependencies |
 | Agent Selection | Multi-select AI agents to install/configure |
-| Persona Selection | "Your own Gentleman!" / Neutral / Custom |
+| Persona Selection | "Your own SpecAI!" / Neutral / Custom |
 | Preset Selection | Dev Stack + Polish / Dev Stack / Memory Only / Custom |
 | MCP Server Selection | Which MCP integrations to enable (Custom mode) |
 | Skills Selection | Which coding skills to install (Custom mode) |
@@ -573,15 +531,15 @@ gentle-ai install \
 
 ### 8.0 Ecosystem Architecture — How Everything Connects
 
-This section describes how all Gentleman ecosystem components interact with each other, both at **install time** (what the installer does) and at **runtime** (what the developer experiences daily).
+This section describes how all SpecAI ecosystem components interact with each other, both at **install time** (what the installer does) and at **runtime** (what the developer experiences daily).
 
 #### 8.0.1 The Big Picture
 
 ```mermaid
 graph TB
-    subgraph INSTALLER["🔧 GENTLEMAN AI INSTALLER (one-time setup)"]
+    subgraph INSTALLER["🔧 Specai INSTALLER (one-time setup)"]
         direction TB
-        GAI[gentle-ai binary]
+        GAI[specai binary]
         GAI --> DEP_ENGINE[Dependency Engine]
         GAI --> AGENT_ENGINE[Agent Configurator]
         GAI --> ECO_ENGINE[Ecosystem Injector]
@@ -604,14 +562,13 @@ graph TB
         OTHER[Other agents...]
     end
 
-    subgraph ECOSYSTEM["⚡ GENTLEMAN ECOSYSTEM (injected into agents)"]
+    subgraph ECOSYSTEM["⚡ SPECAI ECOSYSTEM (injected into agents)"]
         direction TB
-        ENGRAM[🧠 Engram<br/>Persistent Memory]
+        SDD-MEMORY[🧠 SddMemory<br/>Persistent Memory]
         SDD[📋 SDD Skills<br/>Spec-Driven Development]
-        GGA_COMP[🛡️ GGA<br/>Guardian Angel Code Review]
         SKILLS[📚 Coding Skills<br/>React, TS, Tailwind, etc.]
         MCP[🔌 MCP Servers<br/>Context7, Notion, Jira]
-        PERSONA[🎭 Persona & Config<br/>Gentleman / Neutral / Custom]
+        PERSONA[🎭 Persona & Config<br/>SpecAI / Neutral / Custom]
     end
 
     subgraph RUNTIME["🏃 DAILY DEVELOPMENT (after install)"]
@@ -625,11 +582,10 @@ graph TB
     DEV -->|uses| CC
     DEV -->|uses| OC
     DEV -->|uses| GEM
-    DEV -->|commits| GGA_COMP
 
-    CC -->|remembers via| ENGRAM
-    OC -->|remembers via| ENGRAM
-    GEM -->|remembers via| ENGRAM
+    CC -->|remembers via| SDD-MEMORY
+    OC -->|remembers via| SDD-MEMORY
+    GEM -->|remembers via| SDD-MEMORY
 
     CC -->|follows| SKILLS
     OC -->|follows| SKILLS
@@ -673,11 +629,11 @@ graph LR
         AGENT_CORE --> AGENT_PERSONA
     end
 
-    subgraph MEMORY_LAYER["Engram Memory System"]
+    subgraph MEMORY_LAYER["SddMemory Memory System"]
         direction TB
         MEM_PLUGIN[Agent Plugin<br/>Claude: hooks + MCP<br/>OpenCode: TS plugin<br/>Gemini: system.md]
-        MEM_SERVER[Engram Server<br/>localhost:7437]
-        MEM_DB[(SQLite + FTS5<br/>~/.engram/engram.db)]
+        MEM_SERVER[SddMemory Server<br/>localhost:7437]
+        MEM_DB[(SQLite + FTS5<br/>~/.sdd-memory/sdd-memory.db)]
         MEM_PLUGIN --> MEM_SERVER
         MEM_SERVER --> MEM_DB
     end
@@ -695,39 +651,25 @@ graph LR
         SDD_ORCH --> SDD_SKILLS_2
     end
 
-    subgraph GGA_LAYER["GGA Code Review"]
-        direction TB
-        GGA_HOOK[Pre-commit Hook]
-        GGA_RULES[AGENTS.md<br/>Team Standards]
-        GGA_CACHE[Smart Cache<br/>~/.cache/gga/]
-        GGA_PROVIDER[AI Provider<br/>claude / gemini / ollama / etc.]
-        GGA_HOOK --> GGA_RULES
-        GGA_HOOK --> GGA_CACHE
-        GGA_HOOK --> GGA_PROVIDER
-    end
-
     CODE -->|"ask AI for help"| AGENT_CORE
     AGENT_CORE -->|"search docs"| C7
     AGENT_CORE -->|"check tasks"| JIRA
     AGENT_CORE -->|"check notes"| NOTION
     AGENT_CORE -->|"save/recall memories"| MEM_PLUGIN
     AGENT_CORE -->|"plan feature"| SDD_ORCH
-    COMMIT -->|"triggers"| GGA_HOOK
-    GGA_PROVIDER -.->|"uses same AI"| AGENT_CORE
 
     style DEV_WORKFLOW fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
     style AGENT_LAYER fill:#1a1b26,stroke:#7FB4CA,color:#7FB4CA
     style MEMORY_LAYER fill:#1a1b26,stroke:#B7CC85,color:#B7CC85
     style MCP_LAYER fill:#1a1b26,stroke:#957FB8,color:#957FB8
     style SDD_LAYER fill:#1a1b26,stroke:#CB7C94,color:#CB7C94
-    style GGA_LAYER fill:#1a1b26,stroke:#FF9E64,color:#FF9E64
 ```
 
 #### 8.0.3 Installation Pipeline — Dependency Resolution Order
 
 ```mermaid
 flowchart TD
-    START([gentle-ai install]) --> DETECT
+    START([specai install]) --> DETECT
 
     subgraph PHASE_1["Phase 1: System Detection"]
         DETECT[Detect OS / Arch / WSL / Termux]
@@ -748,7 +690,7 @@ flowchart TD
     REVIEW --> BACKUP
 
     subgraph PHASE_3["Phase 3: Backup"]
-        BACKUP[Backup existing configs<br/>~/.gentle-ai-backup-TIMESTAMP/]
+        BACKUP[Backup existing configs<br/>~/.specai-backup-TIMESTAMP/]
     end
 
     BACKUP --> DEP_INSTALL
@@ -766,37 +708,34 @@ flowchart TD
     subgraph PHASE_5["Phase 5: Core Components"]
         direction TB
         AGENT_INSTALL[Install missing agents<br/>Claude Code / OpenCode / etc.]
-        AGENT_INSTALL --> ENGRAM_INSTALL[Install Engram binary<br/>via Homebrew or download]
-        ENGRAM_INSTALL --> GGA_INSTALL[Install GGA binary<br/>via Homebrew or download]
-        GGA_INSTALL --> ENGRAM_START[Start Engram server<br/>+ configure auto-start]
+        AGENT_INSTALL --> SDD-MEMORY_INSTALL[Install SddMemory binary<br/>via Homebrew or download]
+        SDD-MEMORY_INSTALL --> SDD-MEMORY_START[Start SddMemory server<br/>+ configure auto-start]
     end
 
-    ENGRAM_START --> CONFIG_LOOP
+    SDD-MEMORY_START --> CONFIG_LOOP
 
     subgraph PHASE_6["Phase 6: Configure Each Agent"]
         direction TB
         CONFIG_LOOP[For each selected agent:]
-        CONFIG_LOOP --> INJECT_ENGRAM[Inject Engram<br/>plugin / MCP / instructions]
-        INJECT_ENGRAM --> INJECT_SKILLS[Copy skills to<br/>agent's skill directory]
+        CONFIG_LOOP --> INJECT_SDD-MEMORY[Inject SddMemory<br/>plugin / MCP / instructions]
+        INJECT_SDD-MEMORY --> INJECT_SKILLS[Copy skills to<br/>agent's skill directory]
         INJECT_SKILLS --> INJECT_SDD[Configure SDD<br/>orchestrator + commands]
         INJECT_SDD --> INJECT_MCP[Configure MCP servers<br/>Context7, Notion, Jira]
         INJECT_MCP --> INJECT_PERSONA[Inject persona<br/>CLAUDE.md / agents / rules]
         INJECT_PERSONA --> INJECT_THEME[Apply theme +<br/>permissions + statusline]
-        INJECT_THEME --> INJECT_GGA[Configure GGA provider<br/>to match this agent]
     end
 
-    INJECT_GGA --> VERIFY
+    INJECT_THEME --> VERIFY
 
     subgraph PHASE_7["Phase 7: Verification"]
         direction TB
         VERIFY[Health checks]
-        VERIFY --> CHECK_ENGRAM[Engram: GET /health ✓]
-        CHECK_ENGRAM --> CHECK_SKILLS[Skills: files exist ✓]
+        VERIFY --> CHECK_SDD-MEMORY[SddMemory: GET /health ✓]
+        CHECK_SDD-MEMORY --> CHECK_SKILLS[Skills: files exist ✓]
         CHECK_SKILLS --> CHECK_MCP[MCP: configs valid ✓]
-        CHECK_MCP --> CHECK_GGA[GGA: gga --version ✓]
     end
 
-    CHECK_GGA --> DONE([Complete!<br/>Show next steps])
+    CHECK_MCP --> DONE([Complete!<br/>Show next steps])
 
     style PHASE_1 fill:#1a1b26,stroke:#957FB8,color:#957FB8
     style PHASE_2 fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
@@ -812,9 +751,8 @@ flowchart TD
 ```mermaid
 graph TD
     subgraph SOURCES["Source Repositories (fetched at install time)"]
-        REPO_SDD[Gentleman-Programming/<br/>sdd-agent-team]
-        REPO_ENGRAM[Gentleman-Programming/<br/>engram]
-        REPO_GGA[Gentleman-Programming/<br/>gentleman-guardian-angel]
+        REPO_SDD[kevg1t/<br/>sdd-agent-team]
+        REPO_SDD-MEMORY[kevg1t/<br/>sdd-memory]
         REPO_SKILLS[Skills Registry<br/>30+ skill files]
     end
 
@@ -822,15 +760,15 @@ graph TD
         CC_MD[CLAUDE.md<br/>Persona + SDD Orchestrator]
         CC_SETTINGS[settings.json<br/>Permissions, theme, statusline,<br/>thinking verbs, vim mode]
         CC_SKILLS_DIR[skills/<br/>SDD skills + coding skills]
-        CC_PLUGINS[plugins/<br/>Engram plugin]
+        CC_PLUGINS[plugins/<br/>SddMemory plugin]
         CC_JSON[~/.claude.json<br/>MCP servers: Context7, etc.]
     end
 
     subgraph OC_CONFIG["OpenCode (~/.config/opencode/)"]
-        OC_JSON[opencode.json<br/>Agents, MCP servers,<br/>Engram plugin, theme]
+        OC_JSON[opencode.json<br/>Agents, MCP servers,<br/>SddMemory plugin, theme]
         OC_SKILLS_DIR[skill/<br/>SDD skills + coding skills]
         OC_COMMANDS[commands/<br/>SDD slash commands]
-        OC_PLUGINS[plugins/<br/>engram.ts]
+        OC_PLUGINS[plugins/<br/>sdd-memory.ts]
     end
 
     subgraph CUR_CONFIG["Cursor (~/.cursor/)"]
@@ -840,13 +778,9 @@ graph TD
     end
 
     subgraph GEM_CONFIG["Gemini CLI (~/.gemini/)"]
-        GEM_SETTINGS[settings.json<br/>MCP: Engram]
+        GEM_SETTINGS[settings.json<br/>MCP: SddMemory]
         GEM_SYSTEM[system.md<br/>Memory protocol + persona]
         GEM_ENV[.env<br/>GEMINI_SYSTEM_MD=1]
-    end
-
-    subgraph GGA_CONFIG["GGA (~/.config/gga/)"]
-        GGA_GLOBAL[config<br/>GGA_PROVIDER=claude<br/>GGA_TIMEOUT=120]
     end
 
     REPO_SDD -->|"9 SKILL.md files"| CC_SKILLS_DIR
@@ -854,81 +788,68 @@ graph TD
     REPO_SDD -->|"condensed .cursorrules"| CUR_RULES
     REPO_SDD -->|"8 command .md files"| OC_COMMANDS
 
-    REPO_ENGRAM -->|"claude plugin install"| CC_PLUGINS
-    REPO_ENGRAM -->|"copy engram.ts"| OC_PLUGINS
-    REPO_ENGRAM -->|"MCP entry"| GEM_SETTINGS
-    REPO_ENGRAM -->|"memory protocol"| GEM_SYSTEM
+    REPO_SDD-MEMORY -->|"claude plugin install"| CC_PLUGINS
+    REPO_SDD-MEMORY -->|"copy sdd-memory.ts"| OC_PLUGINS
+    REPO_SDD-MEMORY -->|"MCP entry"| GEM_SETTINGS
+    REPO_SDD-MEMORY -->|"memory protocol"| GEM_SYSTEM
 
     REPO_SKILLS -->|"coding skill files"| CC_SKILLS_DIR
     REPO_SKILLS -->|"coding skill files"| OC_SKILLS_DIR
     REPO_SKILLS -->|"coding skill files"| CUR_SKILLS_DIR
-
-    REPO_GGA -->|"provider config"| GGA_GLOBAL
 
     style SOURCES fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
     style CC_CONFIG fill:#1a1b26,stroke:#7FB4CA,color:#7FB4CA
     style OC_CONFIG fill:#1a1b26,stroke:#B7CC85,color:#B7CC85
     style CUR_CONFIG fill:#1a1b26,stroke:#957FB8,color:#957FB8
     style GEM_CONFIG fill:#1a1b26,stroke:#FF9E64,color:#FF9E64
-    style GGA_CONFIG fill:#1a1b26,stroke:#CB7C94,color:#CB7C94
 ```
 
 #### 8.0.5 Memory & Knowledge Flow — How the Agent Learns Over Time
 
-This diagram shows the continuous learning loop that Engram enables across sessions:
+This diagram shows the continuous learning loop that SddMemory enables across sessions:
 
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
     participant Agent as AI Agent<br/>(Claude Code / OpenCode)
-    participant Engram as Engram Server<br/>(localhost:7437)
-    participant DB as SQLite + FTS5<br/>(~/.engram/engram.db)
+    participant SddMemory as SddMemory Server<br/>(localhost:7437)
+    participant DB as SQLite + FTS5<br/>(~/.sdd-memory/sdd-memory.db)
     participant MCP as MCP Servers<br/>(Context7, Notion, Jira)
     participant SDD as SDD Workflow
-    participant GGA as GGA<br/>(Pre-commit Hook)
 
-    Note over Dev,GGA: === SESSION START ===
+    Note over Dev,SDD: === SESSION START ===
 
-    Agent->>Engram: mem_session_start(project)
-    Engram->>DB: INSERT session
-    Engram-->>Agent: Previous context injected<br/>(recent sessions, decisions, bugs)
+    Agent->>SddMemory: mem_session_start(project)
+    SddMemory->>DB: INSERT session
+    SddMemory-->>Agent: Previous context injected<br/>(recent sessions, decisions, bugs)
 
-    Note over Dev,GGA: === DEVELOPMENT LOOP ===
+    Note over Dev,SDD: === DEVELOPMENT LOOP ===
 
     Dev->>Agent: "Add auth to the API"
     Agent->>MCP: Query Context7 for JWT docs
     MCP-->>Agent: Latest library documentation
-    Agent->>Engram: mem_search("auth patterns")
-    Engram->>DB: FTS5 MATCH query
-    DB-->>Engram: Past decisions about auth
-    Engram-->>Agent: "Last time we used JWT with httpOnly cookies"
+    Agent->>SddMemory: mem_search("auth patterns")
+    SddMemory->>DB: FTS5 MATCH query
+    DB-->>SddMemory: Past decisions about auth
+    SddMemory-->>Agent: "Last time we used JWT with httpOnly cookies"
 
     Agent->>SDD: Detects substantial feature,<br/>initiates SDD workflow
     Note over SDD: explore → propose → spec<br/>→ design → tasks → apply
 
     Agent->>Dev: Implementation + explanation
 
-    Agent->>Engram: mem_save("JWT auth middleware",<br/>type: decision)
-    Engram->>DB: INSERT observation<br/>(with topic_key upsert)
+    Agent->>SddMemory: mem_save("JWT auth middleware",<br/>type: decision)
+    SddMemory->>DB: INSERT observation<br/>(with topic_key upsert)
 
-    Note over Dev,GGA: === COMMIT ===
+    Note over Dev,SDD: === SESSION END ===
 
-    Dev->>GGA: git commit -m "feat: add auth"
-    GGA->>GGA: Read staged files<br/>+ AGENTS.md rules
-    GGA->>Agent: Review code against standards
-    Agent-->>GGA: STATUS: PASSED ✓
-    GGA->>GGA: Cache passed files (SHA256)
-    GGA-->>Dev: Commit allowed ✓
+    Agent->>SddMemory: mem_session_summary(goal,<br/>discoveries, accomplished, files)
+    SddMemory->>DB: INSERT summary observation
 
-    Note over Dev,GGA: === SESSION END ===
+    Note over Dev,SDD: === NEXT SESSION (days later) ===
 
-    Agent->>Engram: mem_session_summary(goal,<br/>discoveries, accomplished, files)
-    Engram->>DB: INSERT summary observation
-
-    Note over Dev,GGA: === NEXT SESSION (days later) ===
-
-    Agent->>Engram: mem_context(project)
-    Engram-->>Agent: "Last session: added JWT auth<br/>to src/middleware/auth.ts.<br/>Decision: httpOnly cookies,<br/>refresh token rotation."
+    Agent->>SddMemory: mem_context(project)
+    SddMemory-->>Agent: "Last session: added JWT auth<br/>to src/middleware/auth.ts.<br/>Decision: httpOnly cookies,<br/>refresh token rotation."
     Note over Agent: Agent resumes WITH FULL CONTEXT<br/>as if it never left
 ```
 
@@ -939,38 +860,37 @@ When a developer uses multiple agents, the ecosystem keeps them in sync:
 ```mermaid
 graph TB
     subgraph SHARED["Shared Layer (single source of truth)"]
-        ENGRAM_DB[(Engram DB<br/>~/.engram/engram.db<br/>All memories, all sessions)]
+        SDD-MEMORY_DB[(SddMemory DB<br/>~/.sdd-memory/sdd-memory.db<br/>All memories, all sessions)]
         SKILLS_SOURCE[Skills Files<br/>Identical copies in<br/>each agent's skill dir]
-        GGA_RULES[AGENTS.md<br/>Per-project standards]
     end
 
     subgraph AGENT_CC["Claude Code Session"]
         CC_AGENT[Agent + Persona]
-        CC_ENGRAM_PLUGIN[Engram Plugin<br/>hooks + MCP]
+        CC_SDD-MEMORY_PLUGIN[SddMemory Plugin<br/>hooks + MCP]
     end
 
     subgraph AGENT_OC["OpenCode Session"]
         OC_AGENT[Agent + Persona]
-        OC_ENGRAM_PLUGIN[Engram Plugin<br/>TS plugin + MCP]
+        OC_SDD-MEMORY_PLUGIN[SddMemory Plugin<br/>TS plugin + MCP]
     end
 
     subgraph AGENT_GEM["Gemini CLI Session"]
         GEM_AGENT[Agent + system.md]
-        GEM_ENGRAM_MCP[Engram MCP]
+        GEM_SDD-MEMORY_MCP[SddMemory MCP]
     end
 
-    CC_ENGRAM_PLUGIN <-->|"read/write memories"| ENGRAM_DB
-    OC_ENGRAM_PLUGIN <-->|"read/write memories"| ENGRAM_DB
-    GEM_ENGRAM_MCP <-->|"read/write memories"| ENGRAM_DB
+    CC_SDD-MEMORY_PLUGIN <-->|"read/write memories"| SDD-MEMORY_DB
+    OC_SDD-MEMORY_PLUGIN <-->|"read/write memories"| SDD-MEMORY_DB
+    GEM_SDD-MEMORY_MCP <-->|"read/write memories"| SDD-MEMORY_DB
 
     CC_AGENT -->|"follows"| SKILLS_SOURCE
     OC_AGENT -->|"follows"| SKILLS_SOURCE
     GEM_AGENT -->|"follows"| SKILLS_SOURCE
 
-    CC_AGENT -.->|"decisions saved in session 1"| ENGRAM_DB
-    ENGRAM_DB -.->|"recalled in session 2"| OC_AGENT
-    OC_AGENT -.->|"new decisions saved"| ENGRAM_DB
-    ENGRAM_DB -.->|"full context available"| GEM_AGENT
+    CC_AGENT -.->|"decisions saved in session 1"| SDD-MEMORY_DB
+    SDD-MEMORY_DB -.->|"recalled in session 2"| OC_AGENT
+    OC_AGENT -.->|"new decisions saved"| SDD-MEMORY_DB
+    SDD-MEMORY_DB -.->|"full context available"| GEM_AGENT
 
     style SHARED fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
     style AGENT_CC fill:#1a1b26,stroke:#7FB4CA,color:#7FB4CA
@@ -978,7 +898,7 @@ graph TB
     style AGENT_GEM fill:#1a1b26,stroke:#FF9E64,color:#FF9E64
 ```
 
-**Key architectural principle:** Engram is the **shared brain** across all agents. A decision made in Claude Code is available in OpenCode and Gemini CLI. Skills are identical copies. The developer can switch agents freely without losing context.
+**Key architectural principle:** SddMemory is the **shared brain** across all agents. A decision made in Claude Code is available in OpenCode and Gemini CLI. Skills are identical copies. The developer can switch agents freely without losing context.
 
 #### 8.0.7 Component Ownership & Boundaries
 
@@ -994,21 +914,13 @@ graph TB
         I6[Health verification]
     end
 
-    subgraph ENGRAM_OWNS["Engram Owns (runtime)"]
+    subgraph SDD-MEMORY_OWNS["SddMemory Owns (runtime)"]
         direction LR
         E1[Memory persistence]
         E2[Session tracking]
         E3[FTS5 search]
         E4[Cross-agent sync]
         E5[Git sync for teams]
-    end
-
-    subgraph GGA_OWNS["GGA Owns (commit-time)"]
-        direction LR
-        G1[Pre-commit review]
-        G2[File caching]
-        G3[Multi-provider routing]
-        G4[PR review mode]
     end
 
     subgraph AGENT_OWNS["Agent Owns (session-time)"]
@@ -1023,20 +935,15 @@ graph TB
     subgraph USER_OWNS["User Owns (always)"]
         direction LR
         U1[API keys & auth]
-        U2[AGENTS.md rules]
-        U3[Project-level .gga config]
         U4[Which agents to use]
     end
 
-    INSTALLER_OWNS -->|"sets up"| ENGRAM_OWNS
-    INSTALLER_OWNS -->|"sets up"| GGA_OWNS
+    INSTALLER_OWNS -->|"sets up"| SDD-MEMORY_OWNS
     INSTALLER_OWNS -->|"configures"| AGENT_OWNS
     USER_OWNS -->|"provides to"| AGENT_OWNS
-    USER_OWNS -->|"provides to"| GGA_OWNS
 
     style INSTALLER_OWNS fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
-    style ENGRAM_OWNS fill:#1a1b26,stroke:#B7CC85,color:#B7CC85
-    style GGA_OWNS fill:#1a1b26,stroke:#CB7C94,color:#CB7C94
+    style SDD-MEMORY_OWNS fill:#1a1b26,stroke:#B7CC85,color:#B7CC85
     style AGENT_OWNS fill:#1a1b26,stroke:#7FB4CA,color:#7FB4CA
     style USER_OWNS fill:#1a1b26,stroke:#957FB8,color:#957FB8
 ```
@@ -1047,18 +954,18 @@ graph TB
 
 | Layer | Technology | Rationale |
 |-------|-----------|-----------|
-| Language | Go | Same as Gentleman.Dots + Engram. Single binary, cross-compile, no runtime deps |
-| TUI | Bubbletea + Lipgloss | Proven in Gentleman.Dots. Elm architecture, excellent terminal support |
-| Distribution | Homebrew tap + direct binary download + curl installer | Same as Gentleman.Dots |
+| Language | Go | Same as SpecAI.Dots + SddMemory. Single binary, cross-compile, no runtime deps |
+| TUI | Bubbletea + Lipgloss | Proven in SpecAI.Dots. Elm architecture, excellent terminal support |
+| Distribution | Homebrew tap + direct binary download + curl installer | Same as SpecAI.Dots |
 | Skills source | Git clone from repos at install time | Always latest version |
 | Config format | JSON, YAML, TOML, Markdown | Match each agent's native format |
 
 ### 8.2 Package Structure (Proposed)
 
 ```
-gentle-ai/
+specai/
 ├── cmd/
-│   └── gentle-ai/
+│   └── specai/
 │       └── main.go                 # CLI entrypoint
 ├── internal/
 │   ├── system/
@@ -1074,14 +981,13 @@ gentle-ai/
 │   │   ├── codex.go                # Codex install + config
 │   │   └── windsurf.go             # Windsurf install + config
 │   ├── components/
-│   │   ├── engram.go               # Engram install + config per agent
-│   │   ├── gga.go                  # GGA install + provider config
+│   │   ├── sdd-memory.go               # SddMemory install + config per agent
 │   │   ├── sdd.go                  # SDD skills install + orchestrator config
 │   │   ├── mcp.go                  # MCP server configuration per agent
 │   │   ├── skills.go               # Skills library install
 │   │   └── config.go               # Persona, theme, permissions, etc.
 │   ├── presets/
-│   │   ├── gentleman.go            # Dev Stack + Polish preset definition (`full-gentleman`)
+│   │   ├── specai.go            # Dev Stack + Polish preset definition (`full-specai`)
 │   │   ├── minimal.go              # Memory Only preset definition (`minimal`)
 │   │   └── preset.go               # Preset interface
 │   ├── backup/
@@ -1130,7 +1036,7 @@ type Agent interface {
     Install(ctx context.Context) error     // Install the agent binary (optional — user may already have it)
 
     // Ecosystem configuration (each returns ErrNotSupported if agent can't do it)
-    ConfigureEngram() error                // Set up Engram integration (plugin, MCP, or instructions)
+    ConfigureSddMemory() error                // Set up SddMemory integration (plugin, MCP, or instructions)
     ConfigureMCP(servers []MCPServer) error // Add MCP server entries
     ConfigureSkills(skills []Skill) error  // Install skill files to correct paths
     ConfigureSDD() error                   // Set up SDD orchestrator + commands/slash-commands
@@ -1170,9 +1076,9 @@ Persona is selected separately on the Persona screen and applied independently o
 
 | Preset | Display Label | What's Included | Description |
 |--------|--------------|-----------------|-------------|
-| `full-gentleman` | Dev Stack + Polish | All agents detected + Engram + SDD + all skills + MCP + theme | The complete experience. Everything configured, dark theme, the works. |
-| `ecosystem-only` | Dev Stack | Engram + SDD + skills + MCP for selected agents | All the tools and workflow. For developers who want the ecosystem without opinionated defaults. |
-| `minimal` | Memory Only | Engram + basic skills for selected agents | Just memory and essential skills. Quick and lean. |
+| `full-specai` | Dev Stack + Polish | All agents detected + SddMemory + SDD + all skills + MCP + theme | The complete experience. Everything configured, dark theme, the works. |
+| `ecosystem-only` | Dev Stack | SddMemory + SDD + skills + MCP for selected agents | All the tools and workflow. For developers who want the ecosystem without opinionated defaults. |
+| `minimal` | Memory Only | SddMemory + basic skills for selected agents | Just memory and essential skills. Quick and lean. |
 | `custom` | Custom | User picks each component | Full control over every aspect. |
 
 ---
@@ -1183,11 +1089,11 @@ Persona is selected separately on the Persona screen and applied independently o
 
 | Method | Command | Priority |
 |--------|---------|----------|
-| curl (recommended) | `curl -sL get.gentleman.ai/ai \| sh` | P0 |
-| Homebrew | `brew install Gentleman-Programming/tap/gentle-ai` | P0 |
-| Go install | `go install github.com/Gentleman-Programming/gentle-ai/cmd/gentle-ai@latest` | P1 |
+| curl (recommended) | `curl -sL get.specai.ai/ai \| sh` | P0 |
+| Homebrew | `brew install kevg1t/tap/specai` | P0 |
+| Go install | `go install github.com/kevg1t/specai/cmd/specai@latest` | P1 |
 | Direct binary | Download from GitHub Releases | P1 |
-| winget (Windows) | `winget install gentle-ai` | P2 |
+| winget (Windows) | `winget install specai` | P2 |
 
 ### 9.2 Cross-Compilation Targets
 
@@ -1215,9 +1121,9 @@ Persona is selected separately on the Persona screen and applied independently o
 ### 10.1 Self-Update
 
 **Requirements:**
-- R-UPDATE-01: The installer MUST support `gentle-ai update` to check for and install newer versions of itself
-- R-UPDATE-02: The installer MUST support `gentle-ai update --skills` to pull latest skill versions for all configured agents
-- R-UPDATE-03: The installer MUST support `gentle-ai update --engram` to update Engram to the latest version
+- R-UPDATE-01: The installer MUST support `specai update` to check for and install newer versions of itself
+- R-UPDATE-02: The installer MUST support `specai update --skills` to pull latest skill versions for all configured agents
+- R-UPDATE-03: The installer MUST support `specai update --sdd-memory` to update SddMemory to the latest version
 - R-UPDATE-04: The installer SHOULD check for updates on launch and notify (not auto-update)
 
 ### 10.2 Config Sync
@@ -1234,35 +1140,29 @@ Persona is selected separately on the Persona screen and applied independently o
 
 ### 11.1 What the User Gets After Installation
 
-When the installer completes with "Dev Stack + Polish" (`full-gentleman`) preset + Claude Code + OpenCode:
+When the installer completes with "Dev Stack + Polish" (`full-specai`) preset + Claude Code + OpenCode:
 
 **Claude Code:**
-- `~/.claude/CLAUDE.md` — Gentleman persona with SDD orchestrator
-- `~/.claude/settings.json` — Security-first permissions, Gentleman theme, vim mode, custom statusline, thinking verbs
+- `~/.claude/CLAUDE.md` — SpecAI persona with SDD orchestrator
+- `~/.claude/settings.json` — Security-first permissions, SpecAI theme, vim mode, custom statusline, thinking verbs
 - `~/.claude/skills/` — All selected skills (SDD + coding skills)
-- `~/.claude/plugins/` — Engram plugin installed and active
+- `~/.claude/plugins/` — SddMemory plugin installed and active
 - `~/.claude.json` — Context7 MCP server configured
 
 **OpenCode:**
-- `~/.config/opencode/opencode.json` — Agents (gentleman, sdd-orchestrator), MCP servers (engram, context7), Engram plugin, Gentleman theme
+- `~/.config/opencode/opencode.json` — Agents (specai, sdd-orchestrator), MCP servers (sdd-memory, context7), SddMemory plugin, SpecAI theme
 - `~/.config/opencode/skills/` — All selected skills mirrored
 - `~/.config/opencode/commands/` — SDD slash commands
-- `~/.config/opencode/plugins/` — Engram TypeScript plugin
+- `~/.config/opencode/plugins/` — SddMemory TypeScript plugin
 
-**Engram:**
-- `engram` binary in PATH
+**SddMemory:**
+- `sdd-memory` binary in PATH
 - Running as background service (port 7437)
-- Database initialized at `~/.engram/engram.db`
+- Database initialized at `~/.sdd-memory/sdd-memory.db`
 - Integrated with all selected agents
 
-**GGA (Guardian Angel):**
-- `gga` binary in PATH
-- Configured with selected AI provider (e.g., `GGA_PROVIDER=claude`)
-- Global config at `~/.config/gga/config`
-- Ready for per-project setup via `gga install`
-
 **Verification:**
-- The installer runs a health check: `engram serve` responds, MCP tools are callable, skills are in correct paths
+- The installer runs a health check: `sdd-memory serve` responds, MCP tools are callable, skills are in correct paths
 - Clear output: "You're ready. Run `claude` or `opencode` and start building."
 
 ### 11.2 Next Steps Guide
@@ -1296,7 +1196,7 @@ The completion screen MUST show:
 ### 12.3 Reliability
 - R-REL-01: Every installation step MUST be idempotent (safe to re-run)
 - R-REL-02: If a step fails, the installer MUST continue with remaining steps and report failures at the end
-- R-REL-03: The installer MUST support `gentle-ai repair` to re-run failed steps
+- R-REL-03: The installer MUST support `specai repair` to re-run failed steps
 - R-REL-04: The backup system MUST create timestamped snapshots before any config modification
 
 ### 12.4 Extensibility
@@ -1312,20 +1212,20 @@ The completion screen MUST show:
 
 ---
 
-## 13. Relationship to Gentleman.Dots
+## 13. Relationship to SpecAI.Dots
 
-| Aspect | Gentleman.Dots | Gentleman AI Installer |
+| Aspect | SpecAI.Dots | Specai Installer |
 |--------|---------------|----------------------|
 | Purpose | Dev environment (editors, shells, terminals) | AI development layer (agents, memory, skills) |
-| What it installs | Neovim, Fish/Zsh/Nushell, Tmux/Zellij, Ghostty/Kitty/etc. | Claude Code, OpenCode, Engram, SDD, MCP servers, skills |
+| What it installs | Neovim, Fish/Zsh/Nushell, Tmux/Zellij, Ghostty/Kitty/etc. | Claude Code, OpenCode, SddMemory, SDD, MCP servers, skills |
 | Overlap | None — complementary tools | None — different layer |
-| Can use together | Yes — install Gentleman.Dots first for dev env, then Gentleman AI for AI layer | Same |
+| Can use together | Yes — install SpecAI.Dots first for dev env, then Specai for AI layer | Same |
 | Shared patterns | Go + Bubbletea + Lipgloss, multi-OS detection, backup system | Same architecture, consistent UX |
 
 **Requirements:**
-- R-DOTS-01: The installer SHOULD detect if Gentleman.Dots is already installed and acknowledge it ("Great, you already have Gentleman.Dots! This installer adds the AI layer on top.")
-- R-DOTS-02: The installer MUST work independently — Gentleman.Dots is NOT a prerequisite
-- R-DOTS-03: The two installers SHOULD share the same Gentleman visual identity (theme, branding)
+- R-DOTS-01: The installer SHOULD detect if SpecAI.Dots is already installed and acknowledge it ("Great, you already have SpecAI.Dots! This installer adds the AI layer on top.")
+- R-DOTS-02: The installer MUST work independently — SpecAI.Dots is NOT a prerequisite
+- R-DOTS-03: The two installers SHOULD share the same SpecAI visual identity (theme, branding)
 
 ---
 
@@ -1335,12 +1235,12 @@ These are NOT requirements for v1 but should inform architectural decisions:
 
 1. **Team profiles** — Shareable config profiles for standardizing AI setup across a team
 2. **Plugin marketplace** — Browse and install community-created skills from a central registry
-3. **AI agent health dashboard** — TUI screen showing status of all installed agents, Engram memory stats, MCP server connectivity
+3. **AI agent health dashboard** — TUI screen showing status of all installed agents, SddMemory memory stats, MCP server connectivity
 4. **Auto-detection of project stack** — When entering a project directory, suggest relevant skills to install
 5. **Migration tool** — Import settings from one agent to another (e.g., Cursor user switching to Claude Code)
-6. **Gentleman.Dots integration** — Combined installer that does BOTH dev environment + AI layer in one flow
+6. **SpecAI.Dots integration** — Combined installer that does BOTH dev environment + AI layer in one flow
 7. **Remote provisioning** — SSH-based installation on remote servers/VMs
-8. **Nix flake** — Declarative alternative to imperative installation (see Gentleman.Dots2 experiment)
+8. **Nix flake** — Declarative alternative to imperative installation (see SpecAI.Dots2 experiment)
 
 ---
 
@@ -1358,11 +1258,11 @@ These are NOT requirements for v1 but should inform architectural decisions:
 
 ## 16. Open Questions
 
-1. **Naming**: `gentle-ai`, `gentle-ai`, `gai`, or something else? Should it be part of the `Gentleman-Programming` org or standalone?
+1. **Naming**: `specai`, `specai`, `gai`, or something else? Should it be part of the `kevg1t` org or standalone?
 2. **Skills registry**: Should skills be embedded in the binary, fetched from GitHub at install time, or pulled from a dedicated registry service?
 3. **Windows native**: How much effort to invest in native Windows (not WSL) support for v1? Most AI coding tools have limited Windows support anyway.
 4. **Config format**: Should the installer's own config (what was installed, preferences) be stored as JSON, YAML, or TOML? Where?
-5. **Gentleman.Dots convergence**: Should this eventually merge with Gentleman.Dots into a single unified installer with two modes (dev env + AI)?
+5. **SpecAI.Dots convergence**: Should this eventually merge with SpecAI.Dots into a single unified installer with two modes (dev env + AI)?
 6. **Version pinning**: Should the installer pin specific versions of tools/skills, or always install latest?
 
 ---
@@ -1373,12 +1273,11 @@ These are NOT requirements for v1 but should inform architectural decisions:
 |------|-------------|------------|
 | `claude` CLI setup | Installs Claude Code only | Single tool, no skills/memory/MCP |
 | `opencode` install | Installs OpenCode only | Single tool, manual config |
-| `engram setup` | Installs Engram for one agent | Memory only, no skills/agents |
+| `sdd-memory setup` | Installs SddMemory for one agent | Memory only, no skills/agents |
 | `sdd-agent-team/install.sh` | Installs SDD skills | Skills only, no agents/memory |
-| `gga` install | Installs GGA for one project | Code review only, no ecosystem |
 | Various dotfile managers | Stow, chezmoi, etc. | Generic, not AI-specific |
 
-**None of these solve the full problem.** Each handles one piece. This installer orchestrates ALL of them — Engram, SDD, GGA, skills, MCP, persona, theme — into a coherent, working AI development ecosystem across any agent the user chooses.
+**None of these solve the full problem.** Each handles one piece. This installer orchestrates ALL of them — SddMemory, SDD, skills, MCP, persona, theme — into a coherent, working AI development ecosystem across any agent the user chooses.
 
 ---
 
@@ -1386,30 +1285,30 @@ These are NOT requirements for v1 but should inform architectural decisions:
 
 ```bash
 # Dev Stack + Polish preset with Claude Code + OpenCode
-gentle-ai install --preset gentleman --agents claude-code,opencode
+specai install --preset specai --agents claude-code,opencode
 
 # Memory Only setup, just Claude Code with basic security
-gentle-ai install --preset minimal --agents claude-code
+specai install --preset minimal --agents claude-code
 
 # Team provisioning from shared profile
-gentle-ai install --profile ./team-ai-config.yaml
+specai install --profile ./team-ai-config.yaml
 
 # Update all skills to latest
-gentle-ai update --skills
+specai update --skills
 
-# Update Engram
-gentle-ai update --engram
+# Update SddMemory
+specai update --sdd-memory
 
 # Backup current configs
-gentle-ai backup
+specai backup
 
 # Restore from backup
-gentle-ai restore --list
-gentle-ai restore --id 2026-02-27-143022
+specai restore --list
+specai restore --id 2026-02-27-143022
 
 # Repair failed installation
-gentle-ai repair
+specai repair
 
 # Show what's installed
-gentle-ai status
+specai status
 ```

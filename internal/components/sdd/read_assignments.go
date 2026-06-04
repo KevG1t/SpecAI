@@ -10,7 +10,7 @@ import (
 )
 
 // configurableAgentSet is the set of valid agent names that may appear in
-// opencode.json. It includes SDD phases, JD agents, and the gentle-orchestrator coordinator.
+// opencode.json. It includes SDD phases, JD agents, and the specai-orchestrator coordinator.
 var configurableAgentSet = buildConfigurableAgentSet()
 
 func buildConfigurableAgentSet() map[string]bool {
@@ -19,7 +19,7 @@ func buildConfigurableAgentSet() map[string]bool {
 	for _, p := range phases {
 		set[p] = true
 	}
-	set["gentle-orchestrator"] = true
+	set["specai-orchestrator"] = true
 	// Backward-compatible read alias for configs that have not been synced yet.
 	set["sdd-orchestrator"] = true
 	return set
@@ -36,7 +36,7 @@ func ReadCurrentProfiles(settingsPath string) ([]model.Profile, error) {
 // at settingsPath and extracts the "model" field for each configurable agent.
 //
 // Only agents whose names match a configurable agent phase (SDD phases, JD agents
-// via opencode.ConfigurableAgentPhases()) or "gentle-orchestrator" are included.
+// via opencode.ConfigurableAgentPhases()) or "specai-orchestrator" are included.
 // Agents without a "model" field, or with a malformed model value, are silently
 // skipped.
 //
@@ -95,9 +95,10 @@ func ReadCurrentModelAssignments(settingsPath string) (map[string]model.ModelAss
 			continue
 		}
 		assignmentKey := name
-		if name == "sdd-orchestrator" {
-			assignmentKey = "gentle-orchestrator"
-			if _, hasGentleOrchestrator := result[assignmentKey]; hasGentleOrchestrator {
+		// Normalize legacy keys to the current canonical key.
+		if name == "sdd-orchestrator" || name == "specai-orchestrator" {
+			assignmentKey = "specai-orchestrator"
+			if _, hasSpecAIOrchestrator := result[assignmentKey]; hasSpecAIOrchestrator {
 				continue
 			}
 		}

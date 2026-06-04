@@ -125,7 +125,7 @@ func TestValidateGoForModuleInstall(t *testing.T) {
 	}
 }
 
-func TestResolveEngramBrewBypassesGoValidation(t *testing.T) {
+func TestResolveSddMemoryBrewBypassesGoValidation(t *testing.T) {
 	// On macOS, brew manages Go — validation must be skipped entirely.
 	origLookPath := cmdLookPath
 	cmdLookPath = func(file string) (string, error) {
@@ -134,12 +134,12 @@ func TestResolveEngramBrewBypassesGoValidation(t *testing.T) {
 	t.Cleanup(func() { cmdLookPath = origLookPath })
 
 	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew"}
-	cmds, err := resolveEngramInstall(profile)
+	cmds, err := resolveSddMemoryInstall(profile)
 	if err != nil {
-		t.Fatalf("resolveEngramInstall() unexpected error = %v", err)
+		t.Fatalf("resolveSddMemoryInstall() unexpected error = %v", err)
 	}
 	if len(cmds) == 0 {
-		t.Fatal("resolveEngramInstall() returned empty CommandSequence")
+		t.Fatal("resolveSddMemoryInstall() returned empty CommandSequence")
 	}
 }
 
@@ -275,8 +275,8 @@ func TestGitBashPathFallsBackToBareWhenNoGit(t *testing.T) {
 
 func TestBashScriptPathWindowsUsesForwardSlashes(t *testing.T) {
 	profile := system.PlatformProfile{OS: "windows", PackageManager: "winget"}
-	got := bashScriptPath(profile, `C:\Users\jorge\AppData\Local\Temp\gentleman-guardian-angel\install.sh`)
-	want := "C:/Users/jorge/AppData/Local/Temp/gentleman-guardian-angel/install.sh"
+	got := bashScriptPath(profile, `C:\Users\jorge\AppData\Local\Temp\specai-n\install.sh`)
+	want := "C:/Users/jorge/AppData/Local/Temp/specai-n/install.sh"
 	if got != want {
 		t.Fatalf("bashScriptPath() = %q, want %q", got, want)
 	}
@@ -540,82 +540,36 @@ func TestResolveComponentInstall(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "engram on darwin uses brew tap and install",
+			name:      "sdd-memory on darwin uses brew tap and install",
 			profile:   system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			component: model.ComponentEngram,
-			want:      CommandSequence{{"brew", "tap", "Gentleman-Programming/homebrew-tap"}, {"brew", "install", "engram"}},
+			component: model.ComponentSddMemory,
+			want:      CommandSequence{{"brew", "tap", "KevG1t/homebrew-tap"}, {"brew", "install", "sdd-memory"}},
 		},
-		// Linux and Windows engram now use DownloadLatestBinary() — resolver returns error.
+		// Linux and Windows sdd-memory now use DownloadLatestBinary() — resolver returns error.
 		// These cases are handled by run.go's componentApplyStep directly.
 		{
-			name:      "engram on ubuntu returns error (uses DownloadLatestBinary instead)",
+			name:      "sdd-memory on ubuntu returns error (uses DownloadLatestBinary instead)",
 			profile:   system.PlatformProfile{OS: "linux", LinuxDistro: system.LinuxDistroUbuntu, PackageManager: "apt"},
-			component: model.ComponentEngram,
+			component: model.ComponentSddMemory,
 			wantErr:   true,
 		},
 		{
-			name:      "engram on arch returns error (uses DownloadLatestBinary instead)",
+			name:      "sdd-memory on arch returns error (uses DownloadLatestBinary instead)",
 			profile:   system.PlatformProfile{OS: "linux", LinuxDistro: system.LinuxDistroArch, PackageManager: "pacman"},
-			component: model.ComponentEngram,
+			component: model.ComponentSddMemory,
 			wantErr:   true,
 		},
 		{
-			name:      "engram on fedora returns error (uses DownloadLatestBinary instead)",
+			name:      "sdd-memory on fedora returns error (uses DownloadLatestBinary instead)",
 			profile:   system.PlatformProfile{OS: "linux", LinuxDistro: system.LinuxDistroFedora, PackageManager: "dnf"},
-			component: model.ComponentEngram,
+			component: model.ComponentSddMemory,
 			wantErr:   true,
 		},
 		{
-			name:      "gga on darwin uses brew tap and reinstall",
-			profile:   system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			component: model.ComponentGGA,
-			want:      CommandSequence{{"brew", "tap", "Gentleman-Programming/homebrew-tap"}, {"brew", "reinstall", "gga"}},
-		},
-		{
-			name:      "gga on ubuntu uses git clone and install.sh",
-			profile:   system.PlatformProfile{OS: "linux", LinuxDistro: system.LinuxDistroUbuntu, PackageManager: "apt"},
-			component: model.ComponentGGA,
-			want: CommandSequence{
-				{"rm", "-rf", "/tmp/gentleman-guardian-angel"},
-				{"git", "clone", "https://github.com/Gentleman-Programming/gentleman-guardian-angel.git", "/tmp/gentleman-guardian-angel"},
-				{"bash", "/tmp/gentleman-guardian-angel/install.sh"},
-			},
-		},
-		{
-			name:      "gga on arch uses git clone and install.sh",
-			profile:   system.PlatformProfile{OS: "linux", LinuxDistro: system.LinuxDistroArch, PackageManager: "pacman"},
-			component: model.ComponentGGA,
-			want: CommandSequence{
-				{"rm", "-rf", "/tmp/gentleman-guardian-angel"},
-				{"git", "clone", "https://github.com/Gentleman-Programming/gentleman-guardian-angel.git", "/tmp/gentleman-guardian-angel"},
-				{"bash", "/tmp/gentleman-guardian-angel/install.sh"},
-			},
-		},
-		{
-			name:      "gga on fedora uses git clone and install.sh",
-			profile:   system.PlatformProfile{OS: "linux", LinuxDistro: system.LinuxDistroFedora, PackageManager: "dnf"},
-			component: model.ComponentGGA,
-			want: CommandSequence{
-				{"rm", "-rf", "/tmp/gentleman-guardian-angel"},
-				{"git", "clone", "https://github.com/Gentleman-Programming/gentleman-guardian-angel.git", "/tmp/gentleman-guardian-angel"},
-				{"bash", "/tmp/gentleman-guardian-angel/install.sh"},
-			},
-		},
-		{
-			name:      "engram on windows returns error (uses DownloadLatestBinary instead)",
+			name:      "sdd-memory on windows returns error (uses DownloadLatestBinary instead)",
 			profile:   system.PlatformProfile{OS: "windows", PackageManager: "winget"},
-			component: model.ComponentEngram,
+			component: model.ComponentSddMemory,
 			wantErr:   true,
-		},
-		{
-			name:      "gga on windows cleans temp dir and uses git bash",
-			profile:   system.PlatformProfile{OS: "windows", PackageManager: "winget"},
-			component: model.ComponentGGA,
-			want: CommandSequence{
-				{"powershell", "-NoProfile", "-Command", fmt.Sprintf("Remove-Item -Recurse -Force -ErrorAction SilentlyContinue '%s'; exit 0", filepath.Join(os.TempDir(), "gentleman-guardian-angel"))},
-				{"git", "clone", "https://github.com/Gentleman-Programming/gentleman-guardian-angel.git", filepath.Join(os.TempDir(), "gentleman-guardian-angel")},
-				{gitBashPath(), bashScriptPath(system.PlatformProfile{OS: "windows"}, filepath.Join(os.TempDir(), "gentleman-guardian-angel", "install.sh"))},
-			},
 		},
 		{
 			name:      "unsupported component returns error",

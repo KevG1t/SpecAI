@@ -14,8 +14,6 @@ func updateHint(tool ToolInfo, profile system.PlatformProfile) string {
 		return specAIHint(profile)
 	case "sdd-memory":
 		return sddMemoryHint(profile)
-	case "gga":
-		return ggaHint(profile)
 	case "opencode-subagent-statusline", "opencode-sdd-memory-manage":
 		return "specai upgrade updates ~/.config/opencode npm deps, clears this plugin's @latest cache, then requires OpenCode restart/reload"
 	default:
@@ -53,11 +51,3 @@ func sddMemoryHint(profile system.PlatformProfile) string {
 	}
 }
 
-func ggaHint(profile system.PlatformProfile) string {
-	switch profile.PackageManager {
-	case "brew":
-		return "brew upgrade gga"
-	default:
-		return "See https://github.com/Gentleman-Programming/gentleman-guardian-angel"
-	}
-}

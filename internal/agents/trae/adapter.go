@@ -81,7 +81,7 @@ func (a *Adapter) SystemPromptDir(homeDir string) string {
 }
 
 // SystemPromptFile returns the personal rules file that Trae reads.
-// gentle-ai injects its sections via StrategyMarkdownSections markers.
+// specai injects its sections via StrategyMarkdownSections markers.
 func (a *Adapter) SystemPromptFile(homeDir string) string {
 	return filepath.Join(a.traeUserDir(homeDir), "user_rules.md")
 }
@@ -98,8 +98,8 @@ func (a *Adapter) SettingsPath(homeDir string) string {
 
 // --- Config strategies ---
 
-// SystemPromptStrategy uses MarkdownSections: gentle-ai markers are injected
-// into user_rules/gentle-ai.md without clobbering other user content.
+// SystemPromptStrategy uses MarkdownSections: specai markers are injected
+// into user_rules/specai.md without clobbering other user content.
 func (a *Adapter) SystemPromptStrategy() model.SystemPromptStrategy {
 	return model.StrategyMarkdownSections
 }

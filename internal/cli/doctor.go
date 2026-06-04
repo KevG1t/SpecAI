@@ -37,10 +37,10 @@ type DoctorReport struct {
 	Checks []CheckResult
 }
 
-var knownTools = []string{"specai", "engram", "gga", "claude", "opencode"}
+var knownTools = []string{"specai", "sdd-memory", "claude", "opencode"}
 
 const (
-	engramHealthEnvVar    = "ENGRAM_BASE_URL"
+	sddMemoryHealthEnvVar = "SDD-MEMORY_BASE_URL"
 	diskWarnThreshold     = int64(100 * 1024 * 1024) // 100 MB
 	diskFailThreshold     = int64(10 * 1024 * 1024)  // 10 MB
 )
@@ -73,7 +73,7 @@ func RunDoctor(ctx context.Context, w io.Writer) error {
 	report := DoctorReport{}
 	report.Checks = append(report.Checks, checkToolBinaries(pathDirsFn())...)
 	report.Checks = append(report.Checks, checkStateJSON(homeDir))
-	report.Checks = append(report.Checks, checkEngramReachable())
+	report.Checks = append(report.Checks, checkSddMemoryReachable())
 	report.Checks = append(report.Checks, checkDiskSpace(homeDir))
 
 	renderDoctorReport(w, report)
@@ -203,11 +203,11 @@ func agentConfigDir(homeDir, agentID string) string {
 	}
 }
 
-// checkEngramReachable checks whether the engram HTTP health endpoint responds.
-func checkEngramReachable() CheckResult {
-	const name = "engram:reachable"
+// checkSddMemoryReachable checks whether the sdd-memory HTTP health endpoint responds.
+func checkSddMemoryReachable() CheckResult {
+	const name = "sdd-memory:reachable"
 
-	baseURL := os.Getenv(engramHealthEnvVar)
+	baseURL := os.Getenv(sddMemoryHealthEnvVar)
 	if baseURL == "" {
 		baseURL = "http://localhost:7437"
 	}
@@ -218,22 +218,22 @@ func checkEngramReachable() CheckResult {
 		return CheckResult{
 			Name:   name,
 			Status: CheckStatusFail,
-			Detail: "engram health endpoint unreachable at " + healthURL + ": " + err.Error(),
-			Remedy: "Start engram or check that it is configured as an MCP server",
+			Detail: "sdd-memory health endpoint unreachable at " + healthURL + ": " + err.Error(),
+			Remedy: "Start sdd-memory or check that it is configured as an MCP server",
 		}
 	}
 	if statusCode < 200 || statusCode >= 300 {
 		return CheckResult{
 			Name:   name,
 			Status: CheckStatusWarn,
-			Detail: fmt.Sprintf("engram health endpoint %s returned HTTP %d", healthURL, statusCode),
-			Remedy: "Check engram logs for errors",
+			Detail: fmt.Sprintf("sdd-memory health endpoint %s returned HTTP %d", healthURL, statusCode),
+			Remedy: "Check sdd-memory logs for errors",
 		}
 	}
 	return CheckResult{
 		Name:   name,
 		Status: CheckStatusPass,
-		Detail: fmt.Sprintf("engram health endpoint OK at %s (HTTP %d)", healthURL, statusCode),
+		Detail: fmt.Sprintf("sdd-memory health endpoint OK at %s (HTTP %d)", healthURL, statusCode),
 	}
 }
 

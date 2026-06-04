@@ -89,10 +89,10 @@ func TestInjectMarkdownSection_CloseBeforeOpenTreatedAsNotFound(t *testing.T) {
 // TestInjectMarkdownSection_OrphanRepair covers the four scenarios from issue #301:
 // infinite block accumulation caused by orphan closing markers being mishandled.
 func TestInjectMarkdownSection_OrphanRepair(t *testing.T) {
-	const sid = "engram-protocol"
+	const sid = "sdd-memory-protocol"
 	open := "<!-- specai:" + sid + " -->"
 	close := "<!-- /specai:" + sid + " -->"
-	newContent := "Engram protocol content.\n"
+	newContent := "SddMemory protocol content.\n"
 
 	oneBlock := open + "\n" + newContent + close + "\n"
 
@@ -264,7 +264,7 @@ Senior Architect, 15+ years experience, GDE & MVP.
 
 `
 
-const gentleAiMarkerSection = `<!-- specai:persona -->
+const specaiAiMarkerSection = `<!-- specai:persona -->
 ## Personality
 
 Senior Architect, 15+ years experience, GDE & MVP.
@@ -281,7 +281,7 @@ func TestStripLegacyPersonaBlock_NoFingerprintReturnsSame(t *testing.T) {
 
 func TestStripLegacyPersonaBlock_FingerprintInsideMarkerReturnsSame(t *testing.T) {
 	// Fingerprints only exist inside specai markers — should NOT be stripped.
-	input := "# My Config\n\n" + gentleAiMarkerSection
+	input := "# My Config\n\n" + specaiAiMarkerSection
 	result := StripLegacyPersonaBlock(input)
 	if result != input {
 		t.Fatalf("fingerprint inside marker: expected unchanged result:\ngot:  %q\nwant: %q", result, input)
@@ -298,7 +298,7 @@ func TestStripLegacyPersonaBlock_LegacyBlockOnlyReturnsEmpty(t *testing.T) {
 
 func TestStripLegacyPersonaBlock_LegacyBlockBeforeMarkersStripped(t *testing.T) {
 	// Stale free-text persona block sits before a properly-marked section.
-	input := legacyPersonaBlock + "\n" + gentleAiMarkerSection
+	input := legacyPersonaBlock + "\n" + specaiAiMarkerSection
 	result := StripLegacyPersonaBlock(input)
 
 	// The legacy block should be gone.
@@ -313,7 +313,7 @@ func TestStripLegacyPersonaBlock_LegacyBlockBeforeMarkersStripped(t *testing.T) 
 
 func TestStripLegacyPersonaBlock_MarkerSectionContentPreserved(t *testing.T) {
 	// Markers and their content must be fully preserved after stripping.
-	input := legacyPersonaBlock + "\n" + gentleAiMarkerSection + "\n# User Notes\n\nSome user text.\n"
+	input := legacyPersonaBlock + "\n" + specaiAiMarkerSection + "\n# User Notes\n\nSome user text.\n"
 	result := StripLegacyPersonaBlock(input)
 
 	if !strings.Contains(result, "<!-- specai:persona -->") {
@@ -330,7 +330,7 @@ func TestStripLegacyPersonaBlock_MarkerSectionContentPreserved(t *testing.T) {
 func TestStripLegacyPersonaBlock_OnlyTwoOfThreeFingerprints(t *testing.T) {
 	// File has "## Personality" and "Senior Architect" but NOT "## Rules" —
 	// only two of three fingerprints, so it should NOT be stripped.
-	input := "## Personality\n\nSenior Architect, 15+ years experience.\n\n" + gentleAiMarkerSection
+	input := "## Personality\n\nSenior Architect, 15+ years experience.\n\n" + specaiAiMarkerSection
 	result := StripLegacyPersonaBlock(input)
 	// With only 2/3 fingerprints, stripping should NOT occur.
 	if result != input {
@@ -412,7 +412,7 @@ func TestStripLegacyPersonaBlock_UserContentBeforeAndAfterMarkersPreserved(t *te
 	// by looking for fingerprints before the first marker, user content that
 	// predates the legacy block would also be stripped.  This is an accepted
 	// tradeoff documented in the function comment.
-	input := legacyPersonaBlock + "\n" + gentleAiMarkerSection + "\n# Custom section\n\nUser stuff.\n"
+	input := legacyPersonaBlock + "\n" + specaiAiMarkerSection + "\n# Custom section\n\nUser stuff.\n"
 	result := StripLegacyPersonaBlock(input)
 
 	if !strings.Contains(result, "# Custom section") {
@@ -698,7 +698,7 @@ func TestMigrateMarkers_NoLegacyMarkers_ReturnsUnchanged(t *testing.T) {
 }
 
 func TestMigrateMarkers_LegacyOpenMarker_Migrated(t *testing.T) {
-	input := "<!-- gentle-ai:sdd -->\nContent.\n<!-- /gentle-ai:sdd -->\n"
+	input := "<!-- specai-ai:sdd -->\nContent.\n<!-- /specai-ai:sdd -->\n"
 	want := "<!-- specai:sdd -->\nContent.\n<!-- /specai:sdd -->\n"
 	result := MigrateMarkers(input)
 	if result != want {
@@ -707,8 +707,8 @@ func TestMigrateMarkers_LegacyOpenMarker_Migrated(t *testing.T) {
 }
 
 func TestMigrateMarkers_MixedMarkersAllMigrated(t *testing.T) {
-	input := "<!-- gentle-ai:persona -->\nPersona.\n<!-- /gentle-ai:persona -->\n" +
-		"<!-- gentle-ai:sdd -->\nSDD.\n<!-- /gentle-ai:sdd -->\n"
+	input := "<!-- specai-ai:persona -->\nPersona.\n<!-- /specai-ai:persona -->\n" +
+		"<!-- specai-ai:sdd -->\nSDD.\n<!-- /specai-ai:sdd -->\n"
 	want := "<!-- specai:persona -->\nPersona.\n<!-- /specai:persona -->\n" +
 		"<!-- specai:sdd -->\nSDD.\n<!-- /specai:sdd -->\n"
 	result := MigrateMarkers(input)
@@ -718,7 +718,7 @@ func TestMigrateMarkers_MixedMarkersAllMigrated(t *testing.T) {
 }
 
 func TestMigrateMarkers_Idempotent(t *testing.T) {
-	input := "<!-- gentle-ai:sdd -->\nContent.\n<!-- /gentle-ai:sdd -->\n"
+	input := "<!-- specai:sdd -->\nContent.\n<!-- /specai:sdd -->\n"
 	once := MigrateMarkers(input)
 	twice := MigrateMarkers(once)
 	if once != twice {
@@ -727,16 +727,16 @@ func TestMigrateMarkers_Idempotent(t *testing.T) {
 }
 
 func TestInjectMarkdownSection_MigratesLegacyMarkersOnUpdate(t *testing.T) {
-	// An existing file with old-style gentle-ai markers should be migrated
+	// An existing file with old-style specai-ai markers should be migrated
 	// and the section updated without creating duplicates.
-	existing := "# Config\n\n<!-- gentle-ai:sdd -->\nOld content.\n<!-- /gentle-ai:sdd -->\n"
+	existing := "# Config\n\n<!-- specai-ai:sdd -->\nOld content.\n<!-- /specai-ai:sdd -->\n"
 	result := InjectMarkdownSection(existing, "sdd", "New content.\n")
 
 	want := "# Config\n\n<!-- specai:sdd -->\nNew content.\n<!-- /specai:sdd -->\n"
 	if result != want {
 		t.Fatalf("migrate on update:\ngot:  %q\nwant: %q", result, want)
 	}
-	if strings.Contains(result, "gentle-ai") {
-		t.Fatal("result must not contain legacy gentle-ai markers")
+	if strings.Contains(result, "specai-ai") {
+		t.Fatal("result must not contain legacy specai-ai markers")
 	}
 }

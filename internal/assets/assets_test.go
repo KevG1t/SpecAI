@@ -12,8 +12,8 @@ import (
 func TestAllEmbeddedAssetsAreReadable(t *testing.T) {
 	expectedFiles := []string{
 		// Claude agent files
-		"claude/engram-protocol.md",
-		"claude/persona-gentleman.md",
+		"claude/sdd-memory-protocol.md",
+		"claude/persona-modism.md",
 		"claude/sdd-orchestrator.md",
 		"claude/commands/sdd-apply.md",
 		"claude/commands/sdd-archive.md",
@@ -28,7 +28,7 @@ func TestAllEmbeddedAssetsAreReadable(t *testing.T) {
 		"claude/agents/sdd-onboard.md",
 
 		// OpenCode agent files
-		"opencode/persona-gentleman.md",
+		"opencode/persona-modism.md",
 		"opencode/sdd-orchestrator.md",
 		"opencode/sdd-overlay-single.json",
 		"opencode/sdd-overlay-multi.json",
@@ -65,11 +65,11 @@ func TestAllEmbeddedAssetsAreReadable(t *testing.T) {
 		"cursor/agents/sdd-archive.md",
 
 		// Kimi agent files
-		"kimi/persona-gentleman.md",
-		"kimi/output-style-gentleman.md",
+		"kimi/persona-modism.md",
+		"kimi/output-style-modism.md",
 		"kimi/sdd-orchestrator.md",
 		"kimi/KIMI.md",
-		"kimi/agents/gentleman.yaml",
+		"kimi/agents/modism.yaml",
 		"kimi/agents/sdd-init.yaml",
 		"kimi/agents/sdd-explore.yaml",
 		"kimi/agents/sdd-propose.yaml",
@@ -106,7 +106,7 @@ func TestAllEmbeddedAssetsAreReadable(t *testing.T) {
 		"skills/skill-registry/SKILL.md",
 		"skills/judgment-day/references/prompts-and-formats.md",
 		"skills/_shared/persistence-contract.md",
-		"skills/_shared/engram-convention.md",
+		"skills/_shared/sdd-memory-convention.md",
 		"skills/_shared/openspec-convention.md",
 		"skills/_shared/sdd-phase-common.md",
 
@@ -148,7 +148,7 @@ func TestOpenCodeEmbeddedAssetLayout(t *testing.T) {
 		seen[entry.Name()] = true
 	}
 
-	for _, name := range []string{"commands", "plugins", "persona-gentleman.md", "sdd-orchestrator.md", "sdd-overlay-single.json", "sdd-overlay-multi.json"} {
+	for _, name := range []string{"commands", "plugins", "persona-modism.md", "sdd-orchestrator.md", "sdd-overlay-single.json", "sdd-overlay-multi.json"} {
 		if !seen[name] {
 			t.Fatalf("opencode embedded assets missing %q", name)
 		}
@@ -269,7 +269,7 @@ func TestClaudeEmbeddedAssetLayout(t *testing.T) {
 		seen[entry.Name()] = true
 	}
 
-	for _, name := range []string{"agents", "commands", "engram-protocol.md", "persona-gentleman.md", "sdd-orchestrator.md"} {
+	for _, name := range []string{"agents", "commands", "sdd-memory-protocol.md", "persona-modism.md", "sdd-orchestrator.md"} {
 		if !seen[name] {
 			t.Fatalf("claude embedded assets missing %q", name)
 		}
@@ -384,7 +384,7 @@ func TestOpenCodeSDDCommandsAreOrchestratorGuarded(t *testing.T) {
 
 		for _, forbidden := range []string{
 			"You are an SDD sub-agent",
-			"Artifact store mode: engram",
+			"Artifact store mode: sdd-memory",
 		} {
 			if strings.Contains(content, forbidden) {
 				t.Fatalf("%s must not bypass orchestration with %q", path, forbidden)
@@ -403,9 +403,9 @@ func TestOpenCodeSDDCommandsAreOrchestratorGuarded(t *testing.T) {
 
 	applyContent := MustRead("opencode/commands/sdd-apply.md")
 	for _, required := range []string{
-		"You are the `gentle-orchestrator`, not an SDD executor",
+		"You are the `specai-orchestrator`, not an SDD executor",
 		"If spec, design, or tasks are missing, do NOT implement",
-		"do not hardcode Engram",
+		"do not hardcode SddMemory",
 	} {
 		if !strings.Contains(applyContent, required) {
 			t.Fatalf("opencode/commands/sdd-apply.md missing apply guard wording %q", required)
@@ -514,13 +514,13 @@ func TestPlatformNativeSDDOrchestratorsAvoidOpenCodePersistenceClaims(t *testing
 	}
 }
 
-func TestGentlemanLanguageInstructionsDoNotBiasEnglishSessions(t *testing.T) {
+func TestSpecAILanguageInstructionsDoNotBiasEnglishSessions(t *testing.T) {
 	personaPaths := []string{
-		"claude/persona-gentleman.md",
-		"generic/persona-gentleman.md",
-		"kiro/persona-gentleman.md",
-		"kimi/persona-gentleman.md",
-		"opencode/persona-gentleman.md",
+		"claude/persona-modism.md",
+		"generic/persona-modism.md",
+		"kiro/persona-modism.md",
+		"kimi/persona-modism.md",
+		"opencode/persona-modism.md",
 	}
 
 	for _, path := range personaPaths {
@@ -550,8 +550,8 @@ func TestGentlemanLanguageInstructionsDoNotBiasEnglishSessions(t *testing.T) {
 	}
 
 	for _, path := range []string{
-		"claude/output-style-gentleman.md",
-		"kimi/output-style-gentleman.md",
+		"claude/output-style-modism.md",
+		"kimi/output-style-modism.md",
 	} {
 		t.Run(path, func(t *testing.T) {
 			content := MustRead(path)
@@ -578,12 +578,12 @@ func TestGentlemanLanguageInstructionsDoNotBiasEnglishSessions(t *testing.T) {
 		})
 	}
 
-	// engram-protocol assets must not ship Spanish trigger examples that bias
+	// sdd-memory-protocol assets must not ship Spanish trigger examples that bias
 	// English sessions into Spanish replies (same mechanism as #341 / #350).
-	// Covers all agent families that ship a dedicated engram instruction asset.
+	// Covers all agent families that ship a dedicated sdd-memory instruction asset.
 	for _, path := range []string{
-		"claude/engram-protocol.md",
-		"codex/engram-instructions.md",
+		"claude/sdd-memory-protocol.md",
+		"codex/sdd-memory-instructions.md",
 	} {
 		t.Run(path, func(t *testing.T) {
 			content := MustRead(path)
@@ -617,12 +617,12 @@ func TestPersonasContainContextualSkillLoadingDirective(t *testing.T) {
 		isClaude  bool
 		invokeMsg string // wording specific to the agent family
 	}{
-		{path: "claude/persona-gentleman.md", isClaude: true, invokeMsg: "invoke it via the built-in `Skill` tool"},
-		{path: "opencode/persona-gentleman.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
-		{path: "generic/persona-gentleman.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
+		{path: "claude/persona-modism.md", isClaude: true, invokeMsg: "invoke it via the built-in `Skill` tool"},
+		{path: "opencode/persona-modism.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
+		{path: "generic/persona-modism.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
 		{path: "generic/persona-neutral.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
-		{path: "kiro/persona-gentleman.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
-		{path: "kimi/persona-gentleman.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
+		{path: "kiro/persona-modism.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
+		{path: "kimi/persona-modism.md", isClaude: false, invokeMsg: "read the matching SKILL.md"},
 	}
 
 	for _, tc := range tests {
@@ -709,7 +709,7 @@ func TestEmbeddedAssetCount(t *testing.T) {
 			continue
 		}
 		if entry.Name() == "_shared" {
-			for _, sharedFile := range []string{"persistence-contract.md", "engram-convention.md", "openspec-convention.md", "sdd-phase-common.md", "skill-resolver.md"} {
+			for _, sharedFile := range []string{"persistence-contract.md", "sdd-memory-convention.md", "openspec-convention.md", "sdd-phase-common.md", "skill-resolver.md"} {
 				sharedPath := "skills/_shared/" + sharedFile
 				if _, err := Read(sharedPath); err != nil {
 					t.Fatalf("shared directory missing %q: %v", sharedFile, err)
@@ -873,7 +873,7 @@ func TestSDDOrchestratorAssetsScopedToDedicatedAgent(t *testing.T) {
 			content := MustRead(assetPath)
 			dedicatedAgent := "sdd-orchestrator"
 			if assetPath == "opencode/sdd-orchestrator.md" {
-				dedicatedAgent = "gentle-orchestrator"
+				dedicatedAgent = "specai-orchestrator"
 			}
 			if assetPath == "claude/sdd-orchestrator.md" {
 				if !strings.Contains(content, "Claude Code orchestrator rule") {

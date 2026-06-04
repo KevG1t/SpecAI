@@ -18,7 +18,7 @@ func TestCheckOneTool_MissingBinary(t *testing.T) {
 	defer func() { lookPathFn = orig }()
 	lookPathFn = func(string) (string, error) { return "", errors.New("not found") }
 
-	got := checkOneTool("engram", nil)
+	got := checkOneTool("sdd-memory", nil)
 
 	if got.Status != CheckStatusFail {
 		t.Errorf("expected fail, got %s", got.Status)
@@ -38,18 +38,18 @@ func TestCheckOneTool_ShadowedBinary(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()
 
-	// Create two copies of the "engram" binary in two dirs.
+	// Create two copies of the "sdd-memory" binary in two dirs.
 	for _, dir := range []string{dir1, dir2} {
-		f, err := os.Create(filepath.Join(dir, "engram"))
+		f, err := os.Create(filepath.Join(dir, "sdd-memory"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		_ = f.Close()
 	}
 
-	lookPathFn = func(string) (string, error) { return filepath.Join(dir1, "engram"), nil }
+	lookPathFn = func(string) (string, error) { return filepath.Join(dir1, "sdd-memory"), nil }
 
-	got := checkOneTool("engram", []string{dir1, dir2})
+	got := checkOneTool("sdd-memory", []string{dir1, dir2})
 
 	if got.Status != CheckStatusWarn {
 		t.Errorf("expected warn, got %s", got.Status)
@@ -67,15 +67,15 @@ func TestCheckOneTool_OK(t *testing.T) {
 	defer func() { lookPathFn = orig }()
 
 	dir := t.TempDir()
-	f, err := os.Create(filepath.Join(dir, "engram"))
+	f, err := os.Create(filepath.Join(dir, "sdd-memory"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = f.Close()
 
-	lookPathFn = func(string) (string, error) { return filepath.Join(dir, "engram"), nil }
+	lookPathFn = func(string) (string, error) { return filepath.Join(dir, "sdd-memory"), nil }
 
-	got := checkOneTool("engram", []string{dir})
+	got := checkOneTool("sdd-memory", []string{dir})
 
 	if got.Status != CheckStatusPass {
 		t.Errorf("expected pass, got %s: %s", got.Status, got.Detail)
@@ -162,16 +162,16 @@ func TestCheckStateJSON_OK(t *testing.T) {
 	}
 }
 
-// --- checkEngramReachable ---
+// --- checkSddMemoryReachable ---
 
-func TestCheckEngramReachable_ConnectionRefused(t *testing.T) {
+func TestCheckSddMemoryReachable_ConnectionRefused(t *testing.T) {
 	orig := httpGetFn
 	defer func() { httpGetFn = orig }()
 	httpGetFn = func(url string, _ time.Duration) (int, error) {
 		return 0, errors.New("connection refused")
 	}
 
-	got := checkEngramReachable()
+	got := checkSddMemoryReachable()
 
 	if got.Status != CheckStatusFail {
 		t.Errorf("expected fail, got %s", got.Status)
@@ -181,28 +181,28 @@ func TestCheckEngramReachable_ConnectionRefused(t *testing.T) {
 	}
 }
 
-func TestCheckEngramReachable_OK(t *testing.T) {
+func TestCheckSddMemoryReachable_OK(t *testing.T) {
 	orig := httpGetFn
 	defer func() { httpGetFn = orig }()
 	httpGetFn = func(url string, _ time.Duration) (int, error) {
 		return 200, nil
 	}
 
-	got := checkEngramReachable()
+	got := checkSddMemoryReachable()
 
 	if got.Status != CheckStatusPass {
 		t.Errorf("expected pass, got %s: %s", got.Status, got.Detail)
 	}
 }
 
-func TestCheckEngramReachable_NonSuccessStatus(t *testing.T) {
+func TestCheckSddMemoryReachable_NonSuccessStatus(t *testing.T) {
 	orig := httpGetFn
 	defer func() { httpGetFn = orig }()
 	httpGetFn = func(url string, _ time.Duration) (int, error) {
 		return 503, nil
 	}
 
-	got := checkEngramReachable()
+	got := checkSddMemoryReachable()
 
 	if got.Status != CheckStatusWarn {
 		t.Errorf("expected warn for 503, got %s", got.Status)

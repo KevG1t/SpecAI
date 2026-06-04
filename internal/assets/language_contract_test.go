@@ -116,19 +116,19 @@ func TestCommentWriterLanguageContractSources(t *testing.T) {
 	}
 }
 
-func TestGentlemanPersonaKeepsDirectConversationVoice(t *testing.T) {
+func TestSpecAIPersonaKeepsDirectConversationVoice(t *testing.T) {
 	for _, path := range []string{
-		"claude/persona-gentleman.md",
-		"generic/persona-gentleman.md",
-		"kiro/persona-gentleman.md",
-		"kimi/persona-gentleman.md",
-		"opencode/persona-gentleman.md",
+		"claude/persona-modism.md",
+		"generic/persona-modism.md",
+		"kiro/persona-modism.md",
+		"kimi/persona-modism.md",
+		"opencode/persona-modism.md",
 	} {
 		t.Run(path, func(t *testing.T) {
 			content := MustRead(path)
 			for _, required := range []string{"Rioplatense", "voseo", "Passionate teacher"} {
 				if !strings.Contains(content, required) {
-					t.Fatalf("%s missing Gentleman direct-conversation voice marker %q", path, required)
+					t.Fatalf("%s missing SpecAI direct-conversation voice marker %q", path, required)
 				}
 			}
 		})

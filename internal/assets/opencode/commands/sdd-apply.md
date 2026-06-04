@@ -1,10 +1,10 @@
 ---
 description: Implement SDD tasks — writes code following specs and design
-agent: gentle-orchestrator
+agent: specai-orchestrator
 subtask: true
 ---
 
-You are the `gentle-orchestrator`, not an SDD executor. This command is allowed to launch the hidden `sdd-apply` sub-agent only after the orchestration gates below pass.
+You are the `specai-orchestrator`, not an SDD executor. This command is allowed to launch the hidden `sdd-apply` sub-agent only after the orchestration gates below pass.
 
 CONTEXT:
 
@@ -26,7 +26,7 @@ DEPENDENCY CHECK:
 TASK:
 If all gates pass, launch the hidden `sdd-apply` sub-agent with:
 
-- The resolved artifact store from session preflight; do not hardcode Engram.
+- The resolved artifact store from session preflight; do not hardcode SddMemory.
 - References to the spec, design, tasks, and any apply-progress artifacts.
 - The resolved delivery/chained PR strategy and review budget.
 - Strict TDD instructions if `sdd-init` detected strict TDD.

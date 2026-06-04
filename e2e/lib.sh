@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib.sh — shared test helpers for gentle-ai E2E tests
+# lib.sh — shared test helpers for specai E2E tests
 # Sourced by e2e_test.sh; never executed directly.
 set -euo pipefail
 
@@ -31,29 +31,29 @@ log_info()  { printf "${BLUE}[INFO]${NC}  %s\n" "$1"; }
 # ---------------------------------------------------------------------------
 # Binary resolution
 # ---------------------------------------------------------------------------
-# The binary should be built and placed at /usr/local/bin/gentle-ai inside
-# the Docker container. If not found, fall back to $HOME/gentle-ai or the
+# The binary should be built and placed at /usr/local/bin/specai inside
+# the Docker container. If not found, fall back to $HOME/specai or the
 # current directory.
 # Resolution priority (highest → lowest):
-#   1. ./gentle-ai in the current repo directory (freshly built local binary)
-#   2. ~/gentle-ai (explicit copy in home)
-#   3. gentle-ai on PATH (system-installed, e.g. Homebrew)
-# This ensures `go build ./cmd/gentle-ai && bash e2e/e2e_test.sh` always
+#   1. ./specai in the current repo directory (freshly built local binary)
+#   2. ~/specai (explicit copy in home)
+#   3. specai on PATH (system-installed, e.g. Homebrew)
+# This ensures `go build ./cmd/specai && bash e2e/e2e_test.sh` always
 # tests the locally built binary rather than the installed release version.
 resolve_binary() {
-    # Prefer the locally built binary (./gentle-ai) produced by `go build ./cmd/gentle-ai`.
+    # Prefer the locally built binary (./specai) produced by `go build ./cmd/specai`.
     # We check both the current directory and the script's parent directory so
     # the resolver works whether the test is invoked from the repo root or from e2e/.
     local repo_root
     repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    if [ -x "$repo_root/gentle-ai" ]; then
-        echo "$repo_root/gentle-ai"
-    elif [ -x "./gentle-ai" ]; then
-        echo "./gentle-ai"
-    elif [ -x "$HOME/gentle-ai" ]; then
-        echo "$HOME/gentle-ai"
-    elif command -v gentle-ai >/dev/null 2>&1; then
-        echo "gentle-ai"
+    if [ -x "$repo_root/specai" ]; then
+        echo "$repo_root/specai"
+    elif [ -x "./specai" ]; then
+        echo "./specai"
+    elif [ -x "$HOME/specai" ]; then
+        echo "$HOME/specai"
+    elif command -v specai >/dev/null 2>&1; then
+        echo "specai"
     else
         echo ""
     fi
@@ -67,12 +67,11 @@ resolve_binary() {
 # Removes config dirs and files that the installer writes.
 cleanup_test_env() {
     rm -rf "$HOME/.config/opencode" 2>/dev/null || true
-    rm -rf "$HOME/.config/gga" 2>/dev/null || true
     rm -rf "$HOME/.config/Windsurf" 2>/dev/null || true
     rm -rf "$HOME/.claude" 2>/dev/null || true
     rm -rf "$HOME/.codex" 2>/dev/null || true
     rm -rf "$HOME/.gemini" 2>/dev/null || true
-    rm -rf "$HOME/.gentle-ai" 2>/dev/null || true
+    rm -rf "$HOME/.specai" 2>/dev/null || true
     rm -rf "$HOME/.codeium" 2>/dev/null || true
     rm -rf "$HOME/.cursor" 2>/dev/null || true
     rm -rf "$HOME/.qwen" 2>/dev/null || true
@@ -81,25 +80,25 @@ cleanup_test_env() {
     mkdir -p "$HOME/.config"
 }
 
-# setup_fake_engram_binary — install a deterministic local engram shim for E2E.
+# setup_fake_sddMemory_binary — install a deterministic local sdd-memory shim for E2E.
 #
-# Full Docker E2E validates gentle-ai's agent/config injection behavior, not the
-# external Engram release CDN. The real installer skips the network download when
-# an `engram` binary already exists on PATH, so this shim keeps coverage of the
+# Full Docker E2E validates specai's agent/config injection behavior, not the
+# external SddMemory release CDN. The real installer skips the network download when
+# an `sdd-memory` binary already exists on PATH, so this shim keeps coverage of the
 # install pipeline while avoiding flaky GitHub API/rate-limit failures.
 #
-# Set GENTLE_AI_E2E_REAL_ENGRAM=1 to opt out and exercise the live download path.
-setup_fake_engram_binary() {
-    if [ "${GENTLE_AI_E2E_REAL_ENGRAM:-0}" = "1" ]; then
-        log_info "Using real Engram binary/download path for E2E"
+# Set SPECAI_AI_E2E_REAL_SDD-MEMORY=1 to opt out and exercise the live download path.
+setup_fake_sddMemory_binary() {
+    if [ "${SPECAI_AI_E2E_REAL_SDD-MEMORY:-0}" = "1" ]; then
+        log_info "Using real SddMemory binary/download path for E2E"
         return 0
     fi
 
-    local fake_bin_dir="$HOME/.gentle-ai-e2e/bin"
-    local fake_engram="$fake_bin_dir/engram"
+    local fake_bin_dir="$HOME/.specai-e2e/bin"
+    local fake_sddMemory="$fake_bin_dir/sdd-memory"
 
     mkdir -p "$fake_bin_dir"
-    cat > "$fake_engram" <<'EOF'
+    cat > "$fake_sddMemory" <<'EOF'
 #!/usr/bin/env sh
 set -eu
 
@@ -109,11 +108,11 @@ case "${1:-}" in
     ;;
   mcp)
     # Keep the shim alive if an MCP client probes it during E2E, but do not
-    # require real Engram services or network access.
+    # require real SddMemory services or network access.
     exit 0
     ;;
   version|--version|-v)
-    printf 'engram e2e-shim\n'
+    printf 'sdd-memory e2e-shim\n'
     exit 0
     ;;
   *)
@@ -121,14 +120,14 @@ case "${1:-}" in
     ;;
 esac
 EOF
-    chmod +x "$fake_engram"
+    chmod +x "$fake_sddMemory"
 
     case ":$PATH:" in
         *":$fake_bin_dir:"*) ;;
         *) export PATH="$fake_bin_dir:$PATH" ;;
     esac
 
-    log_info "Using deterministic Engram E2E shim: $fake_engram"
+    log_info "Using deterministic SddMemory E2E shim: $fake_sddMemory"
 }
 
 # setup_fake_configs — seed fake config files so backup tests have something
@@ -141,7 +140,7 @@ setup_fake_configs() {
     echo '# Fake CLAUDE.md' > "$HOME/.claude/CLAUDE.md"
 
     mkdir -p "$HOME/.claude/mcp"
-    echo '{"fake": true}' > "$HOME/.claude/mcp/engram.json"
+    echo '{"fake": true}' > "$HOME/.claude/mcp/sdd-memory.json"
 }
 
 # ---------------------------------------------------------------------------
@@ -370,7 +369,7 @@ assert_md5_match() {
 }
 
 # assert_no_duplicate_section FILE SECTION_ID LABEL
-# Checks that the gentle-ai section marker appears exactly once (no duplicates).
+# Checks that the specai section marker appears exactly once (no duplicates).
 assert_no_duplicate_section() {
     local file="$1"
     local section_id="$2"
@@ -379,7 +378,7 @@ assert_no_duplicate_section() {
         log_fail "Cannot check sections — file not found: $file"
         return 1
     fi
-    local marker="<!-- gentle-ai:${section_id} -->"
+    local marker="<!-- specai:${section_id} -->"
     local count
     count=$(grep -c "$marker" "$file" 2>/dev/null || echo "0")
     if [ "$count" -eq 1 ]; then

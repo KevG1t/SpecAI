@@ -1,8 +1,8 @@
 {
-  "name": "gentleman-ai-installer",
+  "name": "specai-installer",
   "version": "1.0.0",
   "private": true,
-  "description": "Gentle-AI — ecosystem, frameworks, and workflows for AI coding agents.",
+  "description": "SpecAI, frameworks and workflows for AI development.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -12,14 +12,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Gentleman-Programming/gentle-ai.git"
+    "url": "git+https://github.com/kevg1t/specai.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/Gentleman-Programming/gentle-ai/issues"
+    "url": "https://github.com/kevg1t/specai/issues"
   },
-  "homepage": "https://github.com/Gentleman-Programming/gentle-ai#readme"
+  "homepage": "https://github.com/kevg1t/specai#readme"
 }

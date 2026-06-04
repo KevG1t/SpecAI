@@ -9,11 +9,11 @@ const (
 	markerSuffix = " -->"
 	closePrefix  = "<!-- /specai:"
 
-	legacyMarkerPrefix = "<!-- gentle-ai:"
-	legacyClosePrefix  = "<!-- /gentle-ai:"
+	legacyMarkerPrefix = "<!-- specai-ai:"
+	legacyClosePrefix  = "<!-- /specai-ai:"
 )
 
-// MigrateMarkers rewrites old-style <!-- gentle-ai:... --> markers to the new
+// MigrateMarkers rewrites old-style <!-- specai-ai:... --> markers to the new
 // <!-- specai:... --> format. It is safe to call on any content: if no legacy
 // markers are present, the original content is returned unchanged.
 func MigrateMarkers(content string) string {
@@ -22,7 +22,7 @@ func MigrateMarkers(content string) string {
 	return content
 }
 
-// legacyPersonaFingerprints are substrings that appear in the Gentleman persona
+// legacyPersonaFingerprints are substrings that appear in the SpecAI persona
 // asset and reliably identify a stale free-text block written by an old installer
 // (or manually copied) before the marker-based injection system was in use.
 // All fingerprints must be present for the block to be considered a match.
@@ -32,7 +32,7 @@ var legacyPersonaFingerprints = []string{
 	"## Rules",
 }
 
-// StripLegacyPersonaBlock removes a free-text Gentleman persona block that was
+// StripLegacyPersonaBlock removes a free-text SpecAI persona block that was
 // written to a markdown file outside of <!-- specai: --> markers.
 //
 // It is safe to call on any file: if no legacy block is detected, the original
@@ -271,12 +271,12 @@ func stripOrphanMarkers(content, open, close string) string {
 // Content outside markers is never touched.
 // If content is empty, the section (including markers) is removed.
 //
-// Before injection, legacy <!-- gentle-ai: --> markers are migrated to the new
+// Before injection, legacy <!-- specai-ai: --> markers are migrated to the new
 // <!-- specai: --> format, and orphan markers (an unpaired closer or opener) are
 // stripped so that a file corrupted by a previous buggy sync run is repaired in
 // place rather than having another duplicate block appended.
 func InjectMarkdownSection(existing, sectionID, content string) string {
-	// Migrate any legacy gentle-ai markers to specai markers before processing.
+	// Migrate any legacy specai-ai markers to specai markers before processing.
 	existing = MigrateMarkers(existing)
 
 	open := openMarker(sectionID)

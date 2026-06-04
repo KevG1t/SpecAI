@@ -1,5 +1,5 @@
 # Binaries
-/gentle-ai
+/specai
 *.exe
 *.dll
 *.so
@@ -24,14 +24,15 @@ Thumbs.db
 
 # Docker
 *.tar
-cmd/gentle-ai/main
+cmd/specai/main
 dist/
 
 # Agent tooling metadata (generated per-user, not product code)
 .atl/
 .pi/
 
-# Engram local runtime state (project sync chunks are intentionally versioned)
-.engram/engram.db
-.engram/cloud.json
+# SddMemory local runtime state (project sync chunks are intentionally versioned)
+.sdd-memory/sdd-memory.db
+.sdd-memory/cloud.json
 .pi-lens/
+.atl

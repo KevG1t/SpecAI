@@ -14,14 +14,15 @@ import (
 	"github.com/KevG1t/specai/internal/agents/kimi"
 	"github.com/KevG1t/specai/internal/agents/opencode"
 	"github.com/KevG1t/specai/internal/backup"
+	"github.com/KevG1t/specai/internal/components/sddmemory"
 	"github.com/KevG1t/specai/internal/installcmd"
 	"github.com/KevG1t/specai/internal/model"
 	"github.com/KevG1t/specai/internal/system"
 	"github.com/KevG1t/specai/internal/versions"
 )
 
-// missingBinaryLookPath simulates all installable binaries (engram, gga) as
-// missing. Go availability is no longer required for engram installation
+// missingBinaryLookPath simulates installable binaries as missing.
+// Go availability is no longer required for sdd-memory installation
 // (pre-built binaries are downloaded directly from GitHub Releases).
 func missingBinaryLookPath(name string) (string, error) {
 	return "", exec.ErrNotFound
@@ -47,11 +48,11 @@ func stringSliceContains(items []string, want string) bool {
 	return false
 }
 
-func engramInitCommandForTest() string {
+func sddMemoryInitCommandForTest() string {
 	if _, err := exec.LookPath("pnpm"); err == nil {
-		return fmt.Sprintf("pnpm dlx gentle-engram@%s pi-engram init", versions.GentleEngram)
+		return fmt.Sprintf("pnpm dlx sdd-memory-kevg1t@%s pi-sdd-memory init", versions.SDDMemory)
 	}
-	return fmt.Sprintf("npm exec --yes --package gentle-engram@%s -- pi-engram init", versions.GentleEngram)
+	return fmt.Sprintf("npm exec --yes --package sdd-memory-kevg1t@%s -- pi-sdd-memory init", versions.SDDMemory)
 }
 
 func TestRunInstallAppliesFilesystemChanges(t *testing.T) {
@@ -84,7 +85,7 @@ func TestRunInstallAppliesFilesystemChanges(t *testing.T) {
 	}
 }
 
-func TestRunInstallEngramForPiAndOpenCodeProvisionsBothMCPTargets(t *testing.T) {
+func TestRunInstallSddMemoryForPiAndOpenCodeProvisionsBothMCPTargets(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -107,15 +108,15 @@ func TestRunInstallEngramForPiAndOpenCodeProvisionsBothMCPTargets(t *testing.T) 
 	var commands []string
 	runCommand = func(name string, args ...string) error {
 		commands = append(commands, strings.Join(append([]string{name}, args...), " "))
-		// Simulate pi-engram init writing mcp.json with the new schema.
-		isNpmEngramInit := name == "npm" && len(args) >= 7 && args[5] == "pi-engram" && args[6] == "init"
-		isPnpmEngramInit := name == "pnpm" && len(args) >= 4 && args[2] == "pi-engram" && args[3] == "init"
-		if isNpmEngramInit || isPnpmEngramInit {
+		// Simulate pi-sdd-memory init writing mcp.json with the new schema.
+		isNpmSddMemoryInit := name == "npm" && len(args) >= 7 && args[5] == "pi-sdd-memory" && args[6] == "init"
+		isPnpmSddMemoryInit := name == "pnpm" && len(args) >= 4 && args[2] == "pi-sdd-memory" && args[3] == "init"
+		if isNpmSddMemoryInit || isPnpmSddMemoryInit {
 			mcpPath := filepath.Join(home, ".pi", "agent", "mcp.json")
 			if err := os.MkdirAll(filepath.Dir(mcpPath), 0o755); err != nil {
 				return err
 			}
-			if err := os.WriteFile(mcpPath, []byte(`{"activeMCP":"engram","mcpServers":{"engram":{"command":"node","args":["--eval","require('child_process').spawn('engram',['mcp','--tools=agent'],{stdio:'inherit'})"]}}}`+"\n"), 0o644); err != nil {
+			if err := os.WriteFile(mcpPath, []byte(`{"activeMCP":"sdd-memory","mcpServers":{"sdd-memory":{"command":"node","args":["--eval","require('child_process').spawn('sdd-memory',['mcp','--tools=agent'],{stdio:'inherit'})"]}}}`+"\n"), 0o644); err != nil {
 				return err
 			}
 		}
@@ -125,7 +126,7 @@ func TestRunInstallEngramForPiAndOpenCodeProvisionsBothMCPTargets(t *testing.T) 
 	result, err := RunInstall([]string{
 		"--agent", "pi",
 		"--agent", "opencode",
-		"--component", "engram",
+		"--component", "sdd-memory",
 	}, system.DetectionResult{})
 	if err != nil {
 		t.Fatalf("RunInstall() error = %v", err)
@@ -136,14 +137,14 @@ func TestRunInstallEngramForPiAndOpenCodeProvisionsBothMCPTargets(t *testing.T) 
 
 	assertFileContains(t, filepath.Join(home, ".pi", "agent", "settings.json"), "npm:pi-mcp-adapter")
 	assertFileContains(t, filepath.Join(home, ".pi", "npm", "package.json"), "pi-mcp-adapter")
-	assertFileContains(t, filepath.Join(home, ".config", "opencode", "opencode.json"), "engram")
+	assertFileContains(t, filepath.Join(home, ".config", "opencode", "opencode.json"), "sdd-memory")
 
 	if !stringSliceContains(commands, "pi install npm:pi-mcp-adapter") {
 		t.Fatalf("commands missing %q; got %v", "pi install npm:pi-mcp-adapter", commands)
 	}
-	if !stringSliceContains(commands, fmt.Sprintf("npm exec --yes --package gentle-engram@%s -- pi-engram init", versions.GentleEngram)) &&
-		!stringSliceContains(commands, fmt.Sprintf("pnpm dlx gentle-engram@%s pi-engram init", versions.GentleEngram)) {
-		t.Fatalf("commands missing Engram init command; got %v", commands)
+	if !stringSliceContains(commands, fmt.Sprintf("npm exec --yes --package sdd-memory-kevg1t@%s -- pi-sdd-memory init", versions.SDDMemory)) &&
+		!stringSliceContains(commands, fmt.Sprintf("pnpm dlx sdd-memory-kevg1t@%s pi-sdd-memory init", versions.SDDMemory)) {
+		t.Fatalf("commands missing SddMemory init command; got %v", commands)
 	}
 }
 
@@ -183,10 +184,10 @@ func TestPiAgentInstallRunsPackageCommandsWhenPiAlreadyInstalled(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"pi install npm:gentle-pi",
-		"pi install npm:gentle-engram",
+		"pi install npm:specai-pi",
+		"pi install npm:sdd-memory-kevg1t",
 		"pi install npm:pi-mcp-adapter",
-		engramInitCommandForTest(),
+		sddMemoryInitCommandForTest(),
 		"pi install npm:pi-subagents",
 		"pi install npm:pi-intercom",
 		"pi install npm:@juicesharp/rpiv-ask-user-question",
@@ -225,18 +226,18 @@ func TestRunInstallRollsBackOnComponentFailure(t *testing.T) {
 
 	osUserHomeDir = func() (string, error) { return home, nil }
 	runCommand = func(name string, args ...string) error {
-		if name == "brew" && len(args) == 2 && args[0] == "install" && args[1] == "engram" {
+		if name == "brew" && len(args) == 2 && args[0] == "install" && args[1] == "sdd-memory" {
 			return os.ErrPermission
 		}
 		return nil
 	}
 
-	// Use only engram (not context7) — context7 injects MCP config into
+	// Use only sdd-memory (not context7) — context7 injects MCP config into
 	// the settings file and does not have a rollback step, so including it
 	// makes the before/after comparison fail even when the pipeline rollback
 	// works correctly. Context7 rollback is tracked separately.
 	_, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		system.DetectionResult{},
 	)
 	if err == nil {
@@ -370,7 +371,7 @@ func TestRunInstallLinuxArchResolvesPacmanCommands(t *testing.T) {
 	}
 }
 
-func TestRunInstallLinuxUbuntuWithEngramUsesDirectDownload(t *testing.T) {
+func TestRunInstallLinuxUbuntuWithSddMemoryUsesDirectDownload(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -386,16 +387,16 @@ func TestRunInstallLinuxUbuntuWithEngramUsesDirectDownload(t *testing.T) {
 	recorder := &commandRecorder{}
 	runCommand = recorder.record
 
-	// Override engramDownloadFn to avoid real HTTP calls.
-	origDownloadFn := engramDownloadFn
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
-		return "/tmp/fake-engram", nil
+	// Override sddMemoryDownloadFn to avoid real HTTP calls.
+	origDownloadFn := sddMemoryDownloadFn
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
+		return "/tmp/fake-sdd-memory", nil
 	}
-	t.Cleanup(func() { engramDownloadFn = origDownloadFn })
+	t.Cleanup(func() { sddMemoryDownloadFn = origDownloadFn })
 
 	detection := linuxDetectionResult(system.LinuxDistroUbuntu, "apt")
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -406,15 +407,15 @@ func TestRunInstallLinuxUbuntuWithEngramUsesDirectDownload(t *testing.T) {
 		t.Fatalf("verification ready = false, report = %#v", result.Verify)
 	}
 
-	// Must NOT use go install for engram on Linux.
+	// Must NOT use go install for sdd-memory on Linux.
 	for _, cmd := range recorder.get() {
-		if strings.Contains(cmd, "go install") && strings.Contains(cmd, "engram") {
-			t.Fatalf("Linux engram install should NOT use go install, got command: %s", cmd)
+		if strings.Contains(cmd, "go install") && strings.Contains(cmd, "sdd-memory") {
+			t.Fatalf("Linux sdd-memory install should NOT use go install, got command: %s", cmd)
 		}
 	}
 }
 
-func TestRunInstallLinuxArchWithEngramUsesDirectDownload(t *testing.T) {
+func TestRunInstallLinuxArchWithSddMemoryUsesDirectDownload(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -430,15 +431,15 @@ func TestRunInstallLinuxArchWithEngramUsesDirectDownload(t *testing.T) {
 	recorder := &commandRecorder{}
 	runCommand = recorder.record
 
-	origDownloadFn := engramDownloadFn
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
-		return "/tmp/fake-engram", nil
+	origDownloadFn := sddMemoryDownloadFn
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
+		return "/tmp/fake-sdd-memory", nil
 	}
-	t.Cleanup(func() { engramDownloadFn = origDownloadFn })
+	t.Cleanup(func() { sddMemoryDownloadFn = origDownloadFn })
 
 	detection := linuxDetectionResult(system.LinuxDistroArch, "pacman")
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -449,10 +450,10 @@ func TestRunInstallLinuxArchWithEngramUsesDirectDownload(t *testing.T) {
 		t.Fatalf("verification ready = false, report = %#v", result.Verify)
 	}
 
-	// Must NOT use go install for engram on Arch Linux.
+	// Must NOT use go install for sdd-memory on Arch Linux.
 	for _, cmd := range recorder.get() {
-		if strings.Contains(cmd, "go install") && strings.Contains(cmd, "engram") {
-			t.Fatalf("Arch Linux engram install should NOT use go install, got command: %s", cmd)
+		if strings.Contains(cmd, "go install") && strings.Contains(cmd, "sdd-memory") {
+			t.Fatalf("Arch Linux sdd-memory install should NOT use go install, got command: %s", cmd)
 		}
 	}
 }
@@ -482,17 +483,17 @@ func TestRunInstallLinuxRollsBackOnComponentFailure(t *testing.T) {
 	osUserHomeDir = func() (string, error) { return home, nil }
 	runCommand = func(name string, args ...string) error { return nil }
 
-	// Fail the engram download to trigger rollback.
-	origDownloadFn := engramDownloadFn
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
+	// Fail the sdd-memory download to trigger rollback.
+	origDownloadFn := sddMemoryDownloadFn
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
 		return "", os.ErrPermission
 	}
-	t.Cleanup(func() { engramDownloadFn = origDownloadFn })
+	t.Cleanup(func() { sddMemoryDownloadFn = origDownloadFn })
 
 	detection := linuxDetectionResult(system.LinuxDistroUbuntu, "apt")
 	// Exclude context7 — it has no rollback and taints the settings file.
 	_, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err == nil {
@@ -514,7 +515,7 @@ func TestRunInstallLinuxRollsBackOnComponentFailure(t *testing.T) {
 	}
 }
 
-func TestRunInstallFedoraQwenEngramSkipsUnsupportedSetupAndWritesSettings(t *testing.T) {
+func TestRunInstallFedoraQwenSddMemorySkipsUnsupportedSetupAndWritesSettings(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -530,15 +531,15 @@ func TestRunInstallFedoraQwenEngramSkipsUnsupportedSetupAndWritesSettings(t *tes
 	recorder := &commandRecorder{}
 	runCommand = recorder.record
 
-	origDownloadFn := engramDownloadFn
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
-		return filepath.Join(home, "bin", "engram"), nil
+	origDownloadFn := sddMemoryDownloadFn
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
+		return filepath.Join(home, "bin", "sdd-memory"), nil
 	}
-	t.Cleanup(func() { engramDownloadFn = origDownloadFn })
+	t.Cleanup(func() { sddMemoryDownloadFn = origDownloadFn })
 
 	detection := linuxDetectionResult(system.LinuxDistroFedora, "dnf")
 	result, err := RunInstall(
-		[]string{"--agent", "qwen-code", "--component", "engram"},
+		[]string{"--agent", "qwen-code", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -554,7 +555,7 @@ func TestRunInstallFedoraQwenEngramSkipsUnsupportedSetupAndWritesSettings(t *tes
 	}
 
 	for _, cmd := range recorder.get() {
-		if strings.Contains(cmd, "engram setup qwen-code") {
+		if strings.Contains(cmd, "sdd-memory setup qwen-code") {
 			t.Fatalf("unexpected unsupported setup command: %s", cmd)
 		}
 	}
@@ -735,7 +736,7 @@ func TestRunInstallMacOSStillResolvesBrewCommands(t *testing.T) {
 
 	detection := macOSDetectionResult()
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -750,13 +751,13 @@ func TestRunInstallMacOSStillResolvesBrewCommands(t *testing.T) {
 	commands := recorder.get()
 	foundBrew := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "brew install engram") {
+		if strings.Contains(cmd, "brew install sdd-memory") {
 			foundBrew = true
 			break
 		}
 	}
 	if !foundBrew {
-		t.Fatalf("expected brew install for macOS engram, got commands: %v", commands)
+		t.Fatalf("expected brew install for macOS sdd-memory, got commands: %v", commands)
 	}
 }
 
@@ -834,7 +835,7 @@ func TestRunInstallMacOSRollbackStillWorks(t *testing.T) {
 
 	osUserHomeDir = func() (string, error) { return home, nil }
 	runCommand = func(name string, args ...string) error {
-		if name == "brew" && len(args) == 2 && args[0] == "install" && args[1] == "engram" {
+		if name == "brew" && len(args) == 2 && args[0] == "install" && args[1] == "sdd-memory" {
 			return os.ErrPermission
 		}
 		return nil
@@ -843,7 +844,7 @@ func TestRunInstallMacOSRollbackStillWorks(t *testing.T) {
 	detection := macOSDetectionResult()
 	// Exclude context7 — it has no rollback and taints the settings file.
 	_, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err == nil {
@@ -866,7 +867,7 @@ func TestRunInstallMacOSRollbackStillWorks(t *testing.T) {
 
 // --- Skip-when-installed and Go auto-install tests ---
 
-func TestRunInstallEngramSkipsInstallWhenAlreadyOnPath(t *testing.T) {
+func TestRunInstallSddMemorySkipsInstallWhenAlreadyOnPath(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -878,7 +879,7 @@ func TestRunInstallEngramSkipsInstallWhenAlreadyOnPath(t *testing.T) {
 	})
 
 	osUserHomeDir = func() (string, error) { return home, nil }
-	// Simulate engram already installed on PATH.
+	// Simulate sdd-memory already installed on PATH.
 	cmdLookPath = func(name string) (string, error) {
 		return "/usr/local/bin/" + name, nil
 	}
@@ -887,7 +888,7 @@ func TestRunInstallEngramSkipsInstallWhenAlreadyOnPath(t *testing.T) {
 
 	detection := macOSDetectionResult()
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -900,13 +901,13 @@ func TestRunInstallEngramSkipsInstallWhenAlreadyOnPath(t *testing.T) {
 
 	// No brew/go install commands should have been recorded — only agent install.
 	for _, cmd := range recorder.get() {
-		if strings.Contains(cmd, "brew install engram") || (strings.Contains(cmd, "go install") && strings.Contains(cmd, "engram")) {
-			t.Fatalf("expected engram install to be skipped, but got command: %s", cmd)
+		if strings.Contains(cmd, "brew install sdd-memory") || (strings.Contains(cmd, "go install") && strings.Contains(cmd, "sdd-memory")) {
+			t.Fatalf("expected sdd-memory install to be skipped, but got command: %s", cmd)
 		}
 	}
 }
 
-func TestRunInstallEngramAttemptsOpenCodeSetupWhenBinaryPresent(t *testing.T) {
+func TestRunInstallSddMemoryAttemptsOpenCodeSetupWhenBinaryPresent(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -925,7 +926,7 @@ func TestRunInstallEngramAttemptsOpenCodeSetupWhenBinaryPresent(t *testing.T) {
 	runCommand = recorder.record
 
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		macOSDetectionResult(),
 	)
 	if err != nil {
@@ -938,17 +939,17 @@ func TestRunInstallEngramAttemptsOpenCodeSetupWhenBinaryPresent(t *testing.T) {
 	commands := recorder.get()
 	foundSetup := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "engram setup opencode") {
+		if strings.Contains(cmd, "sdd-memory setup opencode") {
 			foundSetup = true
 			break
 		}
 	}
 	if !foundSetup {
-		t.Fatalf("expected engram setup command, got commands: %v", commands)
+		t.Fatalf("expected sdd-memory setup command, got commands: %v", commands)
 	}
 }
 
-func TestRunInstallEngramFallsBackToInjectWhenSetupFails(t *testing.T) {
+func TestRunInstallSddMemoryFallsBackToInjectWhenSetupFails(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -964,14 +965,14 @@ func TestRunInstallEngramFallsBackToInjectWhenSetupFails(t *testing.T) {
 		return "/usr/local/bin/" + name, nil
 	}
 	runCommand = func(name string, args ...string) error {
-		if name == "engram" && len(args) == 2 && args[0] == "setup" && args[1] == "opencode" {
+		if name == "sdd-memory" && len(args) == 2 && args[0] == "setup" && args[1] == "opencode" {
 			return errors.New("setup failed")
 		}
 		return nil
 	}
 
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		macOSDetectionResult(),
 	)
 	if err != nil {
@@ -987,8 +988,8 @@ func TestRunInstallEngramFallsBackToInjectWhenSetupFails(t *testing.T) {
 	}
 }
 
-func TestRunInstallEngramSetupStrictFailsWhenSetupFails(t *testing.T) {
-	t.Setenv("GENTLE_AI_ENGRAM_SETUP_STRICT", "1")
+func TestRunInstallSddMemorySetupStrictFailsWhenSetupFails(t *testing.T) {
+	t.Setenv(sddmemory.SetupStrictEnvVar, "1")
 
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
@@ -1009,25 +1010,25 @@ func TestRunInstallEngramSetupStrictFailsWhenSetupFails(t *testing.T) {
 		return "/usr/local/bin/" + name, nil
 	}
 	runCommand = func(name string, args ...string) error {
-		if name == "engram" && len(args) == 2 && args[0] == "setup" && args[1] == "opencode" {
+		if name == "sdd-memory" && len(args) == 2 && args[0] == "setup" && args[1] == "opencode" {
 			return errors.New("setup failed")
 		}
 		return nil
 	}
 
 	_, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		macOSDetectionResult(),
 	)
 	if err == nil {
 		t.Fatalf("RunInstall() expected error in strict setup mode")
 	}
-	if !strings.Contains(err.Error(), "engram setup for \"opencode\"") {
+	if !strings.Contains(err.Error(), "sdd-memory setup for \"opencode\"") {
 		t.Fatalf("RunInstall() error = %v, want setup error", err)
 	}
 }
 
-func TestRunInstallEngramDefaultModeAttemptsClaudeSetup(t *testing.T) {
+func TestRunInstallSddMemoryDefaultModeAttemptsClaudeSetup(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -1046,7 +1047,7 @@ func TestRunInstallEngramDefaultModeAttemptsClaudeSetup(t *testing.T) {
 	runCommand = recorder.record
 
 	result, err := RunInstall(
-		[]string{"--agent", "claude-code", "--component", "engram"},
+		[]string{"--agent", "claude-code", "--component", "sdd-memory"},
 		macOSDetectionResult(),
 	)
 	if err != nil {
@@ -1059,7 +1060,7 @@ func TestRunInstallEngramDefaultModeAttemptsClaudeSetup(t *testing.T) {
 	commands := recorder.get()
 	foundSetup := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "engram setup claude-code") {
+		if strings.Contains(cmd, "sdd-memory setup claude-code") {
 			foundSetup = true
 			break
 		}
@@ -1069,7 +1070,7 @@ func TestRunInstallEngramDefaultModeAttemptsClaudeSetup(t *testing.T) {
 	}
 }
 
-func TestRunInstallAntigravityInitializesCLISettingsAfterEngramSetup(t *testing.T) {
+func TestRunInstallAntigravityInitializesCLISettingsAfterSddMemorySetup(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -1085,7 +1086,7 @@ func TestRunInstallAntigravityInitializesCLISettingsAfterEngramSetup(t *testing.
 		return "/usr/local/bin/" + name, nil
 	}
 	runCommand = func(name string, args ...string) error {
-		if name == "engram" && len(args) == 2 && args[0] == "setup" && args[1] == "gemini-cli" {
+		if name == "sdd-memory" && len(args) == 2 && args[0] == "setup" && args[1] == "gemini-cli" {
 			settingsPath := filepath.Join(home, ".gemini", "settings.json")
 			if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 				return err
@@ -1096,7 +1097,7 @@ func TestRunInstallAntigravityInitializesCLISettingsAfterEngramSetup(t *testing.
 	}
 
 	result, err := RunInstall(
-		[]string{"--agent", "antigravity", "--component", "engram", "--component", "context7", "--component", "permissions"},
+		[]string{"--agent", "antigravity", "--component", "sdd-memory", "--component", "context7", "--component", "permissions"},
 		macOSDetectionResult(),
 	)
 	if err != nil {
@@ -1116,7 +1117,7 @@ func TestRunInstallAntigravityInitializesCLISettingsAfterEngramSetup(t *testing.
 	}
 }
 
-func TestRunInstallDeduplicatesSharedEngramSetupSlugs(t *testing.T) {
+func TestRunInstallDeduplicatesSharedSddMemorySetupSlugs(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -1137,7 +1138,7 @@ func TestRunInstallDeduplicatesSharedEngramSetupSlugs(t *testing.T) {
 		if err := recorder.record(name, args...); err != nil {
 			return err
 		}
-		if name == "engram" && len(args) == 2 && args[0] == "setup" && args[1] == "gemini-cli" {
+		if name == "sdd-memory" && len(args) == 2 && args[0] == "setup" && args[1] == "gemini-cli" {
 			settingsPath := filepath.Join(home, ".gemini", "settings.json")
 			if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 				return err
@@ -1148,7 +1149,7 @@ func TestRunInstallDeduplicatesSharedEngramSetupSlugs(t *testing.T) {
 	}
 
 	result, err := RunInstall(
-		[]string{"--agent", "gemini-cli", "--agent", "antigravity", "--component", "engram", "--component", "context7", "--component", "permissions"},
+		[]string{"--agent", "gemini-cli", "--agent", "antigravity", "--component", "sdd-memory", "--component", "context7", "--component", "permissions"},
 		macOSDetectionResult(),
 	)
 	if err != nil {
@@ -1160,16 +1161,18 @@ func TestRunInstallDeduplicatesSharedEngramSetupSlugs(t *testing.T) {
 
 	var setupCount int
 	for _, cmd := range recorder.get() {
-		if strings.Contains(cmd, "engram setup gemini-cli") {
+		if strings.Contains(cmd, "sdd-memory setup gemini-cli") {
 			setupCount++
 		}
 	}
 	if setupCount != 1 {
-		t.Fatalf("engram setup gemini-cli count = %d, want 1", setupCount)
+		t.Fatalf("sdd-memory setup gemini-cli count = %d, want 1", setupCount)
 	}
 }
 
-func TestRunInstallGGASkipsInstallWhenAlreadyOnPath(t *testing.T) {
+// TestRunInstallSddMemoryLinuxUsesDirectDownloadNoGoRequired verifies that on Linux,
+// sdd-memory is now installed via pre-built binary download — Go is NOT required.
+func TestRunInstallSddMemoryLinuxUsesDirectDownloadNoGoRequired(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -1181,118 +1184,7 @@ func TestRunInstallGGASkipsInstallWhenAlreadyOnPath(t *testing.T) {
 	})
 
 	osUserHomeDir = func() (string, error) { return home, nil }
-	cmdLookPath = func(name string) (string, error) {
-		return "/usr/local/bin/" + name, nil
-	}
-	recorder := &commandRecorder{}
-	runCommand = recorder.record
-
-	detection := macOSDetectionResult()
-	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "gga"},
-		detection,
-	)
-	if err != nil {
-		t.Fatalf("RunInstall() error = %v", err)
-	}
-
-	if !result.Verify.Ready {
-		t.Fatalf("verification ready = false")
-	}
-
-	// No brew/git clone commands for GGA should have been recorded.
-	for _, cmd := range recorder.get() {
-		if strings.Contains(cmd, "gga") || strings.Contains(cmd, "gentleman-guardian-angel") {
-			t.Fatalf("expected gga install to be skipped, but got command: %s", cmd)
-		}
-	}
-
-	prModePath := filepath.Join(home, ".local", "share", "gga", "lib", "pr_mode.sh")
-	content, err := os.ReadFile(prModePath)
-	if err != nil {
-		t.Fatalf("expected gga runtime asset at %q: %v", prModePath, err)
-	}
-	if !strings.Contains(string(content), "detect_base_branch") {
-		t.Fatalf("expected pr_mode.sh to contain detect_base_branch")
-	}
-}
-
-func TestRunInstallGGALinuxIncludesTempCleanupBeforeClone(t *testing.T) {
-	home := t.TempDir()
-	restoreHome := osUserHomeDir
-	restoreCommand := runCommand
-	restoreLookPath := cmdLookPath
-	t.Cleanup(func() {
-		osUserHomeDir = restoreHome
-		runCommand = restoreCommand
-		cmdLookPath = restoreLookPath
-	})
-
-	osUserHomeDir = func() (string, error) { return home, nil }
-	cmdLookPath = func(name string) (string, error) {
-		if name == "gga" {
-			return "", exec.ErrNotFound
-		}
-		return "/usr/local/bin/" + name, nil
-	}
-	recorder := &commandRecorder{}
-	runCommand = recorder.record
-
-	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "gga"},
-		linuxDetectionResult(system.LinuxDistroUbuntu, "apt"),
-	)
-	if err != nil {
-		t.Fatalf("RunInstall() error = %v", err)
-	}
-	if !result.Verify.Ready {
-		t.Fatalf("verification ready = false")
-	}
-
-	commands := recorder.get()
-	cleanupIdx := -1
-	cloneIdx := -1
-	for i, cmd := range commands {
-		if strings.Contains(cmd, "rm -rf /tmp/gentleman-guardian-angel") {
-			cleanupIdx = i
-		}
-		if strings.Contains(cmd, "git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git /tmp/gentleman-guardian-angel") {
-			cloneIdx = i
-		}
-	}
-
-	for _, cmd := range commands {
-		if strings.Contains(cmd, "gga install") || strings.Contains(cmd, "gga init") {
-			t.Fatalf("expected global gga provisioning only, got repo-level command: %s", cmd)
-		}
-	}
-
-	if cleanupIdx == -1 {
-		t.Fatalf("expected cleanup command before clone, got commands: %v", commands)
-	}
-	if cloneIdx == -1 {
-		t.Fatalf("expected clone command, got commands: %v", commands)
-	}
-	if cleanupIdx >= cloneIdx {
-		t.Fatalf("cleanup should run before clone (cleanup=%d clone=%d)", cleanupIdx, cloneIdx)
-	}
-}
-
-// TestRunInstallEngramLinuxUsesDirectDownloadNoGoRequired verifies that on Linux,
-// engram is now installed via pre-built binary download — Go is NOT required.
-func TestRunInstallEngramLinuxUsesDirectDownloadNoGoRequired(t *testing.T) {
-	home := t.TempDir()
-	restoreHome := osUserHomeDir
-	restoreCommand := runCommand
-	restoreLookPath := cmdLookPath
-	t.Cleanup(func() {
-		osUserHomeDir = restoreHome
-		runCommand = restoreCommand
-		cmdLookPath = restoreLookPath
-	})
-
-	osUserHomeDir = func() (string, error) { return home, nil }
-	// Simulate: engram missing, Go also NOT available — should still succeed.
+	// Simulate: sdd-memory missing, Go also NOT available — should still succeed.
 	cmdLookPath = func(string) (string, error) {
 		return "", exec.ErrNotFound
 	}
@@ -1300,15 +1192,15 @@ func TestRunInstallEngramLinuxUsesDirectDownloadNoGoRequired(t *testing.T) {
 	runCommand = recorder.record
 
 	// Override download to succeed without hitting GitHub.
-	origDownloadFn := engramDownloadFn
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
-		return "/tmp/fake-engram", nil
+	origDownloadFn := sddMemoryDownloadFn
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
+		return "/tmp/fake-sdd-memory", nil
 	}
-	t.Cleanup(func() { engramDownloadFn = origDownloadFn })
+	t.Cleanup(func() { sddMemoryDownloadFn = origDownloadFn })
 
 	detection := linuxDetectionResult(system.LinuxDistroUbuntu, "apt")
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -1322,17 +1214,17 @@ func TestRunInstallEngramLinuxUsesDirectDownloadNoGoRequired(t *testing.T) {
 	// Neither "go install" nor "apt-get install golang" should appear.
 	for _, cmd := range recorder.get() {
 		if strings.Contains(cmd, "apt-get install -y golang") {
-			t.Fatalf("Go should NOT be auto-installed (no longer needed for engram), got command: %s", cmd)
+			t.Fatalf("Go should NOT be auto-installed (no longer needed for sdd-memory), got command: %s", cmd)
 		}
-		if strings.Contains(cmd, "go install") && strings.Contains(cmd, "engram") {
-			t.Fatalf("engram should NOT be installed via go install, got command: %s", cmd)
+		if strings.Contains(cmd, "go install") && strings.Contains(cmd, "sdd-memory") {
+			t.Fatalf("sdd-memory should NOT be installed via go install, got command: %s", cmd)
 		}
 	}
 }
 
-// TestRunInstallEngramLinuxNeverInstallsGo verifies that even if Go is present,
-// we never install Go as a prerequisite for engram (direct download path).
-func TestRunInstallEngramLinuxNeverInstallsGo(t *testing.T) {
+// TestRunInstallSddMemoryLinuxNeverInstallsGo verifies that even if Go is present,
+// we never install Go as a prerequisite for sdd-memory (direct download path).
+func TestRunInstallSddMemoryLinuxNeverInstallsGo(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -1348,15 +1240,15 @@ func TestRunInstallEngramLinuxNeverInstallsGo(t *testing.T) {
 	recorder := &commandRecorder{}
 	runCommand = recorder.record
 
-	origDownloadFn := engramDownloadFn
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
-		return "/tmp/fake-engram", nil
+	origDownloadFn := sddMemoryDownloadFn
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
+		return "/tmp/fake-sdd-memory", nil
 	}
-	t.Cleanup(func() { engramDownloadFn = origDownloadFn })
+	t.Cleanup(func() { sddMemoryDownloadFn = origDownloadFn })
 
 	detection := linuxDetectionResult(system.LinuxDistroUbuntu, "apt")
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -1370,12 +1262,12 @@ func TestRunInstallEngramLinuxNeverInstallsGo(t *testing.T) {
 	// No Go installation commands should appear.
 	for _, cmd := range recorder.get() {
 		if strings.Contains(cmd, "apt-get install -y golang") || strings.Contains(cmd, "apt-get install -y go") {
-			t.Fatalf("Go should never be installed as engram dependency, got command: %s", cmd)
+			t.Fatalf("Go should never be installed as sdd-memory dependency, got command: %s", cmd)
 		}
 	}
 }
 
-func TestRunInstallEngramBrewSkipsGoCheck(t *testing.T) {
+func TestRunInstallSddMemoryBrewSkipsGoCheck(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -1387,7 +1279,7 @@ func TestRunInstallEngramBrewSkipsGoCheck(t *testing.T) {
 	})
 
 	osUserHomeDir = func() (string, error) { return home, nil }
-	// Simulate: engram missing — brew platform, no Go or download needed.
+	// Simulate: sdd-memory missing — brew platform, no Go or download needed.
 	cmdLookPath = func(string) (string, error) {
 		return "", exec.ErrNotFound
 	}
@@ -1396,7 +1288,7 @@ func TestRunInstallEngramBrewSkipsGoCheck(t *testing.T) {
 
 	detection := macOSDetectionResult()
 	result, err := RunInstall(
-		[]string{"--agent", "opencode", "--component", "engram"},
+		[]string{"--agent", "opencode", "--component", "sdd-memory"},
 		detection,
 	)
 	if err != nil {
@@ -1420,12 +1312,12 @@ func TestRunInstallEngramBrewSkipsGoCheck(t *testing.T) {
 
 	foundBrew := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "brew install engram") {
+		if strings.Contains(cmd, "brew install sdd-memory") {
 			foundBrew = true
 		}
 	}
 	if !foundBrew {
-		t.Fatalf("expected brew install engram, got commands: %v", commands)
+		t.Fatalf("expected brew install sdd-memory, got commands: %v", commands)
 	}
 }
 
@@ -1648,7 +1540,7 @@ func TestRunInstallUpgradeIdempotency(t *testing.T) {
 	args := []string{
 		"--agent", "claude-code",
 		"--component", "sdd",
-		"--component", "engram",
+		"--component", "sdd-memory",
 		"--component", "persona",
 	}
 
@@ -1663,15 +1555,15 @@ func TestRunInstallUpgradeIdempotency(t *testing.T) {
 
 	// Capture all relevant output files after the first run.
 	claudeMDPath := filepath.Join(home, ".claude", "CLAUDE.md")
-	engramMCPPath := filepath.Join(home, ".claude", "mcp", "engram.json")
+	sddMemoryMCPPath := filepath.Join(home, ".claude", "mcp", "sdd-memory.json")
 
 	claudeMDAfterRun1, err := os.ReadFile(claudeMDPath)
 	if err != nil {
 		t.Fatalf("run 1: ReadFile(%q) error = %v", claudeMDPath, err)
 	}
-	engramMCPAfterRun1, err := os.ReadFile(engramMCPPath)
+	sddMemoryMCPAfterRun1, err := os.ReadFile(sddMemoryMCPPath)
 	if err != nil {
-		t.Fatalf("run 1: ReadFile(%q) error = %v", engramMCPPath, err)
+		t.Fatalf("run 1: ReadFile(%q) error = %v", sddMemoryMCPPath, err)
 	}
 
 	// --- Run 2 (same flags) ---
@@ -1688,9 +1580,9 @@ func TestRunInstallUpgradeIdempotency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run 2: ReadFile(%q) error = %v", claudeMDPath, err)
 	}
-	engramMCPAfterRun2, err := os.ReadFile(engramMCPPath)
+	sddMemoryMCPAfterRun2, err := os.ReadFile(sddMemoryMCPPath)
 	if err != nil {
-		t.Fatalf("run 2: ReadFile(%q) error = %v", engramMCPPath, err)
+		t.Fatalf("run 2: ReadFile(%q) error = %v", sddMemoryMCPPath, err)
 	}
 
 	// --- Assertions ---
@@ -1700,9 +1592,9 @@ func TestRunInstallUpgradeIdempotency(t *testing.T) {
 		t.Errorf("CLAUDE.md changed between run 1 and run 2 (idempotency violation):\n--- run1 ---\n%s\n--- run2 ---\n%s",
 			claudeMDAfterRun1, claudeMDAfterRun2)
 	}
-	if string(engramMCPAfterRun1) != string(engramMCPAfterRun2) {
-		t.Errorf("engram MCP config changed between run 1 and run 2 (idempotency violation):\n--- run1 ---\n%s\n--- run2 ---\n%s",
-			engramMCPAfterRun1, engramMCPAfterRun2)
+	if string(sddMemoryMCPAfterRun1) != string(sddMemoryMCPAfterRun2) {
+		t.Errorf("sdd-memory MCP config changed between run 1 and run 2 (idempotency violation):\n--- run1 ---\n%s\n--- run2 ---\n%s",
+			sddMemoryMCPAfterRun1, sddMemoryMCPAfterRun2)
 	}
 
 	// 2. No duplicate "## Agent Teams Orchestrator" headings in CLAUDE.md.
@@ -1713,9 +1605,9 @@ func TestRunInstallUpgradeIdempotency(t *testing.T) {
 			orchestratorCount, content)
 	}
 
-	// 3. No duplicate gentle-ai marker blocks — each section's open marker
+	// 3. No duplicate specai marker blocks — each section's open marker
 	// must appear exactly once.
-	for _, sectionID := range []string{"sdd-orchestrator", "engram-protocol"} {
+	for _, sectionID := range []string{"sdd-orchestrator", "sdd-memory-protocol"} {
 		openMarker := "<!-- specai:" + sectionID + " -->"
 		count := strings.Count(content, openMarker)
 		if count != 1 {
@@ -1724,13 +1616,13 @@ func TestRunInstallUpgradeIdempotency(t *testing.T) {
 		}
 	}
 
-	// 4. Engram MCP JSON must not contain duplicate keys.
+	// 4. SddMemory MCP JSON must not contain duplicate keys.
 	// A simple structural check: "command" key should appear exactly once.
-	engramJSON := string(engramMCPAfterRun2)
-	commandCount := strings.Count(engramJSON, `"command"`)
+	sddMemoryJSON := string(sddMemoryMCPAfterRun2)
+	commandCount := strings.Count(sddMemoryJSON, `"command"`)
 	if commandCount != 1 {
-		t.Errorf("engram MCP JSON contains %d occurrences of \"command\", want exactly 1:\n%s",
-			commandCount, engramJSON)
+		t.Errorf("sdd-memory MCP JSON contains %d occurrences of \"command\", want exactly 1:\n%s",
+			commandCount, sddMemoryJSON)
 	}
 }
 
@@ -1810,8 +1702,8 @@ func TestRunInstallCustomPresetExplicitSkillsFlagPopulatesSelection(t *testing.T
 		t.Fatalf("expected branch-pr skill file %q: %v", branchPRPath, err)
 	}
 
-	// Note: the graph defines skills → sdd → engram as a hard dependency chain.
-	// Selecting --component skills auto-resolves sdd (and engram) as dependencies.
+	// Note: the graph defines skills → sdd → sdd-memory as a hard dependency chain.
+	// Selecting --component skills auto-resolves sdd (and sdd-memory) as dependencies.
 	// The SDD component installs its own 10 SDD+orchestration skills during injection,
 	// regardless of the --skills flag. So sdd-init and other SDD skills ARE installed.
 	sddInitPath := filepath.Join(home, ".claude", "skills", "sdd-init", "SKILL.md")
@@ -1877,8 +1769,8 @@ func TestRunInstallCustomPresetSkillsNoFlagInstallsNothing(t *testing.T) {
 		t.Fatalf("verification ready = false, report = %#v", result.Verify)
 	}
 
-	// The graph defines skills → sdd → engram as hard dependencies.
-	// Selecting --component skills auto-resolves sdd (and engram).
+	// The graph defines skills → sdd → sdd-memory as hard dependencies.
+	// Selecting --component skills auto-resolves sdd (and sdd-memory).
 	// The SDD component ALWAYS installs its 10 SDD+orchestration skills during injection.
 	// Without --skills flag, selectedSkillIDs() returns nil for custom preset,
 	// so the skills COMPONENT is a no-op — but the sdd DEPENDENCY still runs and
@@ -1938,7 +1830,7 @@ func TestRunInstallCustomPresetExplicitComponentsResolveCorrectly(t *testing.T) 
 		[]string{
 			"--agent", "claude-code",
 			"--preset", "custom",
-			"--component", "engram",
+			"--component", "sdd-memory",
 			"--component", "sdd",
 			"--component", "permissions",
 			"--dry-run",
@@ -1949,16 +1841,16 @@ func TestRunInstallCustomPresetExplicitComponentsResolveCorrectly(t *testing.T) 
 		t.Fatalf("RunInstall() error = %v", err)
 	}
 
-	// Should have exactly the 3 explicit components (sdd depends on engram which is already selected).
+	// Should have exactly the 3 explicit components (sdd depends on sdd-memory which is already selected).
 	if len(result.Resolved.OrderedComponents) != 3 {
 		t.Fatalf("expected 3 ordered components, got %d: %v",
 			len(result.Resolved.OrderedComponents), result.Resolved.OrderedComponents)
 	}
 
-	// Verify persona, skills, context7, gga are NOT in the plan.
+	// Verify persona, skills, context7 are NOT in the plan.
 	for _, c := range result.Resolved.OrderedComponents {
 		switch c {
-		case model.ComponentPersona, model.ComponentSkills, model.ComponentContext7, model.ComponentGGA:
+		case model.ComponentPersona, model.ComponentSkills, model.ComponentContext7:
 			t.Fatalf("unexpected component %q in custom preset plan", c)
 		}
 	}
@@ -1969,7 +1861,7 @@ func TestRunInstallCustomPresetExplicitComponentsResolveCorrectly(t *testing.T) 
 // overwrite the entire AGENTS.md, destroying the SDD orchestrator section.
 //
 // This test exercises the full install pipeline for OpenCode with Persona +
-// Engram + SDD selected together and verifies that the final AGENTS.md
+// SddMemory + SDD selected together and verifies that the final AGENTS.md
 // contains all three sections with no duplicates.
 func TestOpenCodePersonaBeforeSDDPreservesAllSections(t *testing.T) {
 	home := t.TempDir()
@@ -1990,9 +1882,9 @@ func TestOpenCodePersonaBeforeSDDPreservesAllSections(t *testing.T) {
 		[]string{
 			"--agent", "opencode",
 			"--component", "persona",
-			"--component", "engram",
+			"--component", "sdd-memory",
 			"--component", "sdd",
-			"--persona", "gentleman",
+			"--persona", "modism",
 		},
 		system.DetectionResult{},
 	)
@@ -2009,25 +1901,25 @@ func TestOpenCodePersonaBeforeSDDPreservesAllSections(t *testing.T) {
 
 	// Persona content must be present
 	if !strings.Contains(text, "Senior Architect") {
-		t.Error("AGENTS.md missing Gentleman persona content (persona not written)")
+		t.Error("AGENTS.md missing Modism persona content (persona not written)")
 	}
 
 	// For OpenCode, the SDD orchestrator goes into opencode.json (agent overlay),
-	// NOT AGENTS.md. AGENTS.md only contains persona and engram sections.
+	// NOT AGENTS.md. AGENTS.md only contains persona and sdd-memory sections.
 	// The issue #121 regression was that Persona would overwrite AGENTS.md
-	// AFTER engram had already injected the engram-protocol marker, destroying
-	// the engram section. We verify persona + engram coexist.
+	// AFTER sdd-memory had already injected the sdd-memory-protocol marker, destroying
+	// the sdd-memory section. We verify persona + sdd-memory coexist.
 
-	// Engram protocol section must be present
-	if !strings.Contains(text, "<!-- specai:engram-protocol -->") {
-		t.Error("AGENTS.md missing engram-protocol open marker (issue #121 regression: persona may have overwritten engram section)")
+	// SddMemory protocol section must be present
+	if !strings.Contains(text, "<!-- specai:sdd-memory-protocol -->") {
+		t.Error("AGENTS.md missing sdd-memory-protocol open marker (issue #121 regression: persona may have overwritten sdd-memory section)")
 	}
-	if !strings.Contains(text, "<!-- /specai:engram-protocol -->") {
-		t.Error("AGENTS.md missing engram-protocol close marker")
+	if !strings.Contains(text, "<!-- /specai:sdd-memory-protocol -->") {
+		t.Error("AGENTS.md missing sdd-memory-protocol close marker")
 	}
 
-	// Engram section must not be duplicated
-	marker := "<!-- specai:engram-protocol -->"
+	// SddMemory section must not be duplicated
+	marker := "<!-- specai:sdd-memory-protocol -->"
 	if count := strings.Count(text, marker); count != 1 {
 		t.Errorf("AGENTS.md contains %d occurrences of %q, want exactly 1 (no duplicates)", count, marker)
 	}
@@ -2038,7 +1930,7 @@ func TestOpenCodePersonaBeforeSDDPreservesAllSections(t *testing.T) {
 	}
 
 	// SDD orchestrator for OpenCode lives in opencode.json agent overlay under
-	// the canonical gentle-orchestrator key. Legacy sdd-orchestrator should be
+	// the canonical specai-orchestrator key. Legacy keys should be
 	// migrated away during injection.
 	opencodeJSON := filepath.Join(home, ".config", "opencode", "opencode.json")
 	jsonContent, err := os.ReadFile(opencodeJSON)
@@ -2046,8 +1938,8 @@ func TestOpenCodePersonaBeforeSDDPreservesAllSections(t *testing.T) {
 		t.Fatalf("ReadFile(opencode.json) error = %v", err)
 	}
 	jsonText := string(jsonContent)
-	if !strings.Contains(jsonText, "gentle-orchestrator") {
-		t.Error("opencode.json missing gentle-orchestrator agent entry (SDD not injected)")
+	if !strings.Contains(jsonText, "specai-orchestrator") {
+		t.Error("opencode.json missing specai-orchestrator agent entry (SDD not injected)")
 	}
 	if strings.Contains(jsonText, `"sdd-orchestrator"`) {
 		t.Error("opencode.json should not contain legacy sdd-orchestrator agent entry")

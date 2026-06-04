@@ -10,30 +10,30 @@ import (
 	"github.com/KevG1t/specai/internal/versions"
 )
 
-func TestRenderDependencyTreePiOnlyEngramPlanShowsComponentAndPiInstallCopy(t *testing.T) {
+func TestRenderDependencyTreePiOnlySddMemoryPlanShowsComponentAndPiInstallCopy(t *testing.T) {
 	selection := model.Selection{
 		Agents:     []model.AgentID{model.AgentPi},
-		Preset:     model.PresetFullGentleman,
-		Components: []model.ComponentID{model.ComponentEngram},
+		Preset:     model.PresetFullModism,
+		Components: []model.ComponentID{model.ComponentSddMemory},
 	}
 	plan := planner.ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentPi},
-		OrderedComponents: []model.ComponentID{model.ComponentEngram},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 	}
 
 	out := RenderDependencyTree(plan, selection, 0)
 
 	if strings.Contains(out, "No components selected yet.") {
-		t.Fatalf("RenderDependencyTree() showed generic empty copy for Pi-only Engram plan; output:\n%s", out)
+		t.Fatalf("RenderDependencyTree() showed generic empty copy for Pi-only SddMemory plan; output:\n%s", out)
 	}
 	for _, want := range []string{
 		"Components to install",
-		"engram",
+		"sdd-memory",
 		"Pi agent support will be installed.",
-		"pi install npm:gentle-pi",
-		"pi install npm:gentle-engram",
+		"pi install npm:specai-pi",
+		"pi install npm:sdd-memory-kevg1t",
 		"pi install npm:pi-mcp-adapter",
-		fmt.Sprintf("npm exec --yes --package gentle-engram@%s -- pi-engram init", versions.GentleEngram),
+		fmt.Sprintf("npm exec --yes --package sdd-memory-kevg1t@%s -- pi-sdd-memory init", versions.SDDMemory),
 		"pi install npm:pi-subagents",
 		"pi install npm:pi-intercom",
 		"pi install npm:@juicesharp/rpiv-ask-user-question",
@@ -49,7 +49,7 @@ func TestRenderDependencyTreePiOnlyEngramPlanShowsComponentAndPiInstallCopy(t *t
 }
 
 func TestRenderDependencyTreeGenericEmptyPlanKeepsExistingCopy(t *testing.T) {
-	selection := model.Selection{Preset: model.PresetFullGentleman}
+	selection := model.Selection{Preset: model.PresetFullModism}
 
 	out := RenderDependencyTree(planner.ResolvedPlan{}, selection, 0)
 
@@ -64,7 +64,7 @@ func TestRenderDependencyTreeGenericEmptyPlanKeepsExistingCopy(t *testing.T) {
 func TestRenderDependencyTreeMixedPiEmptyPlanShowsPiInstallCopy(t *testing.T) {
 	selection := model.Selection{
 		Agents: []model.AgentID{model.AgentPi, model.AgentOpenCode},
-		Preset: model.PresetFullGentleman,
+		Preset: model.PresetFullModism,
 	}
 	plan := planner.ResolvedPlan{Agents: selection.Agents}
 
@@ -75,10 +75,10 @@ func TestRenderDependencyTreeMixedPiEmptyPlanShowsPiInstallCopy(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Pi agent support will be installed.",
-		"pi install npm:gentle-pi",
-		"pi install npm:gentle-engram",
+		"pi install npm:specai-pi",
+		"pi install npm:sdd-memory-kevg1t",
 		"pi install npm:pi-mcp-adapter",
-		fmt.Sprintf("npm exec --yes --package gentle-engram@%s -- pi-engram init", versions.GentleEngram),
+		fmt.Sprintf("npm exec --yes --package sdd-memory-kevg1t@%s -- pi-sdd-memory init", versions.SDDMemory),
 		"pi install npm:pi-subagents",
 		"pi install npm:pi-intercom",
 		"pi install npm:@juicesharp/rpiv-ask-user-question",

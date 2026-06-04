@@ -5,7 +5,7 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: gentleman-programming
+  author: kevg1t
   version: "2.0"
   delegate_only: true
 ---
@@ -37,15 +37,15 @@ You are a sub-agent responsible for TECHNICAL DESIGN. You take the proposal and 
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`sdd-memory | openspec | hybrid | none`) | openspec | hybrid | none`)
 
 ## Execution and Persistence Contract
 
 > Follow **Section B** (retrieval) and **Section C** (persistence) from `skills/_shared/sdd-phase-common.md`.
 
-- **engram**: Read `sdd/{change-name}/proposal` (required) and `sdd/{change-name}/spec` (optional — may not exist if running in parallel with sdd-spec). Save as `sdd/{change-name}/design`.
+- **sdd-memory**: Read `sdd/{change-name}/proposal` (required) and `sdd/{change-name}/spec` (optional — may not exist if running in parallel with sdd-spec). Save as `sdd/{change-name}/design`.
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`.
-- **hybrid**: Follow BOTH conventions — persist to Engram AND write `design.md` to filesystem. Retrieve dependencies from Engram (primary) with filesystem fallback.
+- **hybrid**: Follow BOTH conventions — persist to SddMemory AND write `design.md` to filesystem. Retrieve dependencies from SddMemory (primary) with filesystem fallback.
 - **none**: Return result only. Never create or modify project files.
 
 ## What to Do
@@ -72,7 +72,7 @@ openspec/changes/{change-name}/
 └── design.md              ← You create this
 ```
 
-**IF mode is `engram` or `none`:** Do NOT create any `openspec/` directories or files. Compose the design content in memory — you will persist it in Step 4.
+**IF mode is `sdd-memory` or `none`:** Do NOT create any `openspec/` directories or files. Compose the design content in memory — you will persist it in Step 4.
 
 #### Design Document Format
 
@@ -156,7 +156,7 @@ Return to the orchestrator:
 ## Design Created
 
 **Change**: {change-name}
-**Location**: `openspec/changes/{change-name}/design.md` (openspec/hybrid) | Engram `sdd/{change-name}/design` (engram) | inline (none)
+**Location**: `openspec/changes/{change-name}/design.md` (openspec/hybrid) | SddMemory `sdd/{change-name}/design` (sdd-memory) | inline (none)
 
 ### Summary
 - **Approach**: {one-line technical approach}

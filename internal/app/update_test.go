@@ -20,7 +20,7 @@ func TestRunUpdate_ReturnsErrorWhenChecksFail(t *testing.T) {
 
 	updateCheckAll = func(context.Context, string, system.PlatformProfile) []update.UpdateResult {
 		return []update.UpdateResult{{
-			Tool:   update.ToolInfo{Name: "engram"},
+			Tool:   update.ToolInfo{Name: "sdd-memory"},
 			Status: update.CheckFailed,
 		}}
 	}
@@ -30,7 +30,7 @@ func TestRunUpdate_ReturnsErrorWhenChecksFail(t *testing.T) {
 	if err == nil {
 		t.Fatal("runUpdate() error = nil, want non-nil")
 	}
-	if !strings.Contains(err.Error(), "update check failed for: engram") {
+	if !strings.Contains(err.Error(), "update check failed for: sdd-memory") {
 		t.Fatalf("runUpdate() error = %v, want update check failure", err)
 	}
 
@@ -55,11 +55,11 @@ func TestRunUpgrade_ReturnsErrorBeforeExecutingWhenChecksFail(t *testing.T) {
 	updateCheckFiltered = func(context.Context, string, system.PlatformProfile, []string) []update.UpdateResult {
 		return []update.UpdateResult{
 			{
-				Tool:   update.ToolInfo{Name: "engram"},
+				Tool:   update.ToolInfo{Name: "sdd-memory"},
 				Status: update.CheckFailed,
 			},
 			{
-				Tool:             update.ToolInfo{Name: "gga"},
+				Tool:             update.ToolInfo{Name: "opencode-sdd-memory-manage"},
 				InstalledVersion: "1.0.0",
 				LatestVersion:    "2.0.0",
 				Status:           update.UpdateAvailable,
@@ -76,7 +76,7 @@ func TestRunUpgrade_ReturnsErrorBeforeExecutingWhenChecksFail(t *testing.T) {
 	if err == nil {
 		t.Fatal("runUpgrade() error = nil, want non-nil")
 	}
-	if !strings.Contains(err.Error(), "update check failed for: engram") {
+	if !strings.Contains(err.Error(), "update check failed for: sdd-memory") {
 		t.Fatalf("runUpgrade() error = %v, want update check failure", err)
 	}
 	if called {

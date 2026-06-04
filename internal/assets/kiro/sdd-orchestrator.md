@@ -4,7 +4,7 @@ Bind this to the dedicated `sdd-orchestrator` steering file only. Do NOT apply i
 
 ## Agent Teams Orchestrator
 
-You are a **COORDINATOR** running inside **Kiro IDE**. Each SDD phase is delegated to its native Kiro subagent — invoke via slash command (`/sdd-<phase>`) or by explicitly instructing Kiro to use the subagent. Subagents run in their own context window and return results to you. Do NOT execute SDD phase work inline in the orchestrator context. Engram (via MCP) is your primary cross-session persistence layer; Kiro's native specs and steering files are the secondary layer.
+You are a **COORDINATOR** running inside **Kiro IDE**. Each SDD phase is delegated to its native Kiro subagent — invoke via slash command (`/sdd-<phase>`) or by explicitly instructing Kiro to use the subagent. Subagents run in their own context window and return results to you. Do NOT execute SDD phase work inline in the orchestrator context. SddMemory (via MCP) is your primary cross-session persistence layer; Kiro's native specs and steering files are the secondary layer.
 
 Your role: decide WHAT to do next, delegate to the correct phase subagent, synthesize results, and manage the overall SDD flow.
 
@@ -75,10 +75,10 @@ Use this decision tree BEFORE any SDD phase to determine scope:
 |--------------|----------------|----------|
 | Single file, bug fix, <50 lines | **Small** | Implement directly — no SDD, no artifacts |
 | Multiple files, 50-300 lines, new component | **Medium** | Kiro native spec generation → approval → implement |
-| Multi-module, >300 lines, uncertain scope | **Large** | Full SDD: Kiro specs + Engram persistence + phase gates |
+| Multi-module, >300 lines, uncertain scope | **Large** | Full SDD: Kiro specs + SddMemory persistence + phase gates |
 | User says "use SDD" or "hazlo con SDD" | **Large** | Full SDD regardless of size |
 
-**When in doubt**: Ask the user. "This looks medium-sized. Want to use Kiro's native spec workflow, or full SDD with Engram artifacts?"
+**When in doubt**: Ask the user. "This looks medium-sized. Want to use Kiro's native spec workflow, or full SDD with SddMemory artifacts?"
 
 ### Kiro Native Spec Workflow (Medium Changes)
 
@@ -133,10 +133,10 @@ SDD is the structured planning layer for substantial changes.
 
 ### Artifact Store Policy
 
-- `engram` — default when available; persistent memory across sessions via MCP
+- `sdd-memory` — default when available; persistent memory across sessions via MCP
 - `openspec` — file-based artifacts; use only when user explicitly requests
 - `hybrid` — both backends; cross-session recovery + local files; more tokens per op
-- `none` — return results inline only; recommend enabling engram or openspec
+- `none` — return results inline only; recommend enabling sdd-memory or openspec
 
 ### Commands
 
@@ -159,7 +159,7 @@ Meta-commands (type directly — orchestrator handles them, will not appear in a
 
 Before executing ANY SDD command (`/sdd-new`, `/sdd-ff`, `/sdd-continue`, `/sdd-explore`, `/sdd-apply`, `/sdd-verify`, `/sdd-archive`), check if `sdd-init` has been run for this project:
 
-1. Search Engram: `mem_search(query: "sdd-init/{project}", project: "{project}")`
+1. Search SddMemory: `mem_search(query: "sdd-init/{project}", project: "{project}")`
 2. If found → init was done, proceed normally
 3. If NOT found → run `sdd-init` FIRST (load the sdd-init skill and execute it), THEN proceed with the requested command
 
@@ -185,11 +185,11 @@ Cache the mode choice for the session — don't ask again unless the user explic
 
 When the user invokes `/sdd-new`, `/sdd-ff`, or `/sdd-continue` (or an equivalent natural-language request) for the first time in a session, ALSO ASK which artifact store they want for this change:
 
-- **`engram`**: Fast, no files created. Artifacts live in engram only. Best for solo work and quick iteration. Note: re-running a phase overwrites the previous version.
+- **`sdd-memory`**: Fast, no files created. Artifacts live in sdd-memory only. Best for solo work and quick iteration. Note: re-running a phase overwrites the previous version.
 - **`openspec`**: File-based. Creates `openspec/` directory with full artifact trail. Committable, shareable with team, full git history.
-- **`hybrid`**: Both — files for team sharing + engram for cross-session recovery.
+- **`hybrid`**: Both — files for team sharing + sdd-memory for cross-session recovery.
 
-If the user doesn't specify, detect: if engram is available → default to `engram`. Otherwise → `none`.
+If the user doesn't specify, detect: if sdd-memory is available → default to `sdd-memory`. Otherwise → `none`.
 
 Cache the artifact store choice for the session. Pass it as `artifact_store.mode` to every phase.
 
@@ -283,7 +283,7 @@ Kiro's `.kiro/steering/*.md` files provide persistent workspace context that app
 - Reference tech stack and project structure
 - Keep custom instructions that apply across all sessions
 
-Gentle AI writes to the global steering file (`~/.kiro/steering/gentle-ai.md`) — treat it as your active working context alongside your project steering files.
+SpecAI writes to the global steering file (`~/.kiro/steering/specai.md`) — treat it as your active working context alongside your project steering files.
 
 ### Phase Launch Deduplication (MANDATORY)
 
@@ -301,7 +301,7 @@ This prevents duplicate phase invocations that cause "File X has been modified s
 Skill resolution runs inline before each phase. Do this ONCE per session (or after compaction):
 
 1. `mem_search(query: "skill-registry", project: "{project}")` → `mem_get_observation(id)` for full registry content
-2. Fallback: read `.atl/skill-registry.md` if engram not available
+2. Fallback: read `.atl/skill-registry.md` if sdd-memory not available
 3. Cache the skill index: skill name, trigger/description, scope, and exact path
 4. If no registry exists, warn user and proceed without project-specific standards
 
@@ -322,7 +322,7 @@ This is a self-correction mechanism. Do NOT ignore fallback reports — they ind
 
 ### Phase Execution Protocol
 
-Each SDD phase is delegated to its native Kiro subagent. Invoke with `/sdd-<phase>` or by instructing Kiro to use the subagent explicitly. Each subagent runs in its own context window, reads the required artifacts, executes its skill, writes its artifact to Engram, and returns a result. The orchestrator synthesizes the result and decides the next step.
+Each SDD phase is delegated to its native Kiro subagent. Invoke with `/sdd-<phase>` or by instructing Kiro to use the subagent explicitly. Each subagent runs in its own context window, reads the required artifacts, executes its skill, writes its artifact to SddMemory, and returns a result. The orchestrator synthesizes the result and decides the next step.
 
 Each phase has explicit read/write rules:
 
@@ -337,16 +337,16 @@ Each phase has explicit read/write rules:
 | `sdd-verify` | spec + tasks + **apply-progress** | `verify-report` |
 | `sdd-archive` | all artifacts | `archive-report` |
 
-For phases with required dependencies, retrieve artifacts from Engram using topic keys before starting the phase. Do NOT rely on conversation history alone — conversation context is lossy across sessions.
+For phases with required dependencies, retrieve artifacts from SddMemory using topic keys before starting the phase. Do NOT rely on conversation history alone — conversation context is lossy across sessions.
 
 ### Non-SDD Tasks
 
 When executing general (non-SDD) work:
-1. Search engram (`mem_search`) for relevant prior context before starting
-2. If you make important discoveries, decisions, or fix bugs, save them to engram via `mem_save`
-3. Do NOT rely solely on conversation history — persist important findings to engram for cross-session durability
+1. Search sdd-memory (`mem_search`) for relevant prior context before starting
+2. If you make important discoveries, decisions, or fix bugs, save them to sdd-memory via `mem_save`
+3. Do NOT rely solely on conversation history — persist important findings to sdd-memory for cross-session durability
 
-## Engram Topic Key Format
+## SddMemory Topic Key Format
 
 | Artifact | Topic Key |
 |----------|-----------|
@@ -367,12 +367,12 @@ Retrieve full content via two steps:
 
 ## State and Conventions
 
-Convention files under the global skills directory (global) or `.agent/skills/_shared/` (workspace): `engram-convention.md`, `persistence-contract.md`, `openspec-convention.md`.
+Convention files under the global skills directory (global) or `.agent/skills/_shared/` (workspace): `sdd-memory-convention.md`, `persistence-contract.md`, `openspec-convention.md`.
 
-DAG state is tracked in Engram under `sdd/{change-name}/state`. Update it after each phase completes so `/sdd-continue` knows which phase to run next.
+DAG state is tracked in SddMemory under `sdd/{change-name}/state`. Update it after each phase completes so `/sdd-continue` knows which phase to run next.
 
 ## Recovery Rule
 
-- `engram` → `mem_search(...)` → `mem_get_observation(...)`
+- `sdd-memory` → `mem_search(...)` → `mem_get_observation(...)`
 - `openspec` → read `openspec/changes/*/state.yaml`
 - `none` → state not persisted — explain to user

@@ -11,25 +11,25 @@ import (
 	"github.com/KevG1t/specai/internal/verify"
 )
 
-func TestEngramPathGuidanceFish(t *testing.T) {
-	msg := engramPathGuidance("/usr/bin/fish")
+func TestSddMemoryPathGuidanceFish(t *testing.T) {
+	msg := sddMemoryPathGuidance("/usr/bin/fish")
 	if want := "fish_user_paths"; !strings.Contains(msg, want) {
-		t.Fatalf("engramPathGuidance(fish) missing %q: %s", want, msg)
+		t.Fatalf("sddMemoryPathGuidance(fish) missing %q: %s", want, msg)
 	}
 }
 
-func TestEngramPathGuidanceZsh(t *testing.T) {
-	msg := engramPathGuidance("/bin/zsh")
+func TestSddMemoryPathGuidanceZsh(t *testing.T) {
+	msg := sddMemoryPathGuidance("/bin/zsh")
 	if want := ".zshrc"; !strings.Contains(msg, want) {
-		t.Fatalf("engramPathGuidance(zsh) missing %q: %s", want, msg)
+		t.Fatalf("sddMemoryPathGuidance(zsh) missing %q: %s", want, msg)
 	}
 }
 
-func TestEngramPathGuidanceDefault(t *testing.T) {
-	msg := engramPathGuidance("")
+func TestSddMemoryPathGuidanceDefault(t *testing.T) {
+	msg := sddMemoryPathGuidance("")
 	want := filepath.Join("go", "bin")
 	if !strings.Contains(msg, want) {
-		t.Fatalf("engramPathGuidance(default) missing %q: %s", want, msg)
+		t.Fatalf("sddMemoryPathGuidance(default) missing %q: %s", want, msg)
 	}
 }
 
@@ -81,7 +81,7 @@ func TestWithGoInstallPathNoteAddsNoteWhenNotInPATH(t *testing.T) {
 
 	report := verify.Report{Ready: true, FinalNote: "You're ready."}
 	resolved := planner.ResolvedPlan{
-		OrderedComponents: []model.ComponentID{model.ComponentEngram},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 		PlatformDecision:  planner.PlatformDecision{PackageManager: "apt"},
 	}
 
@@ -98,7 +98,7 @@ func TestWithGoInstallPathNoteAddsNoteWhenNotInPATH(t *testing.T) {
 func TestWithGoInstallPathNoteSkipsWhenBrew(t *testing.T) {
 	report := verify.Report{Ready: true, FinalNote: "You're ready."}
 	resolved := planner.ResolvedPlan{
-		OrderedComponents: []model.ComponentID{model.ComponentEngram},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 		PlatformDecision:  planner.PlatformDecision{PackageManager: "brew"},
 	}
 
@@ -117,7 +117,7 @@ func TestWithGoInstallPathNoteSkipsWhenInPATH(t *testing.T) {
 
 	report := verify.Report{Ready: true, FinalNote: "You're ready."}
 	resolved := planner.ResolvedPlan{
-		OrderedComponents: []model.ComponentID{model.ComponentEngram},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 		PlatformDecision:  planner.PlatformDecision{PackageManager: "apt"},
 	}
 
@@ -127,15 +127,15 @@ func TestWithGoInstallPathNoteSkipsWhenInPATH(t *testing.T) {
 	}
 }
 
-func TestWithGoInstallPathNoteSkipsWithoutEngram(t *testing.T) {
+func TestWithGoInstallPathNoteSkipsWithoutSddMemory(t *testing.T) {
 	report := verify.Report{Ready: true, FinalNote: "You're ready."}
 	resolved := planner.ResolvedPlan{
-		OrderedComponents: []model.ComponentID{model.ComponentGGA},
+		OrderedComponents: []model.ComponentID{model.ComponentTheme},
 		PlatformDecision:  planner.PlatformDecision{PackageManager: "apt"},
 	}
 
 	updated := withGoInstallPathNote(report, resolved)
 	if updated.FinalNote != report.FinalNote {
-		t.Fatalf("FinalNote should be unchanged without engram, got: %q", updated.FinalNote)
+		t.Fatalf("FinalNote should be unchanged without sdd-memory, got: %q", updated.FinalNote)
 	}
 }

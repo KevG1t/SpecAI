@@ -6,12 +6,12 @@ import (
 	"github.com/KevG1t/specai/internal/model"
 )
 
-func TestNormalizePersonaAcceptsGentlemanNeutralArtifacts(t *testing.T) {
-	got, err := normalizePersona("gentleman-neutral-artifacts")
+func TestNormalizePersonaAcceptsModismNeutralArtifacts(t *testing.T) {
+	got, err := normalizePersona("modism-neutral-artifacts")
 	if err != nil {
 		t.Fatalf("normalizePersona() error = %v", err)
 	}
-	if got != model.PersonaGentlemanNeutralArtifacts {
-		t.Fatalf("normalizePersona() = %q, want %q", got, model.PersonaGentlemanNeutralArtifacts)
+	if got != model.PersonaModismNeutralArtifacts {
+		t.Fatalf("normalizePersona() = %q, want %q", got, model.PersonaModismNeutralArtifacts)
 	}
 }

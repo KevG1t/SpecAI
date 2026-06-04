@@ -9,10 +9,10 @@ import (
 	"github.com/KevG1t/specai/internal/model"
 )
 
-func TestInjectGentlemanNeutralArtifactsUsesGentlemanConversationWithArtifactBoundary(t *testing.T) {
+func TestInjectSpecAINeutralArtifactsUsesSpecAIConversationWithArtifactBoundary(t *testing.T) {
 	home := t.TempDir()
 
-	result, err := Inject(home, opencodeAdapter(), model.PersonaGentlemanNeutralArtifacts)
+	result, err := Inject(home, opencodeAdapter(), model.PersonaModismNeutralArtifacts)
 	if err != nil {
 		t.Fatalf("Inject() error = %v", err)
 	}

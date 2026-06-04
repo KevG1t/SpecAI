@@ -155,10 +155,10 @@ func TestAdapterInstallCommandSequenceUsesNpmWhenPnpmIsUnavailable(t *testing.T)
 	}
 
 	want := [][]string{
-		{"pi", "install", "npm:gentle-pi"},
-		{"pi", "install", "npm:gentle-engram"},
+		{"pi", "install", "npm:specai-pi"},
+		{"pi", "install", "npm:sdd-memory-kevg1t"},
 		{"pi", "install", "npm:pi-mcp-adapter"},
-		{"npm", "exec", "--yes", "--package", "gentle-engram@" + versions.GentleEngram, "--", "pi-engram", "init"},
+		{"npm", "exec", "--yes", "--package", "sdd-memory-kevg1t@" + versions.SDDMemory, "--", "pi-sdd-memory", "init"},
 		{"pi", "install", "npm:pi-subagents"},
 		{"pi", "install", "npm:pi-intercom"},
 		{"pi", "install", "npm:@juicesharp/rpiv-ask-user-question"},
@@ -172,7 +172,7 @@ func TestAdapterInstallCommandSequenceUsesNpmWhenPnpmIsUnavailable(t *testing.T)
 	}
 }
 
-func TestAdapterInstallCommandSequenceUsesPnpmForEngramInitWhenAvailable(t *testing.T) {
+func TestAdapterInstallCommandSequenceUsesPnpmForSddMemoryInitWhenAvailable(t *testing.T) {
 	a := &Adapter{
 		lookPath: func(file string) (string, error) {
 			if file == "pnpm" {
@@ -187,7 +187,7 @@ func TestAdapterInstallCommandSequenceUsesPnpmForEngramInitWhenAvailable(t *test
 		t.Fatalf("InstallCommand() error = %v", err)
 	}
 
-	want := []string{"pnpm", "dlx", "gentle-engram@" + versions.GentleEngram, "pi-engram", "init"}
+	want := []string{"pnpm", "dlx", "sdd-memory-kevg1t@" + versions.SDDMemory, "pi-sdd-memory", "init"}
 	if !reflect.DeepEqual(commands[3], want) {
 		t.Fatalf("InstallCommand()[3] = %#v, want %#v", commands[3], want)
 	}

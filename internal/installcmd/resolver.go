@@ -22,7 +22,7 @@ var cmdGoVersion = func() ([]byte, error) {
 }
 
 // CommandSequence represents an ordered list of commands to run in sequence.
-// Each inner slice is a single command with its arguments (e.g., ["brew", "install", "engram"]).
+// Each inner slice is a single command with its arguments (e.g., ["brew", "install", "sdd-memory"]).
 // Multi-step installs (e.g., tap + install) are expressed as multiple entries.
 type CommandSequence = [][]string
 
@@ -107,7 +107,7 @@ func ValidateAgentInstallPreflight(profile system.PlatformProfile, agent model.A
 
 func validatePiInstallPreflight() error {
 	if _, err := cmdLookPath("pi"); err != nil {
-		return fmt.Errorf("Pi requires the `pi` executable in PATH before installing Gentle AI Pi packages")
+		return fmt.Errorf("Pi requires the `pi` executable in PATH before installing SpecAI Pi packages")
 	}
 
 	return nil
@@ -149,10 +149,8 @@ func uvInstallHint(profile system.PlatformProfile) string {
 
 func (profileResolver) ResolveComponentInstall(profile system.PlatformProfile, component model.ComponentID) (CommandSequence, error) {
 	switch component {
-	case model.ComponentEngram:
-		return resolveEngramInstall(profile)
-	case model.ComponentGGA:
-		return resolveGGAInstall(profile)
+	case model.ComponentSddMemory:
+		return resolveSddMemoryInstall(profile)
 	default:
 		return nil, fmt.Errorf("install command is not supported for component %q", component)
 	}
@@ -206,44 +204,6 @@ func resolveOpenCodeInstall(profile system.PlatformProfile) (CommandSequence, er
 	default:
 		return nil, fmt.Errorf(
 			"unsupported platform for opencode: os=%q distro=%q pm=%q",
-			profile.OS, profile.LinuxDistro, profile.PackageManager,
-		)
-	}
-}
-
-// resolveGGAInstall returns the correct install command sequence for GGA per platform.
-// - darwin: brew tap + brew install (via Gentleman-Programming/homebrew-tap)
-// - linux: git clone + install.sh (GGA is a pure Bash project, NOT a Go module)
-func resolveGGAInstall(profile system.PlatformProfile) (CommandSequence, error) {
-	switch profile.PackageManager {
-	case "brew":
-		return CommandSequence{
-			{"brew", "tap", "Gentleman-Programming/homebrew-tap"},
-			{"brew", "reinstall", "gga"},
-		}, nil
-	case "apt", "pacman", "dnf":
-		const tmpDir = "/tmp/gentleman-guardian-angel"
-		return CommandSequence{
-			{"rm", "-rf", tmpDir},
-			{"git", "clone", "https://github.com/Gentleman-Programming/gentleman-guardian-angel.git", tmpDir},
-			{"bash", tmpDir + "/install.sh"},
-		}, nil
-	case "winget":
-		// On Windows, use Git Bash explicitly to avoid bare "bash" resolving to
-		// C:\Windows\System32\bash.exe (WSL), which cannot run the script.
-		// Clean up any leftover directory from a previous run before cloning.
-		// PowerShell is used for cleanup to avoid cmd.exe quoting issues with
-		// embedded double quotes in the "if exist ... rmdir" approach.
-		cloneDst := filepath.Join(os.TempDir(), "gentleman-guardian-angel")
-		bash := gitBashPath()
-		return CommandSequence{
-			{"powershell", "-NoProfile", "-Command", fmt.Sprintf("Remove-Item -Recurse -Force -ErrorAction SilentlyContinue '%s'; exit 0", cloneDst)},
-			{"git", "clone", "https://github.com/Gentleman-Programming/gentleman-guardian-angel.git", cloneDst},
-			{bash, bashScriptPath(profile, filepath.Join(cloneDst, "install.sh"))},
-		}, nil
-	default:
-		return nil, fmt.Errorf(
-			"unsupported platform for gga: os=%q distro=%q pm=%q",
 			profile.OS, profile.LinuxDistro, profile.PackageManager,
 		)
 	}
@@ -310,7 +270,7 @@ func gitBashPath() string {
 func validateGoForModuleInstall(profile system.PlatformProfile) error {
 	if _, err := cmdLookPath("go"); err != nil {
 		return fmt.Errorf(
-			"Go 1.24+ is required to install Engram but was not found in PATH.\n" +
+			"Go 1.24+ is required to install SddMemory but was not found in PATH.\n" +
 				"Please install Go from https://go.dev/dl/ and restart your terminal.")
 	}
 
@@ -331,7 +291,7 @@ func validateGoForModuleInstall(profile system.PlatformProfile) error {
 			minor, _ := strconv.Atoi(versionParts[1])
 			if major < 1 || (major == 1 && minor < 24) {
 				return fmt.Errorf(
-					"Go 1.24+ is required to install Engram, but found go%s.\n"+
+					"Go 1.24+ is required to install SddMemory, but found go%s.\n"+
 						"Please update Go: https://go.dev/dl/", versionStr)
 			}
 		}
@@ -348,24 +308,24 @@ func validateGoForModuleInstall(profile system.PlatformProfile) error {
 	return nil
 }
 
-// resolveEngramInstall returns the correct install command sequence for Engram per platform.
-// - darwin (brew): brew tap + brew install (via Gentleman-Programming/homebrew-tap)
-// - linux/windows: returns an error — callers must use engram.DownloadLatestBinary() instead.
+// resolveSddMemoryInstall returns the correct install command sequence for sdd-memory per platform.
+// - darwin (brew): brew tap + brew install (via KevG1t/homebrew-tap)
+// - linux/windows: returns an error — callers must use sddmemory.DownloadLatestBinary() instead.
 //
 // The go install method has been removed because it required Go 1.24+ which most
 // users on Linux/Windows don't have. Pre-built binaries are available at:
-// https://github.com/Gentleman-Programming/engram/releases
-func resolveEngramInstall(profile system.PlatformProfile) (CommandSequence, error) {
+// https://github.com/KevG1t/sdd-memory/releases
+func resolveSddMemoryInstall(profile system.PlatformProfile) (CommandSequence, error) {
 	switch profile.PackageManager {
 	case "brew":
 		// macOS (or Linux with Homebrew): brew manages Go transitively — no preflight needed.
 		return CommandSequence{
-			{"brew", "tap", "Gentleman-Programming/homebrew-tap"},
-			{"brew", "install", "engram"},
+			{"brew", "tap", "KevG1t/homebrew-tap"},
+			{"brew", "install", "sdd-memory"},
 		}, nil
 	default:
 		return nil, fmt.Errorf(
-			"engram on %q/%q uses direct binary download — use engram.DownloadLatestBinary() instead of CommandSequence",
+			"sdd-memory on %q/%q uses direct binary download — use sddmemory.DownloadLatestBinary() instead of CommandSequence",
 			profile.OS, profile.PackageManager,
 		)
 	}

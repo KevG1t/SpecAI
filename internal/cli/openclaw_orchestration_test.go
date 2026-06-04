@@ -23,10 +23,10 @@ func TestComponentApplyStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 		marker    string
 	}{
 		{
-			name:      "engram writes protocol to workspace AGENTS",
-			component: model.ComponentEngram,
+			name:      "sdd-memory writes protocol to workspace AGENTS",
+			component: model.ComponentSddMemory,
 			fileName:  "AGENTS.md",
-			marker:    "<!-- specai:engram-protocol -->",
+			marker:    "<!-- specai:sdd-memory-protocol -->",
 		},
 		{
 			name:      "persona writes soul to workspace",
@@ -50,7 +50,7 @@ func TestComponentApplyStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 				return filepath.Join(home, "bin", name), nil
 			}
 
-			if tt.component == model.ComponentEngram {
+			if tt.component == model.ComponentSddMemory {
 				writeOpenClawConfigWithWorkspace(t, home, workspace)
 			}
 
@@ -60,7 +60,7 @@ func TestComponentApplyStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 				homeDir:      home,
 				workspaceDir: workspace,
 				agents:       []model.AgentID{model.AgentOpenClaw},
-				selection:    model.Selection{Persona: model.PersonaGentleman},
+				selection:    model.Selection{Persona: model.PersonaModism},
 				profile:      system.PlatformProfile{PackageManager: "brew"},
 			}
 
@@ -80,9 +80,9 @@ func TestComponentApplyStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 			if _, err := os.Stat(homeFile); !os.IsNotExist(err) {
 				t.Fatalf("OpenClaw orchestration must not write %q; stat err=%v", homeFile, err)
 			}
-			if tt.component == model.ComponentEngram {
-				assertOpenClawEngramMCPInGlobalConfig(t, home)
-				assertNoOpenClawEngramMCPInWorkspaceConfig(t, workspace)
+			if tt.component == model.ComponentSddMemory {
+				assertOpenClawSddMemoryMCPInGlobalConfig(t, home)
+				assertNoOpenClawSddMemoryMCPInWorkspaceConfig(t, workspace)
 			}
 		})
 	}
@@ -96,10 +96,10 @@ func TestComponentSyncStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 		marker    string
 	}{
 		{
-			name:      "engram sync writes protocol to workspace AGENTS",
-			component: model.ComponentEngram,
+			name:      "sdd-memory sync writes protocol to workspace AGENTS",
+			component: model.ComponentSddMemory,
 			fileName:  "AGENTS.md",
-			marker:    "<!-- specai:engram-protocol -->",
+			marker:    "<!-- specai:sdd-memory-protocol -->",
 		},
 		{
 			name:      "persona sync writes soul to workspace",
@@ -119,7 +119,7 @@ func TestComponentSyncStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			home := t.TempDir()
 			workspace := t.TempDir()
-			if tt.component == model.ComponentEngram {
+			if tt.component == model.ComponentSddMemory {
 				writeOpenClawConfigWithWorkspace(t, home, workspace)
 			}
 
@@ -129,7 +129,7 @@ func TestComponentSyncStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 				homeDir:      home,
 				workspaceDir: workspace,
 				agents:       []model.AgentID{model.AgentOpenClaw},
-				selection:    model.Selection{Persona: model.PersonaGentleman},
+				selection:    model.Selection{Persona: model.PersonaModism},
 			}
 
 			if err := step.Run(); err != nil {
@@ -148,9 +148,9 @@ func TestComponentSyncStepOpenClawWorkspaceScopedInjections(t *testing.T) {
 			if _, err := os.Stat(homeFile); !os.IsNotExist(err) {
 				t.Fatalf("OpenClaw sync must not write %q; stat err=%v", homeFile, err)
 			}
-			if tt.component == model.ComponentEngram {
-				assertOpenClawEngramMCPInGlobalConfig(t, home)
-				assertNoOpenClawEngramMCPInWorkspaceConfig(t, workspace)
+			if tt.component == model.ComponentSddMemory {
+				assertOpenClawSddMemoryMCPInGlobalConfig(t, home)
+				assertNoOpenClawSddMemoryMCPInWorkspaceConfig(t, workspace)
 			}
 		})
 	}
@@ -171,8 +171,8 @@ func TestInstallRuntimeOpenClawUsesConfiguredActiveWorkspace(t *testing.T) {
 
 	selection := model.Selection{
 		Agents:     []model.AgentID{model.AgentOpenClaw},
-		Components: []model.ComponentID{model.ComponentPersona, model.ComponentSDD, model.ComponentEngram},
-		Persona:    model.PersonaGentleman,
+		Components: []model.ComponentID{model.ComponentPersona, model.ComponentSDD, model.ComponentSddMemory},
+		Persona:    model.PersonaModism,
 		StrictTDD:  true,
 	}
 	resolved := planner.ResolvedPlan{
@@ -203,8 +203,8 @@ func TestSyncRuntimeOpenClawUsesConfiguredActiveWorkspace(t *testing.T) {
 
 	selection := model.Selection{
 		Agents:     []model.AgentID{model.AgentOpenClaw},
-		Components: []model.ComponentID{model.ComponentPersona, model.ComponentSDD, model.ComponentEngram},
-		Persona:    model.PersonaGentleman,
+		Components: []model.ComponentID{model.ComponentPersona, model.ComponentSDD, model.ComponentSddMemory},
+		Persona:    model.PersonaModism,
 		StrictTDD:  true,
 	}
 	rt, err := newSyncRuntime(home, selection)
@@ -240,7 +240,7 @@ func quoteJSON(value string) string {
 func assertOpenClawInstructionsInWorkspace(t *testing.T, workspace string) {
 	t.Helper()
 	agentsText := readOpenClawTestFile(t, filepath.Join(workspace, "AGENTS.md"))
-	for _, want := range []string{"specai:engram-protocol", "specai:sdd-orchestrator", "specai:strict-tdd-mode"} {
+	for _, want := range []string{"specai:sdd-memory-protocol", "specai:sdd-orchestrator", "specai:strict-tdd-mode"} {
 		if !strings.Contains(agentsText, want) {
 			t.Fatalf("active workspace AGENTS.md missing %q; got:\n%s", want, agentsText)
 		}
@@ -252,19 +252,19 @@ func assertOpenClawInstructionsInWorkspace(t *testing.T, workspace string) {
 	}
 }
 
-func assertOpenClawEngramMCPInGlobalConfig(t *testing.T, home string) {
+func assertOpenClawSddMemoryMCPInGlobalConfig(t *testing.T, home string) {
 	t.Helper()
 	configPath := filepath.Join(home, ".openclaw", "openclaw.json")
 	root := readJSONMap(t, configPath)
 	servers := objectAtOpenClawTest(t, objectAtOpenClawTest(t, root, "mcp"), "servers")
-	engramServer := objectAtOpenClawTest(t, servers, "engram")
-	command, ok := engramServer["command"].(string)
-	if !ok || filepath.Base(command) != "engram" {
-		t.Fatalf("global OpenClaw Engram command = %#v, want engram executable", engramServer["command"])
+	sddMemoryServer := objectAtOpenClawTest(t, servers, "sdd-memory")
+	command, ok := sddMemoryServer["command"].(string)
+	if !ok || filepath.Base(command) != "sdd-memory" {
+		t.Fatalf("global OpenClaw SddMemory command = %#v, want sdd-memory executable", sddMemoryServer["command"])
 	}
 }
 
-func assertNoOpenClawEngramMCPInWorkspaceConfig(t *testing.T, workspace string) {
+func assertNoOpenClawSddMemoryMCPInWorkspaceConfig(t *testing.T, workspace string) {
 	t.Helper()
 	configPath := filepath.Join(workspace, ".openclaw", "openclaw.json")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -282,8 +282,8 @@ func assertNoOpenClawEngramMCPInWorkspaceConfig(t *testing.T, workspace string) 
 	if !ok {
 		return
 	}
-	if _, ok := servers["engram"]; ok {
-		t.Fatalf("workspace OpenClaw config %q must not contain mcp.servers.engram", configPath)
+	if _, ok := servers["sdd-memory"]; ok {
+		t.Fatalf("workspace OpenClaw config %q must not contain mcp.servers.sdd-memory", configPath)
 	}
 }
 

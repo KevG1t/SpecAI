@@ -119,10 +119,10 @@ func NewModelPickerState(cachePath string, settingsPath string) ModelPickerState
 }
 
 // SDDOrchestratorPhase is the key used for the base OpenCode SDD coordinator model assignment.
-const SDDOrchestratorPhase = "gentle-orchestrator"
+const SDDOrchestratorPhase = "specai-orchestrator"
 
 // ModelPickerRows returns the row labels for the model picker screen.
-// Row 0 is "gentle-orchestrator" (coordinator), row 1 is "Set all phases",
+// Row 0 is "specai-orchestrator" (coordinator), row 1 is "Set all phases",
 // rows 2-11 are the 10 SDD sub-agent phases, then a separator and JD agents.
 func ModelPickerRows() []string {
 	rows := make([]string, 0, 2+len(opencode.SDDPhases())+1+len(opencode.JDPhases()))
@@ -647,7 +647,7 @@ func renderPhaseList(
 	if len(state.AvailableIDs) == 0 {
 		b.WriteString(styles.WarningStyle.Render("OpenCode has not been run yet — model cache not found."))
 		b.WriteString("\n")
-		b.WriteString(styles.SubtextStyle.Render("Run 'opencode' once, then re-run 'gentle-ai sync' to assign models."))
+		b.WriteString(styles.SubtextStyle.Render("Run 'opencode' once, then re-run 'specai sync' to assign models."))
 		b.WriteString("\n")
 		b.WriteString(styles.SubtextStyle.Render("Using default model assignments for now."))
 		b.WriteString("\n\n")
@@ -676,7 +676,7 @@ func renderPhaseList(
 		var label string
 		switch {
 		case idx == 0:
-			// "gentle-orchestrator" row — coordinator, individual assignment only
+			// "specai-orchestrator" row — coordinator, individual assignment only
 			assignment, ok := assignments[SDDOrchestratorPhase]
 			if ok && assignment.ProviderID != "" {
 				provName, modelName := resolveNames(assignment, state)

@@ -7,7 +7,7 @@ import (
 
 func TestMergeJSONObjectsRecursively(t *testing.T) {
 	base := []byte(`{"plugins":["a"],"settings":{"theme":"default","flags":{"x":true}}}`)
-	overlay := []byte(`{"settings":{"theme":"gentleman","flags":{"y":true}},"extra":1}`)
+	overlay := []byte(`{"settings":{"theme":"specai","flags":{"y":true}},"extra":1}`)
 
 	merged, err := MergeJSONObjects(base, overlay)
 	if err != nil {
@@ -22,7 +22,7 @@ func TestMergeJSONObjectsRecursively(t *testing.T) {
 	settings := got["settings"].(map[string]any)
 	flags := settings["flags"].(map[string]any)
 
-	if settings["theme"] != "gentleman" {
+	if settings["theme"] != "specai" {
 		t.Fatalf("theme = %v", settings["theme"])
 	}
 
@@ -90,7 +90,7 @@ func TestMergeJSONObjectsMalformedBaseReturnsOverlayOnly(t *testing.T) {
 		{
 			name:    "arbitrary text",
 			base:    []byte(`a`),
-			overlay: []byte(`{"servers": {"engram": {"command": "engram"}}}`),
+			overlay: []byte(`{"servers": {"sdd-memory": {"command": "sdd-memory"}}}`),
 			wantKey: "servers",
 		},
 	}
@@ -117,8 +117,8 @@ func TestMergeJSONObjectsMalformedBaseReturnsOverlayOnly(t *testing.T) {
 // ─── __replace__ sentinel tests ───────────────────────────────────────────────
 
 func TestMergeJSONObjectsReplaceSentinelErasesBaseKeys(t *testing.T) {
-	base := []byte(`{"mcp":{"engram":{"command":"/opt/homebrew/bin/engram","args":["mcp","--tools=agent"],"type":"local"}}}`)
-	overlay := []byte(`{"mcp":{"engram":{"__replace__":{"command":["/opt/homebrew/bin/engram","mcp","--tools=agent"],"type":"local"}}}}`)
+	base := []byte(`{"mcp":{"sdd-memory":{"command":"/opt/homebrew/bin/sdd-memory","args":["mcp","--tools=agent"],"type":"local"}}}`)
+	overlay := []byte(`{"mcp":{"sdd-memory":{"__replace__":{"command":["/opt/homebrew/bin/sdd-memory","mcp","--tools=agent"],"type":"local"}}}}`)
 
 	merged, err := MergeJSONObjects(base, overlay)
 	if err != nil {
@@ -131,19 +131,19 @@ func TestMergeJSONObjectsReplaceSentinelErasesBaseKeys(t *testing.T) {
 	}
 
 	mcp := got["mcp"].(map[string]any)
-	eng := mcp["engram"].(map[string]any)
+	eng := mcp["sdd-memory"].(map[string]any)
 
 	// args must be gone
 	if _, ok := eng["args"]; ok {
-		t.Fatalf("engram still has 'args' after __replace__; got: %v", eng)
+		t.Fatalf("sdd-memory still has 'args' after __replace__; got: %v", eng)
 	}
 	// command must be an array
 	cmd, ok := eng["command"].([]any)
 	if !ok {
-		t.Fatalf("engram command is not an array; got: %T = %v", eng["command"], eng["command"])
+		t.Fatalf("sdd-memory command is not an array; got: %T = %v", eng["command"], eng["command"])
 	}
 	if len(cmd) != 3 {
-		t.Fatalf("engram command has %d elements, want 3", len(cmd))
+		t.Fatalf("sdd-memory command has %d elements, want 3", len(cmd))
 	}
 	// __replace__ must not appear in output
 	if _, ok := eng["__replace__"]; ok {

@@ -46,6 +46,7 @@ func resolveGitHubToken() string {
 		var out bytes.Buffer
 		cmd := exec.Command(ghPath, "auth", "token")
 		cmd.Stdout = &out
+		configureBackgroundCmd(cmd)
 		if err := cmd.Run(); err == nil {
 			if token := strings.TrimSpace(out.String()); token != "" {
 				return token

@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/KevG1t/specai/internal/model"
 	"github.com/KevG1t/specai/internal/system"
 	"github.com/KevG1t/specai/internal/tui/screens"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 var updateTUIGoldens = flag.Bool("update", false, "update TUI golden files")
@@ -30,11 +30,11 @@ func TestPresetSelectionNextScreenFlowMatrix(t *testing.T) {
 		golden     string
 	}{
 		{
-			name:       "full gentleman with opencode enters SDD mode before plugins",
+			name:       "full specai with opencode enters SDD mode before plugins",
 			agents:     []model.AgentID{model.AgentOpenCode},
-			preset:     model.PresetFullGentleman,
+			preset:     model.PresetFullModism,
 			wantScreen: ScreenSDDMode,
-			golden:     "preset-full-gentleman-opencode-next.golden",
+			golden:     "preset-full-specai-opencode-next.golden",
 		},
 		{
 			name:       "ecosystem only with opencode enters SDD mode before plugins",
@@ -44,10 +44,10 @@ func TestPresetSelectionNextScreenFlowMatrix(t *testing.T) {
 			golden:     "preset-ecosystem-only-opencode-next.golden",
 		},
 		{
-			name:       "minimal with opencode enters plugin selection",
+			name:       "minimal with opencode enters dependency tree",
 			agents:     []model.AgentID{model.AgentOpenCode},
 			preset:     model.PresetMinimal,
-			wantScreen: ScreenOpenCodePlugins,
+			wantScreen: ScreenDependencyTree,
 			golden:     "preset-minimal-opencode-next.golden",
 		},
 		{
@@ -58,11 +58,11 @@ func TestPresetSelectionNextScreenFlowMatrix(t *testing.T) {
 			golden:     "preset-custom-opencode-next.golden",
 		},
 		{
-			name:       "full gentleman without opencode enters strict TDD",
+			name:       "full specai without opencode enters strict TDD",
 			agents:     []model.AgentID{model.AgentCursor},
-			preset:     model.PresetFullGentleman,
+			preset:     model.PresetFullModism,
 			wantScreen: ScreenStrictTDD,
-			golden:     "preset-full-gentleman-no-opencode-next.golden",
+			golden:     "preset-full-specai-no-opencode-next.golden",
 		},
 		{
 			name:       "ecosystem only without opencode enters strict TDD",
@@ -115,34 +115,33 @@ func TestCustomPresetPostComponentFlowMatrix(t *testing.T) {
 		golden     string
 	}{
 		{
-			name:       "opencode with Engram only shows plugins after component selection",
+			name:       "opencode with SddMemory only shows review after component selection",
 			agents:     []model.AgentID{model.AgentOpenCode},
-			components: []model.ComponentID{model.ComponentEngram},
+			components: []model.ComponentID{model.ComponentSddMemory},
 			actions:    []flowAction{{key: tea.KeyMsg{Type: tea.KeyEnter}}},
-			wantScreen: ScreenOpenCodePlugins,
-			golden:     "custom-opencode-engram-next.golden",
+			wantScreen: ScreenReview,
+			golden:     "custom-opencode-sdd-memory-next.golden",
 		},
 		{
-			name:       "opencode with SDD reaches plugins after SDD and strict TDD stages",
+			name:       "opencode with SDD reaches review after SDD and strict TDD stages",
 			agents:     []model.AgentID{model.AgentOpenCode},
 			components: []model.ComponentID{model.ComponentSDD},
 			actions: []flowAction{
 				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // DependencyTree Continue -> SDDMode
 				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // SDDMode single -> StrictTDD
-				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // StrictTDD enable -> OpenCode plugins
+				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // StrictTDD enable -> Review
 			},
-			wantScreen: ScreenOpenCodePlugins,
+			wantScreen: ScreenReview,
 			golden:     "custom-opencode-sdd-after-strict-next.golden",
 		},
 		{
-			name:       "opencode with SDD and Skills reaches skill picker after plugins",
+			name:       "opencode with SDD and Skills reaches skill picker after strict TDD",
 			agents:     []model.AgentID{model.AgentOpenCode},
 			components: []model.ComponentID{model.ComponentSDD, model.ComponentSkills},
 			actions: []flowAction{
 				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // DependencyTree Continue -> SDDMode
 				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // SDDMode single -> StrictTDD
-				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // StrictTDD enable -> OpenCode plugins
-				{key: tea.KeyMsg{Type: tea.KeyEnter}, cursor: len(opencodepluginDefinitions()) * 2, setCursor: true}, // OpenCode plugins Continue -> SkillPicker
+				{key: tea.KeyMsg{Type: tea.KeyEnter}}, // StrictTDD enable -> SkillPicker
 			},
 			wantScreen: ScreenSkillPicker,
 			golden:     "custom-opencode-sdd-skills-after-plugins-next.golden",
@@ -159,12 +158,12 @@ func TestCustomPresetPostComponentFlowMatrix(t *testing.T) {
 			golden:     "custom-no-opencode-sdd-skills-next.golden",
 		},
 		{
-			name:       "no opencode with Engram only reaches review",
+			name:       "no opencode with SddMemory only reaches review",
 			agents:     []model.AgentID{model.AgentCursor},
-			components: []model.ComponentID{model.ComponentEngram},
+			components: []model.ComponentID{model.ComponentSddMemory},
 			actions:    []flowAction{{key: tea.KeyMsg{Type: tea.KeyEnter}}},
 			wantScreen: ScreenReview,
-			golden:     "custom-no-opencode-engram-next.golden",
+			golden:     "custom-no-opencode-sdd-memory-next.golden",
 		},
 	}
 
@@ -209,7 +208,6 @@ func TestInstallNavigationRoundTrips(t *testing.T) {
 		t.Cleanup(func() { osStatModelCache = origStat })
 	}
 
-	continuePluginsCursor := len(opencodepluginDefinitions()) * 2
 	tests := []struct {
 		name           string
 		setup          func(t *testing.T) Model
@@ -223,7 +221,7 @@ func TestInstallNavigationRoundTrips(t *testing.T) {
 				m := NewModel(system.DetectionResult{}, "dev")
 				m.Screen = ScreenAgents
 				m.Selection.Agents = []model.AgentID{model.AgentPi}
-				m.Selection.Components = componentsForPreset(model.PresetFullGentleman, model.PersonaGentleman)
+				m.Selection.Components = componentsForPreset(model.PresetFullModism, model.PersonaModism)
 				m.Cursor = len(screens.AgentOptions())
 				return m
 			},
@@ -245,7 +243,7 @@ func TestInstallNavigationRoundTrips(t *testing.T) {
 			reverseScreens: []Screen{ScreenPreset},
 		},
 		{
-			name: "non-custom minimal with OpenCode returns through plugins to preset",
+			name: "non-custom minimal with OpenCode goes directly to dependency tree",
 			setup: func(t *testing.T) Model {
 				m := NewModel(system.DetectionResult{}, "dev")
 				m.Screen = ScreenPreset
@@ -255,37 +253,35 @@ func TestInstallNavigationRoundTrips(t *testing.T) {
 			},
 			forwardActions: []flowAction{
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
-				{key: tea.KeyMsg{Type: tea.KeyEnter}, cursor: continuePluginsCursor, setCursor: true},
 			},
-			forwardScreens: []Screen{ScreenOpenCodePlugins, ScreenDependencyTree},
-			reverseScreens: []Screen{ScreenOpenCodePlugins, ScreenPreset},
+			forwardScreens: []Screen{ScreenDependencyTree},
+			reverseScreens: []Screen{ScreenPreset},
 		},
 		{
-			name: "OpenCode SDD single returns through plugins strict TDD and SDD mode to preset",
+			name: "OpenCode SDD single returns through strict TDD and SDD mode to preset",
 			setup: func(t *testing.T) Model {
 				m := NewModel(system.DetectionResult{}, "dev")
 				m.Screen = ScreenPreset
 				m.Selection.Agents = []model.AgentID{model.AgentOpenCode}
-				m.Cursor = presetCursor(t, model.PresetFullGentleman)
+				m.Cursor = presetCursor(t, model.PresetFullModism)
 				return m
 			},
 			forwardActions: []flowAction{
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
-				{key: tea.KeyMsg{Type: tea.KeyEnter}, cursor: continuePluginsCursor, setCursor: true},
 			},
-			forwardScreens: []Screen{ScreenSDDMode, ScreenStrictTDD, ScreenOpenCodePlugins, ScreenDependencyTree},
-			reverseScreens: []Screen{ScreenOpenCodePlugins, ScreenStrictTDD, ScreenSDDMode, ScreenPreset},
+			forwardScreens: []Screen{ScreenSDDMode, ScreenStrictTDD, ScreenDependencyTree},
+			reverseScreens: []Screen{ScreenStrictTDD, ScreenSDDMode, ScreenPreset},
 		},
 		{
-			name: "OpenCode SDD multi with model cache returns through plugins strict TDD model picker and SDD mode",
+			name: "OpenCode SDD multi with model cache returns through strict TDD model picker and SDD mode",
 			setup: func(t *testing.T) Model {
 				withModelCache(t)
 				m := NewModel(system.DetectionResult{}, "dev")
 				m.Screen = ScreenPreset
 				m.Selection.Agents = []model.AgentID{model.AgentOpenCode}
-				m.Cursor = presetCursor(t, model.PresetFullGentleman)
+				m.Cursor = presetCursor(t, model.PresetFullModism)
 				return m
 			},
 			forwardActions: []flowAction{
@@ -296,18 +292,14 @@ func TestInstallNavigationRoundTrips(t *testing.T) {
 					cursor:    len(screens.ModelPickerRows()),
 					setCursor: true,
 					prepare: func(state Model) Model {
-						// The round-trip under test is the ModelPicker navigation edge, not
-						// provider cache parsing. CI may not have a real OpenCode cache, so
-						// force the picker into its normal row+Continue mode deterministically.
 						state.ModelPicker.AvailableIDs = []string{"opencode"}
 						return state
 					},
 				},
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
-				{key: tea.KeyMsg{Type: tea.KeyEnter}, cursor: continuePluginsCursor, setCursor: true},
 			},
-			forwardScreens: []Screen{ScreenSDDMode, ScreenModelPicker, ScreenStrictTDD, ScreenOpenCodePlugins, ScreenDependencyTree},
-			reverseScreens: []Screen{ScreenOpenCodePlugins, ScreenStrictTDD, ScreenModelPicker, ScreenSDDMode, ScreenPreset},
+			forwardScreens: []Screen{ScreenSDDMode, ScreenModelPicker, ScreenStrictTDD, ScreenDependencyTree},
+			reverseScreens: []Screen{ScreenStrictTDD, ScreenModelPicker, ScreenSDDMode, ScreenPreset},
 		},
 		{
 			name: "non-OpenCode SDD returns through strict TDD to preset",
@@ -315,7 +307,7 @@ func TestInstallNavigationRoundTrips(t *testing.T) {
 				m := NewModel(system.DetectionResult{}, "dev")
 				m.Screen = ScreenPreset
 				m.Selection.Agents = []model.AgentID{model.AgentCursor}
-				m.Cursor = presetCursor(t, model.PresetFullGentleman)
+				m.Cursor = presetCursor(t, model.PresetFullModism)
 				return m
 			},
 			forwardActions: []flowAction{
@@ -358,19 +350,18 @@ func TestInstallNavigationRoundTrips(t *testing.T) {
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
 				{key: tea.KeyMsg{Type: tea.KeyEnter}},
-				{key: tea.KeyMsg{Type: tea.KeyEnter}, cursor: continuePluginsCursor, setCursor: true},
 			},
-			forwardScreens: []Screen{ScreenSDDMode, ScreenStrictTDD, ScreenOpenCodePlugins, ScreenSkillPicker},
+			forwardScreens: []Screen{ScreenSDDMode, ScreenStrictTDD, ScreenSkillPicker},
 			reverseScreens: []Screen{ScreenStrictTDD, ScreenSDDMode, ScreenDependencyTree},
 		},
 		{
-			name: "custom Engram only returns from review to component selector",
+			name: "custom SddMemory only returns from review to component selector",
 			setup: func(t *testing.T) Model {
 				m := NewModel(system.DetectionResult{}, "dev")
 				m.Screen = ScreenDependencyTree
 				m.Selection.Preset = model.PresetCustom
 				m.Selection.Agents = []model.AgentID{model.AgentCursor}
-				m.Selection.Components = []model.ComponentID{model.ComponentEngram}
+				m.Selection.Components = []model.ComponentID{model.ComponentSddMemory}
 				m.Cursor = len(screens.AllComponents())
 				return m
 			},
@@ -404,7 +395,7 @@ func TestPiOnlyDependencyTreeBackRowReturnsToAgentSelection(t *testing.T) {
 	m := NewModel(system.DetectionResult{}, "dev")
 	m.Screen = ScreenAgents
 	m.Selection.Agents = []model.AgentID{model.AgentPi}
-	m.Selection.Components = componentsForPreset(model.PresetFullGentleman, model.PersonaGentleman)
+	m.Selection.Components = componentsForPreset(model.PresetFullModism, model.PersonaModism)
 	m.Cursor = len(screens.AgentOptions())
 
 	state := applyFlowAction(t, m, flowAction{key: tea.KeyMsg{Type: tea.KeyEnter}})

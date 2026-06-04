@@ -5,31 +5,33 @@ import (
 	"strings"
 )
 
-// UpsertCodexEngramBlock removes any existing [mcp_servers.engram] block from
-// the given TOML content and appends a fresh block with the canonical engram
-// MCP entry (including --tools=agent). All other sections are preserved.
+// UpsertCodexSddMemoryBlock removes any existing [mcp_servers.sdd-memory] or
+// legacy [mcp_servers.engram] block from the given TOML content and appends a
+// fresh block with the canonical sdd-memory MCP entry. All other sections are
+// preserved.
 //
-// engramCmd is the command string to use (e.g. an absolute path like
-// "/usr/local/bin/engram"). If engramCmd is empty, it falls back to "engram".
+// sddMemoryCmd is the command string to use (e.g. an absolute path like
+// "/usr/local/bin/sdd-memory"). If sddMemoryCmd is empty, it falls back to "sdd-memory".
 //
 // This is a string-based helper (no TOML parser dependency) ported from
-// engram/internal/setup/setup.go. It handles the limited TOML subset that
+// sdd-memory/internal/setup/setup.go. It handles the limited TOML subset that
 // Codex uses.
-func UpsertCodexEngramBlock(content, engramCmd string) string {
-	if engramCmd == "" {
-		engramCmd = "engram"
+func UpsertCodexSddMemoryBlock(content, sddMemoryCmd string) string {
+	if sddMemoryCmd == "" {
+		sddMemoryCmd = "sdd-memory"
 	}
 	// Escape backslashes for TOML double-quoted strings (Windows paths).
 	// e.g. C:\Users\foo → C:\\Users\\foo — prevents TOML unicode escape errors (\U).
-	escapedCmd := strings.ReplaceAll(engramCmd, `\`, `\\`)
-	codexEngramBlock := "[mcp_servers.engram]\ncommand = \"" + escapedCmd + "\"\nargs = [\"mcp\", \"--tools=agent\"]"
+	escapedCmd := strings.ReplaceAll(sddMemoryCmd, `\`, `\\`)
+	codexSddMemoryBlock := "[mcp_servers.sdd-memory]\ncommand = \"" + escapedCmd + "\"\nargs = [\"mcp\"]"
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	lines := strings.Split(content, "\n")
 
 	var kept []string
 	for i := 0; i < len(lines); {
 		trimmed := strings.TrimSpace(lines[i])
-		if trimmed == "[mcp_servers.engram]" {
+		isSddMemorySection := trimmed == "[mcp_servers.sdd-memory]" || trimmed == "[mcp_servers.engram]"
+		if isSddMemorySection {
 			// Skip the old block header and all its key-value lines.
 			i++
 			for i < len(lines) {
@@ -48,10 +50,10 @@ func UpsertCodexEngramBlock(content, engramCmd string) string {
 
 	base := strings.TrimSpace(strings.Join(kept, "\n"))
 	if base == "" {
-		return codexEngramBlock + "\n"
+		return codexSddMemoryBlock + "\n"
 	}
 
-	return base + "\n\n" + codexEngramBlock + "\n"
+	return base + "\n\n" + codexSddMemoryBlock + "\n"
 }
 
 // UpsertTopLevelTOMLString inserts or replaces a top-level key = "value" pair
@@ -59,7 +61,7 @@ func UpsertCodexEngramBlock(content, engramCmd string) string {
 // remains a top-level (non-table) setting. Existing occurrences of the key are
 // removed before inserting the new value (idempotent).
 //
-// Ported from engram/internal/setup/setup.go.
+// Ported from sdd-memory/internal/setup/setup.go.
 func UpsertTopLevelTOMLString(content, key, value string) string {
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	lines := strings.Split(content, "\n")

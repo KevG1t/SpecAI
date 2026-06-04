@@ -194,7 +194,7 @@ func TestSelfUpdate_UpdateAvailable_CallsUpgradeAndReExec(t *testing.T) {
 		t.Errorf("reExecCalled = %d, want 1", stubs.reExecCalled)
 	}
 
-	// Verify GENTLE_AI_SELF_UPDATE_DONE=1 is in the re-exec env.
+	// Verify SPECAI_AI_SELF_UPDATE_DONE=1 is in the re-exec env.
 	found := false
 	for _, e := range stubs.reExecEnv {
 		if e == envSelfUpdateDone+"=1" {
@@ -394,7 +394,7 @@ func TestSelfUpdate_BrewInstallMethod_PassedToUpgradeExecutor(t *testing.T) {
 	}
 }
 
-// TestSelfUpdate_ConfirmUpdate_UserAccepts verifies that when GENTLE_AI_CONFIRM_UPDATE=1
+// TestSelfUpdate_ConfirmUpdate_UserAccepts verifies that when SPECAI_AI_CONFIRM_UPDATE=1
 // and the user accepts, the upgrade runs and re-exec is called.
 func TestSelfUpdate_ConfirmUpdate_UserAccepts(t *testing.T) {
 	unsetEnv(t, envNoSelfUpdate)
@@ -442,7 +442,7 @@ func TestSelfUpdate_ConfirmUpdate_UserAccepts(t *testing.T) {
 	}
 }
 
-// TestSelfUpdate_ConfirmUpdate_UserDeclines verifies that when GENTLE_AI_CONFIRM_UPDATE=1
+// TestSelfUpdate_ConfirmUpdate_UserDeclines verifies that when SPECAI_AI_CONFIRM_UPDATE=1
 // and the user declines, the upgrade is skipped.
 func TestSelfUpdate_ConfirmUpdate_UserDeclines(t *testing.T) {
 	unsetEnv(t, envNoSelfUpdate)
@@ -484,7 +484,7 @@ func TestSelfUpdate_ConfirmUpdate_UserDeclines(t *testing.T) {
 	}
 }
 
-// TestSelfUpdate_ConfirmUpdate_EnvUnset verifies that when GENTLE_AI_CONFIRM_UPDATE is
+// TestSelfUpdate_ConfirmUpdate_EnvUnset verifies that when SPECAI_AI_CONFIRM_UPDATE is
 // not set, the existing auto-apply behaviour is preserved (no prompt shown).
 func TestSelfUpdate_ConfirmUpdate_EnvUnset(t *testing.T) {
 	unsetEnv(t, envNoSelfUpdate)

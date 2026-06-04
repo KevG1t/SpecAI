@@ -33,7 +33,7 @@ func makeResult(name string, status update.UpdateStatus, oldVer, newVer string, 
 	return update.UpdateResult{
 		Tool: update.ToolInfo{
 			Name:          name,
-			Owner:         "Gentleman-Programming",
+			Owner:         "KevG1t",
 			Repo:          name,
 			InstallMethod: method,
 		},
@@ -51,9 +51,9 @@ func makeResult(name string, status update.UpdateStatus, oldVer, newVer string, 
 func TestExecute_NoopWhenNothingIsExecutable(t *testing.T) {
 	results := []update.UpdateResult{
 		makeResult("specai", update.UpToDate, "1.0.0", "1.0.0", update.InstallBinary),
-		makeResult("engram", update.NotInstalled, "", "0.4.0", update.InstallGoInstall),
-		// gga: CheckFailed — should also be omitted from results.
-		makeResult("gga", update.CheckFailed, "", "", update.InstallScript),
+		makeResult("sdd-memory", update.NotInstalled, "", "0.4.0", update.InstallGoInstall),
+		// CheckFailed tool — should also be omitted from results.
+		makeResult("script-tool", update.CheckFailed, "", "", update.InstallScript),
 	}
 
 	report := Execute(context.Background(), results, brewProfile(), t.TempDir(), false)
@@ -112,9 +112,9 @@ func TestExecute_DevBuildOnlyNoBackupCreated(t *testing.T) {
 
 func TestExecute_VersionUnknownIsSurfacedAsSkipped(t *testing.T) {
 	results := []update.UpdateResult{
-		makeResult("engram", update.VersionUnknown, "", "1.2.0", update.InstallBinary),
+		makeResult("sdd-memory", update.VersionUnknown, "", "1.2.0", update.InstallBinary),
 	}
-	results[0].Tool.DetectCmd = []string{"engram", "version"}
+	results[0].Tool.DetectCmd = []string{"sdd-memory", "version"}
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -127,7 +127,7 @@ func TestExecute_VersionUnknownIsSurfacedAsSkipped(t *testing.T) {
 	if report.Results[0].ManualHint == "" {
 		t.Fatal("ManualHint must be populated for version-unknown tools")
 	}
-	if !strings.Contains(report.Results[0].ManualHint, "`engram version`") {
+	if !strings.Contains(report.Results[0].ManualHint, "`sdd-memory version`") {
 		t.Fatalf("ManualHint = %q, want detect command hint", report.Results[0].ManualHint)
 	}
 	if report.BackupID != "" {
@@ -152,7 +152,7 @@ func TestExecute_RegisteredNotMaterializedIsExecutable(t *testing.T) {
 	if err := os.MkdirAll(opencodeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(opencodeDir, "tui.json"), []byte(`{"plugin":["opencode-sdd-engram-manage"]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(opencodeDir, "tui.json"), []byte(`{"plugin":["opencode-sdd-sdd-memory-manage"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	openCodeHomeDir = func() (string, error) { return home, nil }
@@ -171,8 +171,8 @@ func TestExecute_RegisteredNotMaterializedIsExecutable(t *testing.T) {
 		return mockCmd("true")
 	}
 
-	result := makeResult("opencode-sdd-engram-manage", update.RegisteredNotMaterialized, "", "1.2.0", update.InstallOpenCodePlugin)
-	result.Tool.NpmPackage = "opencode-sdd-engram-manage"
+	result := makeResult("opencode-sdd-sdd-memory-manage", update.RegisteredNotMaterialized, "", "1.2.0", update.InstallOpenCodePlugin)
+	result.Tool.NpmPackage = "opencode-sdd-sdd-memory-manage"
 	result.UpdateHint = "Restart or reload OpenCode; check OpenCode logs for package or peer dependency errors."
 
 	report := Execute(context.Background(), []update.UpdateResult{result}, linuxProfile(), home, false)
@@ -197,7 +197,7 @@ func TestRenderUpgradeReport_DryRunManualHintNotCountedAsPending(t *testing.T) {
 	report := UpgradeReport{
 		DryRun: true,
 		Results: []ToolUpgradeResult{
-			{ToolName: "engram", Status: UpgradeSkipped, ManualHint: "source build — upgrade manually"},
+			{ToolName: "sdd-memory", Status: UpgradeSkipped, ManualHint: "source build — upgrade manually"},
 		},
 	}
 
@@ -229,9 +229,9 @@ func TestExecute_BackupBeforeExecution(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -266,9 +266,9 @@ func TestExecuteProgressDoesNotIncludeBackupExclusionDiagnostics(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	var progress bytes.Buffer
 	report := Execute(context.Background(), results, linuxProfile(), home, false, &progress)
@@ -300,9 +300,9 @@ func TestExecute_DryRunNeverExecs(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), true)
 
@@ -332,8 +332,7 @@ func TestExecute_PerToolSuccessAndFailure(t *testing.T) {
 	t.Cleanup(func() { execCommand = origExecCommand })
 
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		// engram go install succeeds, gga curl/download attempt fails — we simulate
-		// the failure by having execCommand return false for "gga" detection.
+		// sdd-memory go install succeeds; simulate second tool failure via execCommand.
 		if name == "go" {
 			return mockCmd("echo", "go install ok")
 		}
@@ -342,9 +341,9 @@ func TestExecute_PerToolSuccessAndFailure(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -352,9 +351,9 @@ func TestExecute_PerToolSuccessAndFailure(t *testing.T) {
 		t.Fatalf("len(Results) = %d, want 1", len(report.Results))
 	}
 
-	// engram should succeed (go install echo'd "ok")
+	// sdd-memory should succeed (go install echo'd "ok")
 	if report.Results[0].Status != UpgradeSucceeded {
-		t.Errorf("engram status = %q, want UpgradeSucceeded", report.Results[0].Status)
+		t.Errorf("sdd-memory status = %q, want UpgradeSucceeded", report.Results[0].Status)
 	}
 }
 
@@ -363,7 +362,7 @@ func TestExecute_PerToolSuccessAndFailure(t *testing.T) {
 // TestExecute_DevBuildIsSkipped verifies the spec requirement:
 // specai with DevBuild status must appear in Results as UpgradeSkipped
 // with a non-empty ManualHint explaining it is a source/dev build.
-// DevBuild tools must NOT be auto-executed, and engram/gga remain eligible.
+// DevBuild tools must NOT be auto-executed, and sdd-memory remains eligible.
 func TestExecute_DevBuildIsSkipped(t *testing.T) {
 	origExecCommand := execCommand
 	t.Cleanup(func() { execCommand = origExecCommand })
@@ -373,9 +372,9 @@ func TestExecute_DevBuildIsSkipped(t *testing.T) {
 
 	results := []update.UpdateResult{
 		makeResult("specai", update.DevBuild, "dev", "1.0.0", update.InstallBinary),
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[1].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[1].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -397,18 +396,18 @@ func TestExecute_DevBuildIsSkipped(t *testing.T) {
 		t.Errorf("specai DevBuild ManualHint must be non-empty")
 	}
 
-	// engram should still be processed as succeeded.
+	// sdd-memory should still be processed as succeeded.
 	found := false
 	for _, r := range report.Results {
-		if r.ToolName == "engram" {
+		if r.ToolName == "sdd-memory" {
 			found = true
 			if r.Status != UpgradeSucceeded {
-				t.Errorf("engram status = %q, want UpgradeSucceeded", r.Status)
+				t.Errorf("sdd-memory status = %q, want UpgradeSucceeded", r.Status)
 			}
 		}
 	}
 	if !found {
-		t.Errorf("engram not found in Results")
+		t.Errorf("sdd-memory not found in Results")
 	}
 }
 
@@ -426,9 +425,9 @@ func TestExecute_FailureDoesNotImplyConfigLoss(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -469,9 +468,9 @@ func TestExecute_DevBuildSurfacedAsSkipped(t *testing.T) {
 
 	results := []update.UpdateResult{
 		makeResult("specai", update.DevBuild, "dev", "1.0.0", update.InstallBinary),
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[1].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[1].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -496,18 +495,18 @@ func TestExecute_DevBuildSurfacedAsSkipped(t *testing.T) {
 		t.Errorf("specai DevBuild ManualHint must be non-empty — should explain dev/source build")
 	}
 
-	// engram (UpdateAvailable) must still be processed normally.
+	// sdd-memory (UpdateAvailable) must still be processed normally.
 	found := false
 	for _, r := range report.Results {
-		if r.ToolName == "engram" {
+		if r.ToolName == "sdd-memory" {
 			found = true
 			if r.Status != UpgradeSucceeded {
-				t.Errorf("engram status = %q, want UpgradeSucceeded", r.Status)
+				t.Errorf("sdd-memory status = %q, want UpgradeSucceeded", r.Status)
 			}
 		}
 	}
 	if !found {
-		t.Errorf("engram not found in Results")
+		t.Errorf("sdd-memory not found in Results")
 	}
 }
 
@@ -533,7 +532,7 @@ func TestExecute_ManualFallbackSurfacedAsSkippedNotFailed(t *testing.T) {
 	results := []update.UpdateResult{
 		makeResult("specai", update.UpdateAvailable, "1.0.0", "1.5.0", update.InstallBinary),
 	}
-	results[0].UpdateHint = "See https://github.com/Gentleman-Programming/specai/releases"
+	results[0].UpdateHint = "See https://github.com/kevg1t/specai/releases"
 
 	report := Execute(context.Background(), results, windowsProfile, t.TempDir(), false)
 
@@ -597,9 +596,9 @@ func TestExecute_ConfigNotMutatedDuringUpgrade(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	profile := linuxProfile()
 
@@ -611,7 +610,7 @@ func TestExecute_ConfigNotMutatedDuringUpgrade(t *testing.T) {
 		t.Fatalf("len(Results) = %d, want 1", len(report.Results))
 	}
 	if report.Results[0].Status != UpgradeSucceeded {
-		t.Errorf("engram status = %q, want UpgradeSucceeded", report.Results[0].Status)
+		t.Errorf("sdd-memory status = %q, want UpgradeSucceeded", report.Results[0].Status)
 	}
 
 	// Verify config files are byte-identical after upgrade.
@@ -631,7 +630,7 @@ func TestExecute_ConfigNotMutatedDuringUpgrade(t *testing.T) {
 func TestToolUpgradeResult_ErrorWrapping(t *testing.T) {
 	sentinel := errors.New("sentinel error")
 	r := ToolUpgradeResult{
-		ToolName: "engram",
+		ToolName: "sdd-memory",
 		Status:   UpgradeFailed,
 		Err:      sentinel,
 	}
@@ -644,16 +643,16 @@ func TestToolUpgradeResult_ErrorWrapping(t *testing.T) {
 // --- Upgrade Backup Hardening Tests ---
 
 // TestConfigPathsForBackup_CoversManagedAgentPaths verifies that upgrade
-// backups include Gentle AI-managed files for installed agents, without treating
+// backups include SpecAI-managed files for installed agents, without treating
 // every file in an agent config directory as backup-owned.
 func TestConfigPathsForBackup_CoversManagedAgentPaths(t *testing.T) {
 	homeDir := t.TempDir()
 
 	managedFiles := map[string]string{
-		".claude/CLAUDE.md":             "# Claude",
-		".config/opencode/AGENTS.md":    "# OpenCode",
+		".claude/CLAUDE.md":              "# Claude",
+		".config/opencode/AGENTS.md":     "# OpenCode",
 		".config/opencode/opencode.json": `{"model":"claude"}`,
-		".gemini/GEMINI.md":                "# Gemini",
+		".gemini/GEMINI.md":              "# Gemini",
 		".cursor/rules/specai.mdc":       "# Cursor rules",
 	}
 	unmanagedFile := filepath.Join(homeDir, ".claude", "conversation-transcript.md")
@@ -733,9 +732,9 @@ func TestExecute_ForcedSnapshotFailureSurfacesWarningEndToEnd(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -802,9 +801,9 @@ func TestExecute_UpgradeBackupManifestHasUpgradeMetadata(t *testing.T) {
 	}
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), homeDir, false)
 
@@ -851,9 +850,9 @@ func TestExecute_SuccessfulSnapshotHasNoWarning(t *testing.T) {
 	// snapshotCreator is intentionally left at its real default.
 
 	results := []update.UpdateResult{
-		makeResult("engram", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
+		makeResult("sdd-memory", update.UpdateAvailable, "0.3.0", "0.4.0", update.InstallGoInstall),
 	}
-	results[0].Tool.GoImportPath = "github.com/Gentleman-Programming/engram/cmd/engram"
+	results[0].Tool.GoImportPath = "github.com/KevG1t/sdd-memory/cmd/sdd-memory"
 
 	report := Execute(context.Background(), results, linuxProfile(), t.TempDir(), false)
 
@@ -898,46 +897,6 @@ func TestConfigPathsForBackup_CoversRegistryAgentsNotInOldList(t *testing.T) {
 
 	if _, ok := pathSet[codexFile]; !ok {
 		t.Errorf("configPathsForBackup() missing codex managed file %q — must cover registry agents, not just old hardcoded 4; got paths: %v", codexFile, paths)
-	}
-}
-
-// TestConfigPathsForBackup_GGAExtrasAreIncluded verifies that GGA-specific
-// paths (config file, runtime lib dir) are included in the backup paths even
-// though GGA is not an agent in the adapter registry. These are approved
-// non-agent extras that must be preserved outside the canonical managed set.
-func TestConfigPathsForBackup_GGAExtrasAreIncluded(t *testing.T) {
-	homeDir := t.TempDir()
-
-	// Create GGA config file at ~/.config/gga/config
-	ggaConfigFile := filepath.Join(homeDir, ".config", "gga", "config")
-	if err := os.MkdirAll(filepath.Dir(ggaConfigFile), 0o755); err != nil {
-		t.Fatalf("MkdirAll gga config: %v", err)
-	}
-	if err := os.WriteFile(ggaConfigFile, []byte("gga-config"), 0o644); err != nil {
-		t.Fatalf("WriteFile gga config: %v", err)
-	}
-
-	// Create GGA runtime lib file at ~/.local/share/gga/lib/pr_mode.sh
-	ggaLibFile := filepath.Join(homeDir, ".local", "share", "gga", "lib", "pr_mode.sh")
-	if err := os.MkdirAll(filepath.Dir(ggaLibFile), 0o755); err != nil {
-		t.Fatalf("MkdirAll gga lib: %v", err)
-	}
-	if err := os.WriteFile(ggaLibFile, []byte("#!/bin/sh"), 0o755); err != nil {
-		t.Fatalf("WriteFile gga lib: %v", err)
-	}
-
-	paths := configPathsForBackup(homeDir)
-
-	pathSet := make(map[string]struct{}, len(paths))
-	for _, p := range paths {
-		pathSet[p] = struct{}{}
-	}
-
-	if _, ok := pathSet[ggaConfigFile]; !ok {
-		t.Errorf("configPathsForBackup() missing GGA config file %q — GGA extras must remain in backup; got paths: %v", ggaConfigFile, paths)
-	}
-	if _, ok := pathSet[ggaLibFile]; !ok {
-		t.Errorf("configPathsForBackup() missing GGA lib file %q — GGA extras must remain in backup; got paths: %v", ggaLibFile, paths)
 	}
 }
 
@@ -1117,7 +1076,7 @@ func TestEnumerateFilesInDir_NilExcludesWalksEverything(t *testing.T) {
 
 // TestConfigPathsForBackup_ExcludesRuntimeDirs verifies that upgrade backup
 // target selection ignores runtime directories across agents. Upgrade backups
-// must stay limited to Gentle AI-managed files, not conversations or caches.
+// must stay limited to SpecAI-managed files, not conversations or caches.
 func TestConfigPathsForBackup_ExcludesPiRuntimeFiles(t *testing.T) {
 	homeDir := t.TempDir()
 
@@ -1266,7 +1225,7 @@ func TestExecute_SkippedUpgradeDoesNotRenderFailureMarker(t *testing.T) {
 	results := []update.UpdateResult{
 		makeResult("specai", update.UpdateAvailable, "1.0.0", "1.5.0", update.InstallBinary),
 	}
-	results[0].UpdateHint = "See https://github.com/Gentleman-Programming/specai/releases"
+	results[0].UpdateHint = "See https://github.com/kevg1t/specai/releases"
 
 	// Capture the progress output written to the progress writer.
 	var progressBuf bytes.Buffer
@@ -1538,4 +1497,3 @@ func mockCmd(name string, args ...string) *exec.Cmd {
 	}
 	return exec.Command(name, args...)
 }
-

@@ -96,10 +96,10 @@ func hasPiAgentInInstallPlan(plan planner.ResolvedPlan, selection model.Selectio
 
 func piInstallCommands() []string {
 	return []string{
-		"pi install npm:gentle-pi",
-		"pi install npm:gentle-engram",
+		"pi install npm:specai-pi",
+		"pi install npm:sdd-memory-kevg1t",
 		"pi install npm:pi-mcp-adapter",
-		fmt.Sprintf("npm exec --yes --package gentle-engram@%s -- pi-engram init", versions.GentleEngram),
+		fmt.Sprintf("npm exec --yes --package sdd-memory-kevg1t@%s -- pi-sdd-memory init", versions.SDDMemory),
 		"pi install npm:pi-subagents",
 		"pi install npm:pi-intercom",
 		"pi install npm:@juicesharp/rpiv-ask-user-question",
@@ -114,7 +114,7 @@ func renderPiInstallPlan() string {
 	var b strings.Builder
 	b.WriteString(styles.SuccessStyle.Render("Pi agent support will be installed."))
 	b.WriteString("\n")
-	b.WriteString(styles.SubtextStyle.Render("  • Engram component will be installed/provisioned."))
+	b.WriteString(styles.SubtextStyle.Render("  • SddMemory component will be installed/provisioned."))
 	b.WriteString("\n")
 	b.WriteString(styles.SubtextStyle.Render("  • Pi package stack will be installed:"))
 	b.WriteString("\n")

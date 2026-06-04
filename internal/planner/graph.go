@@ -35,16 +35,14 @@ func (g Graph) DependenciesOf(component model.ComponentID) []model.ComponentID {
 
 func MVPGraph() Graph {
 	return NewGraph(map[model.ComponentID][]model.ComponentID{
-		model.ComponentEngram:             nil,
-		model.ComponentSDD:                {model.ComponentEngram},
-		model.ComponentSkills:             {model.ComponentSDD},
-		model.ComponentContext7:           nil,
-		model.ComponentPersona:            nil,
-		model.ComponentPermission:         nil,
-		model.ComponentGGA:                nil,
-		model.ComponentTheme:              nil,
-		model.ComponentClaudeTheme:        nil,
-		model.ComponentOpenCodeGentleLogo: nil,
+		model.ComponentSddMemory:   nil,
+		model.ComponentSDD:         {model.ComponentSddMemory},
+		model.ComponentSkills:      {model.ComponentSDD},
+		model.ComponentContext7:    nil,
+		model.ComponentPersona:     nil,
+		model.ComponentPermission:  nil,
+		model.ComponentTheme:       nil,
+		model.ComponentClaudeTheme: nil,
 	})
 }
 
@@ -53,13 +51,13 @@ func MVPGraph() Graph {
 // dependencies — selecting one does not force-install the other.
 //
 // This exists because StrategyFileReplace agents (OpenCode, Cursor, Gemini,
-// Codex) have Persona write the base file and SDD/Engram append to it. If
+// Codex) have Persona write the base file and SDD/SddMemory append to it. If
 // SDD ran before Persona, Persona would overwrite the SDD sections.
 //
 // INVARIANT: the `first` element in every pair must have nil deps in MVPGraph.
 // See applySoftOrdering() safety contract in order.go.
 var softOrderingPairs = [][2]model.ComponentID{
-	{model.ComponentPersona, model.ComponentEngram},
+	{model.ComponentPersona, model.ComponentSddMemory},
 	{model.ComponentPersona, model.ComponentSDD},
 }
 

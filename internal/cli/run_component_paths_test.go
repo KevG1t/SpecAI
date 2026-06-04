@@ -81,7 +81,7 @@ func TestComponentPathsSDDIncludesSkillsAndSharedConventions(t *testing.T) {
 	// Verify all four shared convention files are reported.
 	for _, sharedFile := range []string{
 		"persistence-contract.md",
-		"engram-convention.md",
+		"sdd-memory-convention.md",
 		"openspec-convention.md",
 		"sdd-phase-common.md",
 		"skill-resolver.md",
@@ -162,14 +162,14 @@ func TestComponentPathsSDDKimiIncludesAgentFilesAndGlobalSkills(t *testing.T) {
 
 	for _, want := range []string{
 		filepath.Join(home, ".kimi", "KIMI.md"),
-		filepath.Join(home, ".kimi", "agents", "gentleman.yaml"),
+		filepath.Join(home, ".kimi", "agents", "modism.yaml"),
 		filepath.Join(home, ".kimi", "agents", "sdd-init.yaml"),
 		filepath.Join(home, ".kimi", "agents", "sdd-propose.md"),
 		filepath.Join(home, ".kimi", "agents", "sdd-apply.yaml"),
 		filepath.Join(home, ".kimi", "agents", "sdd-verify.md"),
 		filepath.Join(home, ".kimi", "agents", "sdd-archive.yaml"),
 		filepath.Join(home, ".config", "agents", "skills", "sdd-init", "SKILL.md"),
-		filepath.Join(home, ".config", "agents", "skills", "_shared", "engram-convention.md"),
+		filepath.Join(home, ".config", "agents", "skills", "_shared", "sdd-memory-convention.md"),
 	} {
 		if !containsPath(paths, want) {
 			t.Fatalf("componentPaths(sdd,kimi) missing %q\npaths=%v", want, paths)
@@ -189,43 +189,43 @@ func TestComponentPathsContext7KimiIncludesMCPConfig(t *testing.T) {
 	}
 }
 
-// TestComponentPathsEngramCodexIncludesConfigTOML verifies that componentPaths
-// for ComponentEngram + Codex reports ~/.codex/config.toml as a backup target.
-func TestComponentPathsEngramCodexIncludesConfigTOML(t *testing.T) {
+// TestComponentPathsSddMemoryCodexIncludesConfigTOML verifies that componentPaths
+// for ComponentSddMemory + Codex reports ~/.codex/config.toml as a backup target.
+func TestComponentPathsSddMemoryCodexIncludesConfigTOML(t *testing.T) {
 	home := t.TempDir()
 	adapters := resolveAdapters([]model.AgentID{model.AgentCodex})
 
-	paths := componentPaths(home, model.Selection{}, adapters, model.ComponentEngram)
+	paths := componentPaths(home, model.Selection{}, adapters, model.ComponentSddMemory)
 
 	want := filepath.Join(home, ".codex", "config.toml")
 	if !containsPath(paths, want) {
-		t.Fatalf("componentPaths(engram,codex) missing %q\npaths=%v", want, paths)
+		t.Fatalf("componentPaths(sdd-memory,codex) missing %q\npaths=%v", want, paths)
 	}
 }
 
-// TestComponentPathsEngramOpenClawUsesCanonicalSettingsPath asserts that the
-// engram component path for OpenClaw always resolves to the canonical
+// TestComponentPathsSddMemoryOpenClawUsesCanonicalSettingsPath asserts that the
+// sdd-memory component path for OpenClaw always resolves to the canonical
 // ~/.openclaw/openclaw.json and never to a workspace-scoped copy.
 //
 // This is a regression test for issue #522: the verifier used to call
 // SettingsPath(workspaceDir) which produced
 // <workspace>/.openclaw/openclaw.json, causing post-sync verification to
 // fail even when the file at the canonical path existed.
-func TestComponentPathsEngramOpenClawUsesCanonicalSettingsPath(t *testing.T) {
+func TestComponentPathsSddMemoryOpenClawUsesCanonicalSettingsPath(t *testing.T) {
 	home := t.TempDir()
 	workspace := t.TempDir()
 	adapters := resolveAdapters([]model.AgentID{model.AgentOpenClaw})
 
-	paths := componentPathsWithWorkspace(home, workspace, model.Selection{}, adapters, model.ComponentEngram)
+	paths := componentPathsWithWorkspace(home, workspace, model.Selection{}, adapters, model.ComponentSddMemory)
 
 	canonical := filepath.Join(home, ".openclaw", "openclaw.json")
 	if !containsPath(paths, canonical) {
-		t.Fatalf("componentPathsWithWorkspace(engram,openclaw) missing canonical path %q\npaths=%v", canonical, paths)
+		t.Fatalf("componentPathsWithWorkspace(sdd-memory,openclaw) missing canonical path %q\npaths=%v", canonical, paths)
 	}
 
 	wrongPath := filepath.Join(workspace, ".openclaw", "openclaw.json")
 	if containsPath(paths, wrongPath) {
-		t.Fatalf("componentPathsWithWorkspace(engram,openclaw) must not include workspace-scoped path %q\npaths=%v", wrongPath, paths)
+		t.Fatalf("componentPathsWithWorkspace(sdd-memory,openclaw) must not include workspace-scoped path %q\npaths=%v", wrongPath, paths)
 	}
 }
 

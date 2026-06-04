@@ -20,7 +20,7 @@ const (
 	AgentTrae          AgentID = "trae-ide"
 )
 
-// SupportTier indicates how fully an agent supports the Gentleman AI ecosystem.
+// SupportTier indicates how fully an agent supports the SpecAI ecosystem.
 // All current agents receive the full SDD orchestrator, skill files, MCP config,
 // and system prompt injection. The tier is kept as metadata for display purposes.
 type SupportTier string
@@ -34,16 +34,14 @@ const (
 type ComponentID string
 
 const (
-	ComponentEngram             ComponentID = "engram"
-	ComponentSDD                ComponentID = "sdd"
-	ComponentSkills             ComponentID = "skills"
-	ComponentContext7           ComponentID = "context7"
-	ComponentPersona            ComponentID = "persona"
-	ComponentPermission         ComponentID = "permissions"
-	ComponentGGA                ComponentID = "gga"
-	ComponentTheme              ComponentID = "theme"
-	ComponentClaudeTheme        ComponentID = "claude-theme"
-	ComponentOpenCodeGentleLogo ComponentID = "opencode-gentle-logo"
+	ComponentSddMemory   ComponentID = "sdd-memory"
+	ComponentSDD         ComponentID = "sdd"
+	ComponentSkills      ComponentID = "skills"
+	ComponentContext7    ComponentID = "context7"
+	ComponentPersona     ComponentID = "persona"
+	ComponentPermission  ComponentID = "permissions"
+	ComponentTheme       ComponentID = "theme"
+	ComponentClaudeTheme ComponentID = "claude-theme"
 )
 
 type UninstallMode string
@@ -55,11 +53,11 @@ const (
 	UninstallModeCleanInstall UninstallMode = "clean-install"
 )
 
-type EngramUninstallScope string
+type SddMemoryUninstallScope string
 
 const (
-	EngramUninstallScopeGlobal  EngramUninstallScope = "global"
-	EngramUninstallScopeProject EngramUninstallScope = "project"
+	SddMemoryUninstallScopeGlobal  SddMemoryUninstallScope = "global"
+	SddMemoryUninstallScopeProject SddMemoryUninstallScope = "project"
 )
 
 type SkillID string
@@ -91,11 +89,29 @@ const (
 type PersonaID string
 
 const (
-	PersonaGentleman                 PersonaID = "gentleman"
-	PersonaGentlemanNeutralArtifacts PersonaID = "gentleman-neutral-artifacts"
-	PersonaNeutral                   PersonaID = "neutral"
-	PersonaCustom                    PersonaID = "custom"
+	PersonaModism                 PersonaID = "modism"
+	PersonaModismNeutralArtifacts PersonaID = "modism-neutral-artifacts"
+	PersonaNeutral                PersonaID = "neutral"
+	PersonaCustom                 PersonaID = "custom"
 )
+
+// PersonaDef describes a persona entry in the registry.
+// The Personas slice is the canonical ordered source of truth.
+// PersonaCustom MUST remain last — it is the "no injection" sentinel.
+type PersonaDef struct {
+	ID          PersonaID
+	DisplayName string
+	Description string
+}
+
+// Personas is the ordered registry of available personas.
+// Append here to add a new persona — no other code changes required.
+var Personas = []PersonaDef{
+	{PersonaModism, "modism", "Teaching-first guidance with direct senior-architect tone"},
+	{PersonaModismNeutralArtifacts, "modism-neutral-artifacts", "Modism conversation with English technical artifacts"},
+	{PersonaNeutral, "neutral", "Managed neutral persona with the same guidance and less regional tone"},
+	{PersonaCustom, "custom", "Keep your existing persona; SpecAI does not inject a persona"},
+}
 
 // SystemPromptStrategy defines how an agent's system prompt file is managed.
 type SystemPromptStrategy int
@@ -136,7 +152,7 @@ const (
 type PresetID string
 
 const (
-	PresetFullGentleman PresetID = "full-gentleman"
+	PresetFullModism    PresetID = "full-modism"
 	PresetEcosystemOnly PresetID = "ecosystem-only"
 	PresetMinimal       PresetID = "minimal"
 	PresetCustom        PresetID = "custom"
@@ -164,12 +180,6 @@ const (
 )
 
 type OpenCodeCommunityPluginID string
-
-const (
-	OpenCodePluginSubAgentStatusline OpenCodeCommunityPluginID = "sub-agent-statusline"
-	OpenCodePluginSDDEngramManage    OpenCodeCommunityPluginID = "sdd-engram-plugin"
-	OpenCodePluginGentleLogo         OpenCodeCommunityPluginID = "gentle-logo"
-)
 
 // Profile represents a named SDD orchestrator configuration with model assignments.
 // The default profile (Name="" or Name="default") maps to the base sdd-orchestrator.

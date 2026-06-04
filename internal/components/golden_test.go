@@ -19,10 +19,10 @@ import (
 	"github.com/KevG1t/specai/internal/agents/vscode"
 	"github.com/KevG1t/specai/internal/agents/windsurf"
 	"github.com/KevG1t/specai/internal/assets"
-	"github.com/KevG1t/specai/internal/components/engram"
 	"github.com/KevG1t/specai/internal/components/mcp"
 	"github.com/KevG1t/specai/internal/components/persona"
 	"github.com/KevG1t/specai/internal/components/sdd"
+	"github.com/KevG1t/specai/internal/components/sddmemory"
 	"github.com/KevG1t/specai/internal/components/skills"
 	"github.com/KevG1t/specai/internal/model"
 )
@@ -50,7 +50,7 @@ func TestGoldenConfigs(t *testing.T) {
 	}
 
 	presets := []presetMapping{
-		{Preset: "full-gentleman", Skills: toStringSlice(skills.SkillsForPreset("full-gentleman"))},
+		{Preset: "full-modism", Skills: toStringSlice(skills.SkillsForPreset("full-modism"))},
 		{Preset: "ecosystem-only", Skills: toStringSlice(skills.SkillsForPreset("ecosystem-only"))},
 		{Preset: "minimal", Skills: toStringSlice(skills.SkillsForPreset("minimal"))},
 	}
@@ -200,7 +200,7 @@ func TestGoldenSDD_Cursor(t *testing.T) {
 		t.Fatalf("sdd.Inject(cursor) changed = false")
 	}
 
-	// Cursor writes SDD orchestrator to ~/.cursor/rules/gentle-ai.mdc.
+	// Cursor writes SDD orchestrator to ~/.cursor/rules/specai.mdc.
 	rulesFile := readTestFile(t, filepath.Join(home, ".cursor", "rules", "specai.mdc"))
 	assertGolden(t, "sdd-cursor-rules.golden", rulesFile)
 
@@ -385,7 +385,7 @@ func TestGoldenSDD_Kiro(t *testing.T) {
 		t.Fatalf("sdd.Inject(kiro) changed = false")
 	}
 
-	// Kiro writes SDD orchestrator to ~/.kiro/steering/gentle-ai.md
+	// Kiro writes SDD orchestrator to ~/.kiro/steering/specai.md
 	// (StrategySteeringFile). Use the adapter to resolve the platform-specific path.
 	promptPath := adapter.SystemPromptFile(home)
 	instructionsFile := readTestFile(t, promptPath)
@@ -437,25 +437,25 @@ func TestGoldenSDD_Kiro(t *testing.T) {
 // Persona Injector golden tests
 // ---------------------------------------------------------------------------
 
-func TestGoldenPersona_Claude_Gentleman(t *testing.T) {
+func TestGoldenPersona_Claude_SpecAI(t *testing.T) {
 	home := t.TempDir()
 
-	result, err := persona.Inject(home, claudeAdapter(), model.PersonaGentleman)
+	result, err := persona.Inject(home, claudeAdapter(), model.PersonaModism)
 	if err != nil {
-		t.Fatalf("persona.Inject(claude, gentleman) error = %v", err)
+		t.Fatalf("persona.Inject(claude, specai) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("persona.Inject(claude, gentleman) changed = false")
+		t.Fatalf("persona.Inject(claude, specai) changed = false")
 	}
 
 	claudeMD := readTestFile(t, filepath.Join(home, ".claude", "CLAUDE.md"))
-	assertGolden(t, "persona-claude-gentleman.golden", claudeMD)
+	assertGolden(t, "persona-claude-specai.golden", claudeMD)
 
-	outputStyle := readTestFile(t, filepath.Join(home, ".claude", "output-styles", "gentleman.md"))
-	assertGolden(t, "persona-claude-gentleman-outputstyle.golden", outputStyle)
+	outputStyle := readTestFile(t, filepath.Join(home, ".claude", "output-styles", "modism.md"))
+	assertGolden(t, "persona-claude-specai-outputstyle.golden", outputStyle)
 
 	settingsJSON := readTestFile(t, filepath.Join(home, ".claude", "settings.json"))
-	assertGolden(t, "persona-claude-gentleman-settings.golden", settingsJSON)
+	assertGolden(t, "persona-claude-specai-settings.golden", settingsJSON)
 }
 
 func TestGoldenPersona_Claude_Neutral(t *testing.T) {
@@ -473,19 +473,19 @@ func TestGoldenPersona_Claude_Neutral(t *testing.T) {
 	assertGolden(t, "persona-claude-neutral.golden", claudeMD)
 }
 
-func TestGoldenPersona_OpenCode_Gentleman(t *testing.T) {
+func TestGoldenPersona_OpenCode_SpecAI(t *testing.T) {
 	home := t.TempDir()
 
-	result, err := persona.Inject(home, opencodeAdapter(), model.PersonaGentleman)
+	result, err := persona.Inject(home, opencodeAdapter(), model.PersonaModism)
 	if err != nil {
-		t.Fatalf("persona.Inject(opencode, gentleman) error = %v", err)
+		t.Fatalf("persona.Inject(opencode, specai) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("persona.Inject(opencode, gentleman) changed = false")
+		t.Fatalf("persona.Inject(opencode, specai) changed = false")
 	}
 
 	agentsMD := readTestFile(t, filepath.Join(home, ".config", "opencode", "AGENTS.md"))
-	assertGolden(t, "persona-opencode-gentleman.golden", agentsMD)
+	assertGolden(t, "persona-opencode-specai.golden", agentsMD)
 }
 
 func TestGoldenPersona_OpenCode_Neutral(t *testing.T) {
@@ -535,120 +535,120 @@ func TestGoldenPersona_OpenCode_Custom(t *testing.T) {
 	}
 }
 
-func TestGoldenPersona_Windsurf_Gentleman(t *testing.T) {
+func TestGoldenPersona_Windsurf_SpecAI(t *testing.T) {
 	home := t.TempDir()
 
-	result, err := persona.Inject(home, windsurfAdapter(), model.PersonaGentleman)
+	result, err := persona.Inject(home, windsurfAdapter(), model.PersonaModism)
 	if err != nil {
-		t.Fatalf("persona.Inject(windsurf, gentleman) error = %v", err)
+		t.Fatalf("persona.Inject(windsurf, specai) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("persona.Inject(windsurf, gentleman) changed = false")
+		t.Fatalf("persona.Inject(windsurf, specai) changed = false")
 	}
 
 	globalRules := readTestFile(t, filepath.Join(home, ".codeium", "windsurf", "memories", "global_rules.md"))
-	assertGolden(t, "persona-windsurf-gentleman.golden", globalRules)
+	assertGolden(t, "persona-windsurf-specai.golden", globalRules)
 }
 
-func TestGoldenPersona_Kiro_Gentleman(t *testing.T) {
+func TestGoldenPersona_Kiro_SpecAI(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
 
 	adapter := kiroAdapter()
-	result, err := persona.Inject(home, adapter, model.PersonaGentleman)
+	result, err := persona.Inject(home, adapter, model.PersonaModism)
 	if err != nil {
-		t.Fatalf("persona.Inject(kiro, gentleman) error = %v", err)
+		t.Fatalf("persona.Inject(kiro, specai) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("persona.Inject(kiro, gentleman) changed = false")
+		t.Fatalf("persona.Inject(kiro, specai) changed = false")
 	}
 
 	promptPath := adapter.SystemPromptFile(home)
 	instructionsFile := readTestFile(t, promptPath)
-	assertGolden(t, "persona-kiro-gentleman.golden", instructionsFile)
+	assertGolden(t, "persona-kiro-specai.golden", instructionsFile)
 }
 
 // ---------------------------------------------------------------------------
-// Engram Injector golden tests
+// SddMemory Injector golden tests
 // ---------------------------------------------------------------------------
 
-func TestGoldenEngram_Claude(t *testing.T) {
+func TestGoldenSddMemory_Claude(t *testing.T) {
 	home := t.TempDir()
 
-	engram.SetLookPathForTest(t, "/opt/homebrew/bin/engram", "")
+	sddmemory.SetLookPathForTest(t, "/opt/homebrew/bin/sdd-memory", "")
 
-	result, err := engram.Inject(home, claudeAdapter())
+	result, err := sddmemory.Inject(home, claudeAdapter())
 	if err != nil {
-		t.Fatalf("engram.Inject(claude) error = %v", err)
+		t.Fatalf("sddmemory.Inject(claude) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("engram.Inject(claude) changed = false")
+		t.Fatalf("sddmemory.Inject(claude) changed = false")
 	}
 
 	// MCP server JSON config.
-	mcpJSON := readTestFile(t, filepath.Join(home, ".claude", "mcp", "engram.json"))
-	assertGolden(t, "engram-claude-mcp.golden", mcpJSON)
+	mcpJSON := readTestFile(t, filepath.Join(home, ".claude", "mcp", "sdd-memory.json"))
+	assertGolden(t, "sdd-memory-claude-mcp.golden", mcpJSON)
 
-	// CLAUDE.md with engram-protocol section.
+	// CLAUDE.md with sdd-memory-protocol section.
 	claudeMD := readTestFile(t, filepath.Join(home, ".claude", "CLAUDE.md"))
-	assertGolden(t, "engram-claude-claudemd.golden", claudeMD)
+	assertGolden(t, "sdd-memory-claude-claudemd.golden", claudeMD)
 }
 
-func TestGoldenEngram_OpenCode(t *testing.T) {
+func TestGoldenSddMemory_OpenCode(t *testing.T) {
 	home := t.TempDir()
 
-	// Mock engramLookPath so the resolved command matches the golden file regardless
-	// of whether engram is installed at /opt/homebrew/bin/engram on the current machine.
-	engram.SetLookPathForTest(t, "/opt/homebrew/bin/engram", "")
+	// Mock sddMemoryLookPath so the resolved command matches the golden file regardless
+	// of whether sdd-memory is installed at /opt/homebrew/bin/sdd-memory on the current machine.
+	sddmemory.SetLookPathForTest(t, "/opt/homebrew/bin/sdd-memory", "")
 
-	result, err := engram.Inject(home, opencodeAdapter())
+	result, err := sddmemory.Inject(home, opencodeAdapter())
 	if err != nil {
-		t.Fatalf("engram.Inject(opencode) error = %v", err)
+		t.Fatalf("sddmemory.Inject(opencode) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("engram.Inject(opencode) changed = false")
+		t.Fatalf("sddmemory.Inject(opencode) changed = false")
 	}
 
 	configJSON := readTestFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"))
-	assertGolden(t, "engram-opencode-settings.golden", configJSON)
+	assertGolden(t, "sdd-memory-opencode-settings.golden", configJSON)
 }
 
-func TestGoldenEngram_Windsurf(t *testing.T) {
+func TestGoldenSddMemory_Windsurf(t *testing.T) {
 	home := t.TempDir()
 
-	engram.SetLookPathForTest(t, "/opt/homebrew/bin/engram", "")
+	sddmemory.SetLookPathForTest(t, "/opt/homebrew/bin/sdd-memory", "")
 
-	result, err := engram.Inject(home, windsurfAdapter())
+	result, err := sddmemory.Inject(home, windsurfAdapter())
 	if err != nil {
-		t.Fatalf("engram.Inject(windsurf) error = %v", err)
+		t.Fatalf("sddmemory.Inject(windsurf) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("engram.Inject(windsurf) changed = false")
+		t.Fatalf("sddmemory.Inject(windsurf) changed = false")
 	}
 
 	mcpJSON := readTestFile(t, filepath.Join(home, ".codeium", "windsurf", "mcp_config.json"))
-	assertGolden(t, "engram-windsurf-mcp.golden", mcpJSON)
+	assertGolden(t, "sdd-memory-windsurf-mcp.golden", mcpJSON)
 }
 
-func TestGoldenEngram_Kiro(t *testing.T) {
+func TestGoldenSddMemory_Kiro(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
 
-	engram.SetLookPathForTest(t, "/opt/homebrew/bin/engram", "")
+	sddmemory.SetLookPathForTest(t, "/opt/homebrew/bin/sdd-memory", "")
 
-	result, err := engram.Inject(home, kiroAdapter())
+	result, err := sddmemory.Inject(home, kiroAdapter())
 	if err != nil {
-		t.Fatalf("engram.Inject(kiro) error = %v", err)
+		t.Fatalf("sddmemory.Inject(kiro) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("engram.Inject(kiro) changed = false")
+		t.Fatalf("sddmemory.Inject(kiro) changed = false")
 	}
 
 	// Kiro reads MCP from ~/.kiro/settings/mcp.json (not from the app config dir)
 	mcpJSON := readTestFile(t, filepath.Join(home, ".kiro", "settings", "mcp.json"))
-	assertGolden(t, "engram-kiro-mcp.golden", mcpJSON)
+	assertGolden(t, "sdd-memory-kiro-mcp.golden", mcpJSON)
 }
 
 // ---------------------------------------------------------------------------
@@ -743,17 +743,17 @@ func TestGoldenSkills_Kiro(t *testing.T) {
 func TestGoldenCombined_Claude(t *testing.T) {
 	home := t.TempDir()
 
-	engram.SetLookPathForTest(t, "/opt/homebrew/bin/engram", "")
+	sddmemory.SetLookPathForTest(t, "/opt/homebrew/bin/sdd-memory", "")
 
-	// Inject persona first, then SDD, then Engram — all write sections into CLAUDE.md.
-	if _, err := persona.Inject(home, claudeAdapter(), model.PersonaGentleman); err != nil {
+	// Inject persona first, then SDD, then SddMemory — all write sections into CLAUDE.md.
+	if _, err := persona.Inject(home, claudeAdapter(), model.PersonaModism); err != nil {
 		t.Fatalf("persona.Inject error = %v", err)
 	}
 	if _, err := sdd.Inject(home, claudeAdapter(), ""); err != nil {
 		t.Fatalf("sdd.Inject error = %v", err)
 	}
-	if _, err := engram.Inject(home, claudeAdapter()); err != nil {
-		t.Fatalf("engram.Inject error = %v", err)
+	if _, err := sddmemory.Inject(home, claudeAdapter()); err != nil {
+		t.Fatalf("sddmemory.Inject error = %v", err)
 	}
 
 	claudeMD := readTestFile(t, filepath.Join(home, ".claude", "CLAUDE.md"))
@@ -764,21 +764,21 @@ func TestGoldenCombined_Windsurf(t *testing.T) {
 	home := t.TempDir()
 	workspace := t.TempDir()
 
-	engram.SetLookPathForTest(t, "/opt/homebrew/bin/engram", "")
+	sddmemory.SetLookPathForTest(t, "/opt/homebrew/bin/sdd-memory", "")
 	if err := os.WriteFile(filepath.Join(workspace, "go.mod"), []byte("module test\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod marker: %v", err)
 	}
 
 	// Windsurf: persona appends to global_rules.md; SDD appends SDD orchestrator
 	// to the same file and copies skills + workflow to workspace.
-	if _, err := persona.Inject(home, windsurfAdapter(), model.PersonaGentleman); err != nil {
+	if _, err := persona.Inject(home, windsurfAdapter(), model.PersonaModism); err != nil {
 		t.Fatalf("persona.Inject(windsurf) error = %v", err)
 	}
 	if _, err := sdd.Inject(home, windsurfAdapter(), "", sdd.InjectOptions{WorkspaceDir: workspace}); err != nil {
 		t.Fatalf("sdd.Inject(windsurf) error = %v", err)
 	}
-	if _, err := engram.Inject(home, windsurfAdapter()); err != nil {
-		t.Fatalf("engram.Inject(windsurf) error = %v", err)
+	if _, err := sddmemory.Inject(home, windsurfAdapter()); err != nil {
+		t.Fatalf("sddmemory.Inject(windsurf) error = %v", err)
 	}
 
 	// global_rules.md must contain persona + SDD orchestrator (both appended).
@@ -828,41 +828,41 @@ func TestGoldenSDD_Antigravity(t *testing.T) {
 	}
 }
 
-func TestGoldenPersona_Antigravity_Gentleman(t *testing.T) {
+func TestGoldenPersona_Antigravity_SpecAI(t *testing.T) {
 	home := t.TempDir()
 
-	result, err := persona.Inject(home, antigravityAdapter(), model.PersonaGentleman)
+	result, err := persona.Inject(home, antigravityAdapter(), model.PersonaModism)
 	if err != nil {
-		t.Fatalf("persona.Inject(antigravity, gentleman) error = %v", err)
+		t.Fatalf("persona.Inject(antigravity, specai) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("persona.Inject(antigravity, gentleman) changed = false")
+		t.Fatalf("persona.Inject(antigravity, specai) changed = false")
 	}
 
 	rulesFile := readTestFile(t, filepath.Join(home, ".gemini", "GEMINI.md"))
-	assertGolden(t, "persona-antigravity-gentleman.golden", rulesFile)
+	assertGolden(t, "persona-antigravity-specai.golden", rulesFile)
 }
 
-func TestGoldenEngram_Antigravity(t *testing.T) {
+func TestGoldenSddMemory_Antigravity(t *testing.T) {
 	home := t.TempDir()
 
-	engram.SetLookPathForTest(t, "/opt/homebrew/bin/engram", "")
+	sddmemory.SetLookPathForTest(t, "/opt/homebrew/bin/sdd-memory", "")
 
-	result, err := engram.Inject(home, antigravityAdapter())
+	result, err := sddmemory.Inject(home, antigravityAdapter())
 	if err != nil {
-		t.Fatalf("engram.Inject(antigravity) error = %v", err)
+		t.Fatalf("sddmemory.Inject(antigravity) error = %v", err)
 	}
 	if !result.Changed {
-		t.Fatalf("engram.Inject(antigravity) changed = false")
+		t.Fatalf("sddmemory.Inject(antigravity) changed = false")
 	}
 
 	// MCP config written to ~/.gemini/antigravity-cli/mcp_config.json.
 	mcpJSON := readTestFile(t, filepath.Join(home, ".gemini", "antigravity-cli", "mcp_config.json"))
-	assertGolden(t, "engram-antigravity-mcp.golden", mcpJSON)
+	assertGolden(t, "sdd-memory-antigravity-mcp.golden", mcpJSON)
 
-	// GEMINI.md must contain the engram-protocol section.
+	// GEMINI.md must contain the sdd-memory-protocol section.
 	rulesFile := readTestFile(t, filepath.Join(home, ".gemini", "GEMINI.md"))
-	assertGolden(t, "engram-antigravity-rulesmd.golden", rulesFile)
+	assertGolden(t, "sdd-memory-antigravity-rulesmd.golden", rulesFile)
 }
 
 // ---------------------------------------------------------------------------

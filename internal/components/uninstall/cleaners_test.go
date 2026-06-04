@@ -10,8 +10,8 @@ import (
 
 func FuzzNormalizeJSON_NoPanic(f *testing.F) {
 	seeds := [][]byte{
-		[]byte(`{"mcpServers":{"engram":{"command":"engram"}}}`),
-		[]byte("{\n  // comment\n  \"mcpServers\": {\n    \"engram\": {\n      \"command\": \"engram\",\n    },\n  },\n}\n"),
+		[]byte(`{"mcpServers":{"sdd-memory":{"command":"sdd-memory"}}}`),
+		[]byte("{\n  // comment\n  \"mcpServers\": {\n    \"sdd-memory\": {\n      \"command\": \"sdd-memory\",\n    },\n  },\n}\n"),
 		[]byte(`{"url":"https://example.com/x//y","arr":[1,2,],}`),
 		[]byte(`{"quote":"escaped \" // not a comment"}`),
 		[]byte(`{"unterminated": /* comment`),
@@ -32,20 +32,20 @@ func TestRemoveMarkdownSections_RemovesOnlyManagedBlock(t *testing.T) {
 		"",
 		"Keep this.",
 		"",
-		"<!-- specai:engram-protocol -->",
+		"<!-- specai:sdd-memory-protocol -->",
 		"Managed content.",
-		"<!-- /specai:engram-protocol -->",
+		"<!-- /specai:sdd-memory-protocol -->",
 		"",
 		"# User Footer",
 		"",
 		"Must stay.",
 	}, "\n") + "\n"
 
-	updated, changed := removeMarkdownSections(input, "engram-protocol")
+	updated, changed := removeMarkdownSections(input, "sdd-memory-protocol")
 	if !changed {
 		t.Fatal("removeMarkdownSections() changed = false, want true")
 	}
-	if strings.Contains(updated, "gentle-ai:engram-protocol") {
+	if strings.Contains(updated, "specai:sdd-memory-protocol") {
 		t.Fatalf("managed marker block still present:\n%s", updated)
 	}
 	if !strings.Contains(updated, "# User Intro") || !strings.Contains(updated, "# User Footer") {
@@ -56,8 +56,8 @@ func TestRemoveMarkdownSections_RemovesOnlyManagedBlock(t *testing.T) {
 func TestRemoveManagedPersonaPreamble_PreservesManagedSuffix(t *testing.T) {
 	input := strings.Join([]string{
 		"---",
-		"name: Gentle AI Persona",
-		"description: Teaching-oriented persona with SDD orchestration and Engram protocol",
+		"name: SpecAI Persona",
+		"description: Teaching-oriented persona with SDD orchestration and SddMemory protocol",
 		"applyTo: \"**\"",
 		"---",
 		"",
@@ -76,7 +76,7 @@ func TestRemoveManagedPersonaPreamble_PreservesManagedSuffix(t *testing.T) {
 	if !changed {
 		t.Fatal("removeManagedPersonaPreamble() changed = false, want true")
 	}
-	if strings.Contains(updated, "name: Gentle AI Persona") || strings.Contains(updated, "## Personality") {
+	if strings.Contains(updated, "name: SpecAI Persona") || strings.Contains(updated, "## Personality") {
 		t.Fatalf("managed persona preamble still present:\n%s", updated)
 	}
 	if !strings.HasPrefix(updated, "<!-- specai:sdd-orchestrator -->") {
@@ -87,8 +87,8 @@ func TestRemoveManagedPersonaPreamble_PreservesManagedSuffix(t *testing.T) {
 func TestRemoveManagedPersonaPreamble_WithoutMarkerDoesNotDeleteContent(t *testing.T) {
 	input := strings.Join([]string{
 		"---",
-		"name: Gentle AI Persona",
-		"description: Teaching-oriented persona with SDD orchestration and Engram protocol",
+		"name: SpecAI Persona",
+		"description: Teaching-oriented persona with SDD orchestration and SddMemory protocol",
 		"---",
 		"",
 		"## Personality",
@@ -106,7 +106,7 @@ func TestRemoveManagedPersonaPreamble_WithoutMarkerDoesNotDeleteContent(t *testi
 
 func TestRemoveJSONPaths_RemovesOnlyManagedKeys(t *testing.T) {
 	input := []byte(`{
-  "theme": "gentleman-kanagawa",
+  "theme": "specai-kanagawa",
   "permission": {
     "bash": {
       "*": "allow"
@@ -167,8 +167,8 @@ func TestRemoveJSONPaths_SupportsCommentsAndTrailingCommas(t *testing.T) {
 	input := []byte(`{
   // user comment
   "mcpServers": {
-    "engram": {
-      "command": "engram",
+    "sdd-memory": {
+      "command": "sdd-memory",
     },
     "custom": {
       "command": "python"
@@ -177,7 +177,7 @@ func TestRemoveJSONPaths_SupportsCommentsAndTrailingCommas(t *testing.T) {
 }
 `)
 
-	updated, changed, err := removeJSONPaths(input, jsonPath{"mcpServers", "engram"})
+	updated, changed, err := removeJSONPaths(input, jsonPath{"mcpServers", "sdd-memory"})
 	if err != nil {
 		t.Fatalf("removeJSONPaths() error = %v", err)
 	}
@@ -190,8 +190,8 @@ func TestRemoveJSONPaths_SupportsCommentsAndTrailingCommas(t *testing.T) {
 		t.Fatalf("json.Unmarshal(updated) error = %v", err)
 	}
 	mcpServers := got["mcpServers"].(map[string]any)
-	if _, exists := mcpServers["engram"]; exists {
-		t.Fatalf("engram should be removed: %#v", mcpServers)
+	if _, exists := mcpServers["sdd-memory"]; exists {
+		t.Fatalf("sdd-memory should be removed: %#v", mcpServers)
 	}
 	if _, exists := mcpServers["custom"]; !exists {
 		t.Fatalf("custom server should remain: %#v", mcpServers)
@@ -221,7 +221,7 @@ func TestUnmarshalJSONObject_RejectsTrailingJSONPayload(t *testing.T) {
 }
 
 func TestRemoveJSONPaths_PreservesCRLF(t *testing.T) {
-	input := []byte("{\r\n  \"outputStyle\": \"Gentleman\",\r\n  \"userSetting\": true\r\n}\r\n")
+	input := []byte("{\r\n  \"outputStyle\": \"SpecAI\",\r\n  \"userSetting\": true\r\n}\r\n")
 
 	updated, changed, err := removeJSONPaths(input, jsonPath{"outputStyle"})
 	if err != nil {
@@ -243,7 +243,11 @@ func TestReadManagedFile_RejectsSymlink(t *testing.T) {
 	}
 	link := filepath.Join(dir, "link.json")
 	if err := os.Symlink(target, link); err != nil {
-		t.Fatalf("Symlink() error = %v", err)
+		// Windows requires elevated privileges (or Developer Mode) to create
+		// symlinks. When unavailable, skip rather than fail — readManagedFile's
+		// symlink rejection is platform-independent and still exercised wherever
+		// symlink creation is permitted.
+		t.Skipf("cannot create symlink in this environment: %v", err)
 	}
 
 	_, err := readManagedFile(link)
@@ -313,12 +317,12 @@ func TestRemoveTopLevelTOMLKeys_PreservesNestedKeys(t *testing.T) {
 
 func TestCleanCodexTOML_RemovesOnlyManagedEntries(t *testing.T) {
 	input := strings.Join([]string{
-		"model_instructions_file = \"/home/me/.codex/engram-instructions.md\"",
-		"experimental_compact_prompt_file = \"/home/me/.codex/engram-compact-prompt.md\"",
+		"model_instructions_file = \"/home/me/.codex/sdd-memory-instructions.md\"",
+		"experimental_compact_prompt_file = \"/home/me/.codex/sdd-memory-compact-prompt.md\"",
 		"custom_top = \"keep\"",
 		"",
-		"[mcp_servers.engram]",
-		"command = \"engram\"",
+		"[mcp_servers.sdd-memory]",
+		"command = \"sdd-memory\"",
 		"args = [\"mcp\", \"--tools=agent\"]",
 		"",
 		"[other]",
@@ -332,8 +336,8 @@ func TestCleanCodexTOML_RemovesOnlyManagedEntries(t *testing.T) {
 	if strings.Contains(updated, "model_instructions_file") || strings.Contains(updated, "experimental_compact_prompt_file") {
 		t.Fatalf("managed top-level keys were not removed:\n%s", updated)
 	}
-	if strings.Contains(updated, "[mcp_servers.engram]") {
-		t.Fatalf("managed engram TOML block was not removed:\n%s", updated)
+	if strings.Contains(updated, "[mcp_servers.sdd-memory]") {
+		t.Fatalf("managed sdd-memory TOML block was not removed:\n%s", updated)
 	}
 	if !strings.Contains(updated, "custom_top = \"keep\"") || !strings.Contains(updated, "[other]") {
 		t.Fatalf("user TOML content was lost:\n%s", updated)
@@ -348,9 +352,9 @@ func TestMarkdownCleanup_OnRealFileWithTempDir(t *testing.T) {
 		"",
 		"Hand-written intro.",
 		"",
-		"<!-- specai:engram-protocol -->",
+		"<!-- specai:sdd-memory-protocol -->",
 		"Managed content.",
-		"<!-- /specai:engram-protocol -->",
+		"<!-- /specai:sdd-memory-protocol -->",
 		"",
 		"# Footer",
 	}, "\n") + "\n"
@@ -362,7 +366,7 @@ func TestMarkdownCleanup_OnRealFileWithTempDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v", path, err)
 	}
-	updated, changed := removeMarkdownSections(string(raw), "engram-protocol")
+	updated, changed := removeMarkdownSections(string(raw), "sdd-memory-protocol")
 	if !changed {
 		t.Fatal("removeMarkdownSections() changed = false, want true")
 	}
@@ -375,7 +379,7 @@ func TestMarkdownCleanup_OnRealFileWithTempDir(t *testing.T) {
 		t.Fatalf("ReadFile(final) error = %v", err)
 	}
 	final := string(finalRaw)
-	if strings.Contains(final, "gentle-ai:engram-protocol") {
+	if strings.Contains(final, "specai:sdd-memory-protocol") {
 		t.Fatalf("managed markdown block still present in file:\n%s", final)
 	}
 	if !strings.Contains(final, "Hand-written intro.") || !strings.Contains(final, "# Footer") {
@@ -387,10 +391,10 @@ func TestJSONCleanup_OnRealFileWithTempDir(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "settings.json")
 	input := []byte(`{
-  "outputStyle": "Gentleman",
+  "outputStyle": "SpecAI",
   "mcpServers": {
-    "engram": {
-      "command": "engram"
+    "sdd-memory": {
+      "command": "sdd-memory"
     },
     "custom": {
       "command": "python"
@@ -407,7 +411,7 @@ func TestJSONCleanup_OnRealFileWithTempDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v", path, err)
 	}
-	updated, changed, err := removeJSONPaths(raw, jsonPath{"outputStyle"}, jsonPath{"mcpServers", "engram"})
+	updated, changed, err := removeJSONPaths(raw, jsonPath{"outputStyle"}, jsonPath{"mcpServers", "sdd-memory"})
 	if err != nil {
 		t.Fatalf("removeJSONPaths() error = %v", err)
 	}
@@ -433,8 +437,8 @@ func TestJSONCleanup_OnRealFileWithTempDir(t *testing.T) {
 		t.Fatalf("userSetting = %#v, want %q", got["userSetting"], "keep")
 	}
 	mcpServers := got["mcpServers"].(map[string]any)
-	if _, exists := mcpServers["engram"]; exists {
-		t.Fatalf("engram should be removed from file JSON: %#v", mcpServers)
+	if _, exists := mcpServers["sdd-memory"]; exists {
+		t.Fatalf("sdd-memory should be removed from file JSON: %#v", mcpServers)
 	}
 	if _, exists := mcpServers["custom"]; !exists {
 		t.Fatalf("custom server should remain in file JSON: %#v", mcpServers)

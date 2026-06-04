@@ -77,7 +77,7 @@ func TestAssetURLResolution(t *testing.T) {
 	}{
 		{
 			name:       "darwin amd64",
-			owner:      "Gentleman-Programming",
+			owner:      "kevg1t",
 			repo:       "specai",
 			version:    "1.5.0",
 			goos:       "darwin",
@@ -86,7 +86,7 @@ func TestAssetURLResolution(t *testing.T) {
 		},
 		{
 			name:       "darwin arm64",
-			owner:      "Gentleman-Programming",
+			owner:      "kevg1t",
 			repo:       "specai",
 			version:    "1.5.0",
 			goos:       "darwin",
@@ -95,8 +95,8 @@ func TestAssetURLResolution(t *testing.T) {
 		},
 		{
 			name:       "linux amd64",
-			owner:      "Gentleman-Programming",
-			repo:       "gga",
+			owner:      "kevg1t",
+			repo:       "specai-example",
 			version:    "2.0.0",
 			goos:       "linux",
 			goarch:     "amd64",
@@ -104,7 +104,7 @@ func TestAssetURLResolution(t *testing.T) {
 		},
 		{
 			name:       "contains version",
-			owner:      "Gentleman-Programming",
+			owner:      "kevg1t",
 			repo:       "specai",
 			version:    "1.5.0",
 			goos:       "darwin",
@@ -247,7 +247,7 @@ func TestDownload_WindowsAlwaysManualFallback(t *testing.T) {
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
 			Name:          "specai",
-			Owner:         "Gentleman-Programming",
+			Owner:         "kevg1t",
 			Repo:          "specai",
 			InstallMethod: update.InstallBinary,
 		},
@@ -321,11 +321,11 @@ func TestExpectedChecksumFor(t *testing.T) {
 	content := "abc123  specai_1.0.0_darwin_arm64.tar.gz\ndef456  specai_1.0.0_linux_amd64.tar.gz\n"
 
 	tests := []struct {
-		name      string
-		content   string
-		filename  string
-		want      string
-		wantErr   bool
+		name     string
+		content  string
+		filename string
+		want     string
+		wantErr  bool
 	}{
 		{
 			name:     "found first entry",

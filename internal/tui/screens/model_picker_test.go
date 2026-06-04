@@ -40,8 +40,8 @@ func TestModelPickerRows_Count(t *testing.T) {
 
 func TestModelPickerRows_OrchestratorIsFirst(t *testing.T) {
 	rows := ModelPickerRows()
-	if rows[0] != "gentle-orchestrator" {
-		t.Fatalf("ModelPickerRows()[0] = %q, want %q", rows[0], "gentle-orchestrator")
+	if rows[0] != "specai-orchestrator" {
+		t.Fatalf("ModelPickerRows()[0] = %q, want %q", rows[0], "specai-orchestrator")
 	}
 }
 
@@ -66,7 +66,7 @@ func TestModelPickerRows_SubAgentsStartAtIndexTwo(t *testing.T) {
 // ─── handleModelNav: orchestrator row (idx 0) ──────────────────────────────
 
 func TestHandleModelNav_OrchestratorRowAssignsOnlyOrchestrator(t *testing.T) {
-	state := makeTestState(0) // row 0 = gentle-orchestrator
+	state := makeTestState(0) // row 0 = specai-orchestrator
 	assignments := make(map[string]model.ModelAssignment)
 
 	handled, updated := handleModelNav("enter", state, assignments)
@@ -75,7 +75,7 @@ func TestHandleModelNav_OrchestratorRowAssignsOnlyOrchestrator(t *testing.T) {
 		t.Fatal("handleModelNav should return handled=true on enter")
 	}
 
-	// "gentle-orchestrator" key must be set
+	// "specai-orchestrator" key must be set
 	orch, ok := updated[SDDOrchestratorPhase]
 	if !ok || orch.ProviderID == "" {
 		t.Fatalf("expected %q to be assigned, got: %v", SDDOrchestratorPhase, updated)
@@ -125,9 +125,9 @@ func TestHandleModelNav_SetAllPhasesRow_SetsOnlySubAgents(t *testing.T) {
 		}
 	}
 
-	// gentle-orchestrator must NOT be touched by "Set all phases"
+	// specai-orchestrator must NOT be touched by "Set all phases"
 	if _, exists := updated[SDDOrchestratorPhase]; exists {
-		t.Errorf("gentle-orchestrator should NOT be assigned by 'Set all phases'; assignments: %v", updated)
+		t.Errorf("specai-orchestrator should NOT be assigned by 'Set all phases'; assignments: %v", updated)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestHandleModelNav_SubAgentRow_AssignsCorrectPhase(t *testing.T) {
 
 			// Orchestrator must NOT be assigned
 			if _, exists := updated[SDDOrchestratorPhase]; exists {
-				t.Errorf("gentle-orchestrator should not be assigned; assignments: %v", updated)
+				t.Errorf("specai-orchestrator should not be assigned; assignments: %v", updated)
 			}
 		})
 	}
@@ -192,8 +192,8 @@ func TestHandleModelNav_SubAgentRow_AssignsCorrectPhase(t *testing.T) {
 // ─── SDDOrchestratorPhase constant ────────────────────────────────────────
 
 func TestSDDOrchestratorPhaseConstant(t *testing.T) {
-	if SDDOrchestratorPhase != "gentle-orchestrator" {
-		t.Fatalf("SDDOrchestratorPhase = %q, want %q", SDDOrchestratorPhase, "gentle-orchestrator")
+	if SDDOrchestratorPhase != "specai-orchestrator" {
+		t.Fatalf("SDDOrchestratorPhase = %q, want %q", SDDOrchestratorPhase, "specai-orchestrator")
 	}
 }
 
@@ -823,9 +823,9 @@ func TestHandleEffortNav_SetAllPhasesUpdatesAllPhasesModelAndAllSubAgents(t *tes
 		t.Errorf("PendingAssignment after Set all effort = %+v, want zero value", newState.PendingAssignment)
 	}
 
-	// gentle-orchestrator must NOT be touched by "Set all phases".
+	// specai-orchestrator must NOT be touched by "Set all phases".
 	if _, exists := updated[SDDOrchestratorPhase]; exists {
-		t.Errorf("gentle-orchestrator should NOT be assigned by Set all phases effort")
+		t.Errorf("specai-orchestrator should NOT be assigned by Set all phases effort")
 	}
 }
 

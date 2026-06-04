@@ -14,7 +14,7 @@ USAGE
 
 COMMANDS
   install      Configure AI coding agents on this machine
-  uninstall    Remove Gentle AI managed files from this machine
+  uninstall    Remove SpecAI managed files from this machine
   sync         Sync agent configs and skills to current version
   skill-registry refresh
                Refresh .atl/skill-registry.md with cache-hit fast path
@@ -28,6 +28,6 @@ FLAGS
   --help, -h    Show this help
 
 Run 'specai help' for this message.
-Documentation: https://github.com/Gentleman-Programming/specai
+Documentation: https://github.com/KevG1t/specai
 `, version)
 }

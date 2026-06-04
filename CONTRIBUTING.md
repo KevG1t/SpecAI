@@ -1,6 +1,6 @@
-# Contributing to Gentle AI
+# Contributing to SpecAI
 
-Thank you for your interest in contributing to **Gentle AI** (`gga`) — a Go TUI installer for AI agent environments.
+Thank you for your interest in contributing to **SpecAI** — a Go TUI installer for AI agent environments.
 
 Before you dive in, please read this guide fully. We have a structured workflow to keep the project organized and maintainable.
 
@@ -25,7 +25,7 @@ Before you dive in, please read this guide fully. We have a structured workflow 
 
 This project follows a strict issue-first workflow:
 
-1. **Open an issue** using the appropriate template ([Bug Report](https://github.com/Gentleman-Programming/gentle-ai/issues/new?template=bug_report.yml) or [Feature Request](https://github.com/Gentleman-Programming/gentle-ai/issues/new?template=feature_request.yml))
+1. **Open an issue** using the appropriate template ([Bug Report](https://github.com/KevG1t/specai/issues/new?template=bug_report.yml) or [Feature Request](https://github.com/KevG1t/specai/issues/new?template=feature_request.yml))
 2. **Wait for approval** — a maintainer will add the `status:approved` label when the issue is ready to be worked on
 3. **Comment on the issue** to let others know you're working on it
 4. **Open a PR** referencing the approved issue
@@ -85,15 +85,15 @@ PRs that are not linked to an approved issue will be **automatically rejected** 
 ### Clone and Build
 
 ```bash
-git clone https://github.com/Gentleman-Programming/gentle-ai.git
-cd gentle-ai
-go build -o gga .
+git clone https://github.com/KevG1t/specai.git
+cd specai
+go build -o specai .
 ```
 
 ### Run Locally
 
 ```bash
-./gga
+./specai
 ```
 
 ---
@@ -334,4 +334,4 @@ Violations may result in removal from the project.
 
 ## Questions?
 
-Use [GitHub Discussions](https://github.com/Gentleman-Programming/gentle-ai/discussions) — not issues — for questions, ideas, and general conversation.
+Use [GitHub Discussions](https://github.com/KevG1t/specai/discussions) — not issues — for questions, ideas, and general conversation.

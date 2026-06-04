@@ -16,7 +16,7 @@ type InjectionResult struct {
 	Files   []string
 }
 
-var themeOverlayJSON = []byte("{\n  \"theme\": \"gentleman-kanagawa\"\n}\n")
+var themeOverlayJSON = []byte("{\n  \"theme\": \"specai-kanagawa\"\n}\n")
 
 type claudeTheme struct {
 	Name      string            `json:"name"`
@@ -24,8 +24,8 @@ type claudeTheme struct {
 	Overrides map[string]string `json:"overrides"`
 }
 
-var gentlemanClaudeTheme = claudeTheme{
-	Name: "Gentleman",
+var modismClaudeTheme = claudeTheme{
+	Name: "Modism",
 	Base: "dark",
 	Overrides: map[string]string{
 		"diffAdded":                 "#3F4A2D",
@@ -58,8 +58,8 @@ func InjectClaudeTheme(homeDir string, adapter agents.Adapter) (InjectionResult,
 		return InjectionResult{}, nil
 	}
 
-	themePath := filepath.Join(homeDir, ".claude", "themes", "gentleman.json")
-	content, err := json.MarshalIndent(gentlemanClaudeTheme, "", "  ")
+	themePath := filepath.Join(homeDir, ".claude", "themes", "modism.json")
+	content, err := json.MarshalIndent(modismClaudeTheme, "", "  ")
 	if err != nil {
 		return InjectionResult{}, err
 	}

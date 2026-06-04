@@ -1,8 +1,8 @@
 // Package kimi provides Kimi Code CLI agent integration.
 //
 // Integration Note:
-// This adapter natively relies on Astral's `uv` package manager 
-// (`uv tool install kimi-cli`) to securely download and run Kimi CLI, 
+// This adapter natively relies on Astral's `uv` package manager
+// (`uv tool install kimi-cli`) to securely download and run Kimi CLI,
 // avoiding upstream's pipe-to-shell bootstrap scripts.
 package kimi
 
@@ -219,7 +219,7 @@ func (a *Adapter) EmbeddedSubAgentsDir() string {
 }
 
 func (a *Adapter) PostInstallMessage(homeDir string) string {
-	gentlemanYaml := filepath.Join(homeDir, ".kimi", "agents", "gentleman.yaml")
+	modismYaml := filepath.Join(homeDir, ".kimi", "agents", "modism.yaml")
 	skillsRoot := filepath.Join(homeDir, ".config", "agents", "skills")
 
 	return fmt.Sprintf(`Kimi Code configured!
@@ -240,9 +240,8 @@ Native SDD entrypoints:
   /skill:sdd-onboard
 
 Skills root:
-  "%s"`, gentlemanYaml, skillsRoot)
+  "%s"`, modismYaml, skillsRoot)
 }
-
 
 // --- Helpers ---
 
@@ -272,8 +271,8 @@ func binaryName() string {
 }
 
 // BootstrapTemplate ensures the base KIMI.md template exists in the agent's config directory.
-// It is used by the installation pipeline to guarantee that modular components 
-// (SDD, Engram) can be included even if the Persona component is not installed.
+// It is used by the installation pipeline to guarantee that modular components
+// (SDD, SddMemory) can be included even if the Persona component is not installed.
 func (a *Adapter) BootstrapTemplate(homeDir string) error {
 	kimiDir := a.GlobalConfigDir(homeDir)
 	if err := os.MkdirAll(kimiDir, 0o755); err != nil {
@@ -281,9 +280,9 @@ func (a *Adapter) BootstrapTemplate(homeDir string) error {
 	}
 
 	skeletonPath := a.SystemPromptFile(homeDir)
-	
+
 	// We always write the skeleton to ensure any missing includes are restored.
-	// Since KIMI.md is the 'router' for modular Jinja components, it should 
+	// Since KIMI.md is the 'router' for modular Jinja components, it should
 	// remain managed by the framework.
 	content := assets.MustRead("kimi/KIMI.md")
 	if _, err := filemerge.WriteFileAtomic(skeletonPath, []byte(content), 0o644); err != nil {
@@ -301,5 +300,3 @@ func (a *Adapter) BootstrapTemplate(homeDir string) error {
 
 	return nil
 }
-
-

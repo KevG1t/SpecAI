@@ -196,16 +196,15 @@ func TestBuildSyncSelectionDefaultScopeIncludesManagedComponents(t *testing.T) {
 
 	sel := BuildSyncSelection(flags, agents)
 
-	// Default sync must include: SDD, Engram, Context7, GGA, Skills, Persona.
+	// Default sync must include: SDD, SddMemory, Context7, Skills, Persona.
 	// Persona is included because the content between <!-- specai:persona -->
 	// markers is harness-managed; sync must propagate embedded-asset changes to
 	// users who already have a persona installed. Content outside the markers
 	// is preserved by InjectMarkdownSection.
 	mandatoryComponents := []model.ComponentID{
 		model.ComponentSDD,
-		model.ComponentEngram,
+		model.ComponentSddMemory,
 		model.ComponentContext7,
-		model.ComponentGGA,
 		model.ComponentSkills,
 		model.ComponentPersona,
 	}
@@ -428,7 +427,7 @@ func TestDiscoverAgentsDelegatesCanonicalDiscovery(t *testing.T) {
 
 // ─── Phase 3: componentSyncStep ───────────────────────────────────────────
 
-func TestComponentSyncStepSkipsEngramBinaryInstall(t *testing.T) {
+func TestComponentSyncStepSkipsSddMemoryBinaryInstall(t *testing.T) {
 	home := t.TempDir()
 	restoreCommand := runCommand
 	restoreLookPath := cmdLookPath
@@ -437,7 +436,7 @@ func TestComponentSyncStepSkipsEngramBinaryInstall(t *testing.T) {
 		cmdLookPath = restoreLookPath
 	})
 
-	// Simulate engram NOT on PATH — install logic should NOT be triggered.
+	// Simulate sdd-memory NOT on PATH — install logic should NOT be triggered.
 	cmdLookPath = func(name string) (string, error) {
 		return "", os.ErrNotExist
 	}
@@ -449,8 +448,8 @@ func TestComponentSyncStepSkipsEngramBinaryInstall(t *testing.T) {
 	}
 
 	step := componentSyncStep{
-		id:        "sync:engram",
-		component: model.ComponentEngram,
+		id:        "sync:sdd-memory",
+		component: model.ComponentSddMemory,
 		homeDir:   home,
 		agents:    []model.AgentID{model.AgentOpenCode},
 		selection: model.Selection{SDDMode: model.SDDModeSingle},
@@ -460,13 +459,13 @@ func TestComponentSyncStepSkipsEngramBinaryInstall(t *testing.T) {
 		t.Fatalf("componentSyncStep.Run() error = %v", err)
 	}
 
-	// No binary install or engram setup commands should have been recorded.
+	// No binary install or sdd-memory setup commands should have been recorded.
 	for _, cmd := range commandsCalled {
 		if strings.Contains(cmd, "brew install") || strings.Contains(cmd, "go install") {
 			t.Errorf("componentSyncStep must not run binary install, got command: %s", cmd)
 		}
-		if strings.Contains(cmd, "engram setup") {
-			t.Errorf("componentSyncStep must not run engram setup, got command: %s", cmd)
+		if strings.Contains(cmd, "sdd-memory setup") {
+			t.Errorf("componentSyncStep must not run sdd-memory setup, got command: %s", cmd)
 		}
 	}
 }
@@ -486,7 +485,7 @@ func TestComponentSyncStepRunsPersonaInjectForSync(t *testing.T) {
 		component: model.ComponentPersona,
 		homeDir:   home,
 		agents:    []model.AgentID{model.AgentOpenCode},
-		selection: model.Selection{Persona: model.PersonaGentleman},
+		selection: model.Selection{Persona: model.PersonaModism},
 	}
 
 	if err := step.Run(); err != nil {
@@ -508,8 +507,8 @@ func TestComponentSyncStepRunsPersonaInjectForSync(t *testing.T) {
 	settings := filepath.Join(home, ".config", "opencode", "opencode.json")
 	if _, err := os.Stat(settings); err == nil {
 		raw, _ := os.ReadFile(settings)
-		if strings.Contains(string(raw), "gentleman") {
-			t.Errorf("opencode.json should NOT contain gentleman agent after sync; got:\n%s", string(raw))
+		if strings.Contains(string(raw), "modism") {
+			t.Errorf("opencode.json should NOT contain modism agent after sync; got:\n%s", string(raw))
 		}
 	}
 }
@@ -540,48 +539,28 @@ func TestComponentSyncStepRunsSDDInject(t *testing.T) {
 	}
 }
 
-func TestComponentSyncStepRunsGGAInjectWithoutBinaryInstall(t *testing.T) {
+// TestComponentSyncStepRunsWithoutError verifies that a basic component sync step completes without error.
+func TestComponentSyncStepRunsWithoutError(t *testing.T) {
 	home := t.TempDir()
-	restoreCommand := runCommand
-	restoreLookPath := cmdLookPath
-	t.Cleanup(func() {
-		runCommand = restoreCommand
-		cmdLookPath = restoreLookPath
-	})
 
-	cmdLookPath = func(name string) (string, error) {
-		return "", os.ErrNotExist
+	// Create a minimal agent config dir so permissions inject has somewhere to write.
+	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
 	}
-
-	var commandsCalled []string
-	runCommand = func(name string, args ...string) error {
-		commandsCalled = append(commandsCalled, name+" "+strings.Join(args, " "))
-		return nil
+	if err := os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
 	}
 
 	step := componentSyncStep{
-		id:        "sync:gga",
-		component: model.ComponentGGA,
+		id:        "sync:permissions",
+		component: model.ComponentPermission,
 		homeDir:   home,
-		agents:    []model.AgentID{model.AgentOpenCode},
-		selection: model.Selection{},
+		agents:    []model.AgentID{model.AgentClaudeCode},
+		selection: model.Selection{Agents: []model.AgentID{model.AgentClaudeCode}},
 	}
 
 	if err := step.Run(); err != nil {
-		t.Fatalf("componentSyncStep.Run() GGA error = %v", err)
-	}
-
-	// No GGA binary install command should have been called.
-	for _, cmd := range commandsCalled {
-		if strings.Contains(cmd, "clone") || strings.Contains(cmd, "install.sh") {
-			t.Errorf("componentSyncStep GGA must not run binary install, got command: %s", cmd)
-		}
-	}
-
-	// GGA runtime asset should be written.
-	prModePath := filepath.Join(home, ".local", "share", "gga", "lib", "pr_mode.sh")
-	if _, err := os.Stat(prModePath); err != nil {
-		t.Errorf("expected GGA runtime asset at %q: %v", prModePath, err)
+		t.Fatalf("componentSyncStep.Run() error = %v", err)
 	}
 }
 
@@ -621,7 +600,7 @@ func TestRunSyncAppliesManagedFilesystemChanges(t *testing.T) {
 	}
 }
 
-func TestRunSyncDoesNotInvokeEngramSetup(t *testing.T) {
+func TestRunSyncDoesNotInvokeSddMemorySetup(t *testing.T) {
 	home := t.TempDir()
 	restoreHome := osUserHomeDir
 	restoreCommand := runCommand
@@ -647,8 +626,8 @@ func TestRunSyncDoesNotInvokeEngramSetup(t *testing.T) {
 	}
 
 	for _, cmd := range commandsCalled {
-		if strings.Contains(cmd, "engram setup") {
-			t.Errorf("RunSync must NOT invoke engram setup, got command: %s", cmd)
+		if strings.Contains(cmd, "sdd-memory setup") {
+			t.Errorf("RunSync must NOT invoke sdd-memory setup, got command: %s", cmd)
 		}
 	}
 }
@@ -916,7 +895,7 @@ func TestRenderSyncReportIncludesManagedActions(t *testing.T) {
 
 // TestRunSyncExcludesUnmanagedLookalikeFile verifies the spec scenario:
 // "User modified an unmanaged file that resembles a managed target —
-// gentle-ai sync excludes it from the plan and does not adopt it."
+// specai sync excludes it from the plan and does not adopt it."
 //
 // We create a file with the same NAME as a managed target but in a directory
 // that is NOT part of the managed inventory (simulating an unmanaged lookalike).
@@ -932,7 +911,7 @@ func TestRunSyncExcludesUnmanagedLookalikeFile(t *testing.T) {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	lookalikePath := filepath.Join(lookalikeDir, "AGENTS.md")
-	const lookalikeContent = "# My project AGENTS.md — NOT managed by gentle-ai"
+	const lookalikeContent = "# My project AGENTS.md — NOT managed by specai"
 	if err := os.WriteFile(lookalikePath, []byte(lookalikeContent), 0o644); err != nil {
 		t.Fatalf("WriteFile() lookalike error = %v", err)
 	}
@@ -1136,9 +1115,9 @@ func TestRunSyncWithProfilesIntegration(t *testing.T) {
 		Agents: []model.AgentID{model.AgentOpenCode},
 		Components: []model.ComponentID{
 			model.ComponentSDD,
-			model.ComponentEngram,
+			model.ComponentSddMemory,
 			model.ComponentContext7,
-			model.ComponentGGA,
+			model.ComponentPermission,
 			model.ComponentSkills,
 		},
 		SDDMode:  model.SDDModeSingle,
@@ -1256,9 +1235,9 @@ func TestRunSyncDetectsExistingProfilesOnRegularSync(t *testing.T) {
 		Agents: []model.AgentID{model.AgentOpenCode},
 		Components: []model.ComponentID{
 			model.ComponentSDD,
-			model.ComponentEngram,
+			model.ComponentSddMemory,
 			model.ComponentContext7,
-			model.ComponentGGA,
+			model.ComponentPermission,
 			model.ComponentSkills,
 		},
 		SDDMode: model.SDDModeSingle,
@@ -1295,9 +1274,9 @@ func TestRunSyncDetectsExistingProfilesOnRegularSync(t *testing.T) {
 		Agents: []model.AgentID{model.AgentOpenCode},
 		Components: []model.ComponentID{
 			model.ComponentSDD,
-			model.ComponentEngram,
+			model.ComponentSddMemory,
 			model.ComponentContext7,
-			model.ComponentGGA,
+			model.ComponentPermission,
 			model.ComponentSkills,
 		},
 		SDDMode: model.SDDModeSingle,
@@ -1358,7 +1337,7 @@ func TestRunSyncExternalSingleActiveSkipsDetectAndPreservesOrchestratorPrompt(t 
 	seed := `{
   "agent": {
     "sdd-orchestrator": {"mode": "primary", "prompt": ` + strconv.Quote(customPrompt) + `},
-    "gentleman": {"mode": "primary", "description": "revoked OpenCode persona", "prompt": "REVOKED_GENTLEMAN_PROMPT_SHOULD_NOT_SURVIVE"},
+    "specai": {"mode": "primary", "description": "revoked OpenCode persona", "prompt": "REVOKED_SPECAI_PROMPT_SHOULD_NOT_SURVIVE"},
     "sdd-orchestrator-cheap": {"mode": "primary", "model": "anthropic:claude-haiku-3-5"},
     "sdd-init-cheap": {"mode": "subagent", "model": "anthropic:claude-haiku-3-5"}
   }
@@ -1393,20 +1372,20 @@ func TestRunSyncExternalSingleActiveSkipsDetectAndPreservesOrchestratorPrompt(t 
 	if strings.Contains(settingsText, "agent.sdd-orchestrator.model") {
 		t.Fatalf("external-single-active sync preserved stale sdd-orchestrator model assignment key")
 	}
-	if !strings.Contains(settingsText, "Bind this to the dedicated `gentle-orchestrator` agent only.") {
-		t.Fatalf("external-single-active sync did not migrate binding text to gentle-orchestrator")
+	if !strings.Contains(settingsText, "Bind this to the dedicated `specai-orchestrator` agent only.") {
+		t.Fatalf("external-single-active sync did not migrate binding text to specai-orchestrator")
 	}
-	if !strings.Contains(settingsText, "agent.gentle-orchestrator.model") {
-		t.Fatalf("external-single-active sync did not migrate model assignment key to gentle-orchestrator")
+	if !strings.Contains(settingsText, "agent.specai-orchestrator.model") {
+		t.Fatalf("external-single-active sync did not migrate model assignment key to specai-orchestrator")
 	}
 	if strings.Contains(settingsText, "\"sdd-onboard-cheap\"") {
 		t.Fatalf("external-single-active should not auto-detect/regenerate suffixed profiles")
 	}
-	if strings.Contains(settingsText, "\"gentleman\"") {
-		t.Fatalf("external-single-active sync should delete revoked gentleman agent")
+	if strings.Contains(settingsText, "\"specai\"") {
+		t.Fatalf("external-single-active sync should delete revoked specai agent")
 	}
-	if strings.Contains(settingsText, "REVOKED_GENTLEMAN_PROMPT_SHOULD_NOT_SURVIVE") {
-		t.Fatalf("external-single-active sync preserved revoked gentleman prompt")
+	if strings.Contains(settingsText, "REVOKED_SPECAI_PROMPT_SHOULD_NOT_SURVIVE") {
+		t.Fatalf("external-single-active sync preserved revoked specai prompt")
 	}
 
 	// external-single-active forces multi-mode assets so shared prompts exist.
@@ -1436,7 +1415,7 @@ func TestRunSyncWithSelection_NoAgentsIsNoOp(t *testing.T) {
 
 	sel := model.Selection{
 		Agents:     nil,
-		Components: []model.ComponentID{model.ComponentSDD, model.ComponentEngram},
+		Components: []model.ComponentID{model.ComponentSDD, model.ComponentSddMemory},
 	}
 
 	result, err := RunSyncWithSelection(home, sel)
@@ -1464,7 +1443,7 @@ func TestRunSyncWithSelection_WritesExpectedFiles(t *testing.T) {
 
 	sel := model.Selection{
 		Agents:     []model.AgentID{model.AgentOpenCode},
-		Components: []model.ComponentID{model.ComponentSDD, model.ComponentEngram, model.ComponentContext7, model.ComponentGGA, model.ComponentSkills},
+		Components: []model.ComponentID{model.ComponentSDD, model.ComponentSddMemory, model.ComponentContext7, model.ComponentPermission, model.ComponentSkills},
 		SDDMode:    model.SDDModeSingle,
 	}
 
@@ -1510,7 +1489,7 @@ func TestRunSyncWithSelection_FilesChangedOnFreshHome(t *testing.T) {
 
 	sel := model.Selection{
 		Agents:     []model.AgentID{model.AgentOpenCode},
-		Components: []model.ComponentID{model.ComponentSDD, model.ComponentEngram, model.ComponentContext7, model.ComponentGGA, model.ComponentSkills},
+		Components: []model.ComponentID{model.ComponentSDD, model.ComponentSddMemory, model.ComponentContext7, model.ComponentPermission, model.ComponentSkills},
 		SDDMode:    model.SDDModeSingle,
 	}
 
@@ -1540,7 +1519,7 @@ func TestRunSyncWithSelection_IsIdempotent(t *testing.T) {
 
 	sel := model.Selection{
 		Agents:     []model.AgentID{model.AgentOpenCode},
-		Components: []model.ComponentID{model.ComponentSDD, model.ComponentEngram, model.ComponentContext7, model.ComponentGGA, model.ComponentSkills},
+		Components: []model.ComponentID{model.ComponentSDD, model.ComponentSddMemory, model.ComponentContext7, model.ComponentPermission, model.ComponentSkills},
 		SDDMode:    model.SDDModeSingle,
 	}
 
@@ -1582,7 +1561,7 @@ func TestRunSyncWithSelection_SelectionAgentsForwarded(t *testing.T) {
 
 	sel := model.Selection{
 		Agents:     []model.AgentID{model.AgentOpenCode},
-		Components: []model.ComponentID{model.ComponentSDD, model.ComponentEngram, model.ComponentContext7, model.ComponentGGA, model.ComponentSkills},
+		Components: []model.ComponentID{model.ComponentSDD, model.ComponentSddMemory, model.ComponentContext7, model.ComponentPermission, model.ComponentSkills},
 	}
 
 	result, err := RunSyncWithSelection(home, sel)
@@ -1746,7 +1725,7 @@ func TestRunSyncRollsBackOnFailure(t *testing.T) {
 	// Fail after context7 inject to trigger rollback.
 	runCommand = func(string, ...string) error { return nil }
 
-	// Inject a forced failure by injecting a bad gga step — we use a test
+	// Inject a forced failure by injecting a bad n step — we use a test
 	// hook approach. We must fail the sync pipeline somehow. The simplest
 	// approach without a hook: use an invalid agent ID that will fail the
 	// adapter resolution inside the sync step.
@@ -2228,7 +2207,7 @@ func TestSyncPersonaPathsExcludeOpenCodeAgentJson(t *testing.T) {
 	reg, _ := agents.NewDefaultRegistry()
 	a, _ := reg.Get(model.AgentOpenCode)
 
-	paths := syncPersonaPaths(home, model.Selection{Persona: model.PersonaGentleman}, []agents.Adapter{a})
+	paths := syncPersonaPaths(home, model.Selection{Persona: model.PersonaModism}, []agents.Adapter{a})
 
 	settingsPath := filepath.Join(home, ".config", "opencode", "opencode.json")
 	for _, p := range paths {
@@ -2248,7 +2227,7 @@ func TestRunSyncRegeneratesPersonaBlockBetweenMarkers(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	// Write a stale managed persona block — what an older version of gentle-ai
+	// Write a stale managed persona block — what an older version of specai
 	// would have emitted. The sync must replace this with the v1.26 directive.
 	stalePersona := "# pre-existing notes by user\n\n" +
 		"<!-- specai:persona -->\n" +
@@ -2260,7 +2239,7 @@ func TestRunSyncRegeneratesPersonaBlockBetweenMarkers(t *testing.T) {
 	}
 	if err := state.Write(home, state.InstallState{
 		InstalledAgents: []string{"claude-code"},
-		Persona:         "gentleman",
+		Persona:         "modism",
 	}); err != nil {
 		t.Fatalf("state.Write: %v", err)
 	}
@@ -2286,7 +2265,7 @@ func TestRunSyncRegeneratesPersonaBlockBetweenMarkers(t *testing.T) {
 }
 
 // TestRunSyncReadsPersonaFromState verifies that sync uses the persona the
-// user installed (from state.json) rather than always defaulting to Gentleman.
+// user installed (from state.json) rather than always defaulting to SpecAI.
 func TestRunSyncReadsPersonaFromState(t *testing.T) {
 	home := t.TempDir()
 	setSyncTestHome(t, home)
@@ -2310,10 +2289,10 @@ func TestRunSyncReadsPersonaFromState(t *testing.T) {
 	}
 }
 
-// TestRunSyncFallsBackToGentlemanWhenStateLacksPersona verifies the backward
+// TestRunSyncFallsBackToSpecAIWhenStateLacksPersona verifies the backward
 // compatibility path: state files written before persona persistence still
 // produce a working sync.
-func TestRunSyncFallsBackToGentlemanWhenStateLacksPersona(t *testing.T) {
+func TestRunSyncFallsBackToSpecAIWhenStateLacksPersona(t *testing.T) {
 	home := t.TempDir()
 	setSyncTestHome(t, home)
 
@@ -2331,7 +2310,7 @@ func TestRunSyncFallsBackToGentlemanWhenStateLacksPersona(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunSync() error = %v", err)
 	}
-	if got, want := res.Selection.Persona, model.PersonaGentleman; got != want {
+	if got, want := res.Selection.Persona, model.PersonaModism; got != want {
 		t.Errorf("Selection.Persona = %q, want %q (fallback for pre-feature state)", got, want)
 	}
 }

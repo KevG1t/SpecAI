@@ -8,22 +8,27 @@ import (
 )
 
 func PersonaOptions() []model.PersonaID {
-	return []model.PersonaID{model.PersonaGentleman, model.PersonaGentlemanNeutralArtifacts, model.PersonaNeutral, model.PersonaCustom}
+	ids := make([]model.PersonaID, 0, len(model.Personas))
+	for _, p := range model.Personas {
+		ids = append(ids, p.ID)
+	}
+	return ids
 }
 
-var personaDescriptions = map[model.PersonaID]string{
-	model.PersonaGentleman:                 "Managed Gentleman persona with teaching-first guidance",
-	model.PersonaGentlemanNeutralArtifacts: "Gentleman conversation with English technical artifacts and comments in context language",
-	model.PersonaNeutral:                   "Managed neutral persona with the same guidance and less regional tone",
-	model.PersonaCustom:                    "Keep your existing persona unmanaged; gentle-ai does not inject a persona",
-}
+var personaDescriptions = func() map[model.PersonaID]string {
+	m := make(map[model.PersonaID]string, len(model.Personas))
+	for _, p := range model.Personas {
+		m[p.ID] = p.Description
+	}
+	return m
+}()
 
 func RenderPersona(selected model.PersonaID, cursor int) string {
 	var b strings.Builder
 
 	b.WriteString(styles.TitleStyle.Render("Choose your Persona"))
 	b.WriteString("\n\n")
-	b.WriteString(styles.SubtextStyle.Render("Your own Gentleman! teaches before it solves."))
+	b.WriteString(styles.SubtextStyle.Render("SpecAI teaches before it solves."))
 	b.WriteString("\n\n")
 
 	for idx, persona := range PersonaOptions() {

@@ -14,7 +14,7 @@ func TestRenderUninstallResultIncludesManualCleanup(t *testing.T) {
 		ManualActions: []string{
 			"Remove manually if no longer needed: /tmp/skills (directory still contains non-managed files)",
 		},
-	}, nil, "", nil, model.EngramUninstallScopeGlobal, false, nil, nil)
+	}, nil, "", nil, model.SddMemoryUninstallScopeGlobal, false, nil, nil)
 
 	if !strings.Contains(out, "Manual cleanup required") {
 		t.Fatalf("RenderUninstallResult() should include manual cleanup heading; got:\n%s", out)
@@ -30,7 +30,7 @@ func TestRenderUninstallConfirmIncludesSelectedProfiles(t *testing.T) {
 		[]model.AgentID{model.AgentOpenCode},
 		[]model.ComponentID{model.ComponentSDD},
 		[]string{"cheap"},
-		model.EngramUninstallScopeGlobal,
+		model.SddMemoryUninstallScopeGlobal,
 		false,
 		0,
 		false,
@@ -45,32 +45,32 @@ func TestRenderUninstallConfirmIncludesSelectedProfiles(t *testing.T) {
 	}
 }
 
-func TestRenderUninstallConfirmIncludesEngramProjectScopeDetails(t *testing.T) {
+func TestRenderUninstallConfirmIncludesSddMemoryProjectScopeDetails(t *testing.T) {
 	out := RenderUninstallConfirm(
 		model.UninstallModePartial,
 		[]model.AgentID{model.AgentOpenCode},
-		[]model.ComponentID{model.ComponentEngram},
+		[]model.ComponentID{model.ComponentSddMemory},
 		nil,
-		model.EngramUninstallScopeProject,
+		model.SddMemoryUninstallScopeProject,
 		true,
 		0,
 		false,
 		0,
 	)
 
-	if !strings.Contains(out, "Engram cleanup scope") {
-		t.Fatalf("RenderUninstallConfirm() should include Engram cleanup scope heading; got:\n%s", out)
+	if !strings.Contains(out, "SddMemory cleanup scope") {
+		t.Fatalf("RenderUninstallConfirm() should include SddMemory cleanup scope heading; got:\n%s", out)
 	}
 	if !strings.Contains(out, "Project-only") {
 		t.Fatalf("RenderUninstallConfirm() should include project-only scope label; got:\n%s", out)
 	}
-	if !strings.Contains(out, ".engram/") {
-		t.Fatalf("RenderUninstallConfirm() should mention .engram project data removal; got:\n%s", out)
+	if !strings.Contains(out, ".sdd-memory/") {
+		t.Fatalf("RenderUninstallConfirm() should mention .sdd-memory project data removal; got:\n%s", out)
 	}
 }
 
 func TestRenderUninstallResultIncludesSelectedProfiles(t *testing.T) {
-	out := RenderUninstallResult(componentuninstall.Result{}, nil, model.UninstallModePartial, []string{"cheap", "fast"}, model.EngramUninstallScopeGlobal, false, nil, nil)
+	out := RenderUninstallResult(componentuninstall.Result{}, nil, model.UninstallModePartial, []string{"cheap", "fast"}, model.SddMemoryUninstallScopeGlobal, false, nil, nil)
 
 	if !strings.Contains(out, "Profiles removed") {
 		t.Fatalf("RenderUninstallResult() should include profile summary heading; got:\n%s", out)
@@ -80,12 +80,12 @@ func TestRenderUninstallResultIncludesSelectedProfiles(t *testing.T) {
 	}
 }
 
-func TestRenderUninstallResultIncludesEngramScopeSummary(t *testing.T) {
+func TestRenderUninstallResultIncludesSddMemoryScopeSummary(t *testing.T) {
 	out := RenderUninstallResult(componentuninstall.Result{
-		RemovedDirectories: []string{"/tmp/workspace/.engram"},
-	}, nil, model.UninstallModePartial, nil, model.EngramUninstallScopeProject, true, nil, nil)
+		RemovedDirectories: []string{"/tmp/workspace/.sdd-memory"},
+	}, nil, model.UninstallModePartial, nil, model.SddMemoryUninstallScopeProject, true, nil, nil)
 
-	if !strings.Contains(out, "Engram scope: Project-only") {
-		t.Fatalf("RenderUninstallResult() should include Engram project scope summary; got:\n%s", out)
+	if !strings.Contains(out, "SddMemory scope: Project-only") {
+		t.Fatalf("RenderUninstallResult() should include SddMemory project scope summary; got:\n%s", out)
 	}
 }

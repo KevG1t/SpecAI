@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/KevG1t/specai/internal/agents"
-	"github.com/KevG1t/specai/internal/components/engram"
+	"github.com/KevG1t/specai/internal/components/sddmemory"
 	"github.com/KevG1t/specai/internal/components/persona"
 	"github.com/KevG1t/specai/internal/components/sdd"
 	"github.com/KevG1t/specai/internal/model"
@@ -22,13 +22,13 @@ func TestOpenClawSelectedAdapterRoutesToExpectedInjectors(t *testing.T) {
 		t.Fatalf("NewAdapter(openclaw) error = %v", err)
 	}
 
-	if _, err := engram.InjectWithPromptDir(home, workspace, adapter); err != nil {
-		t.Fatalf("engram.Inject(openclaw) error = %v", err)
+	if _, err := sddmemory.InjectWithPromptDir(home, workspace, adapter); err != nil {
+		t.Fatalf("sddmemory.Inject(openclaw) error = %v", err)
 	}
 	if _, err := sdd.Inject(workspace, adapter, model.SDDModeSingle, sdd.InjectOptions{StrictTDD: true, WorkspaceDir: workspace}); err != nil {
 		t.Fatalf("sdd.Inject(openclaw) error = %v", err)
 	}
-	if _, err := persona.Inject(workspace, adapter, model.PersonaGentleman); err != nil {
+	if _, err := persona.Inject(workspace, adapter, model.PersonaModism); err != nil {
 		t.Fatalf("persona.Inject(openclaw) error = %v", err)
 	}
 
@@ -38,17 +38,17 @@ func TestOpenClawSelectedAdapterRoutesToExpectedInjectors(t *testing.T) {
 		t.Fatalf("Unmarshal openclaw.json error = %v; content:\n%s", err, config)
 	}
 	servers := objectAt(t, objectAt(t, root, "mcp"), "servers")
-	engramServer := objectAt(t, servers, "engram")
-	command, ok := engramServer["command"].(string)
+	sddMemoryServer := objectAt(t, servers, "sdd-memory")
+	command, ok := sddMemoryServer["command"].(string)
 	if !ok {
-		t.Fatalf("OpenClaw Engram command = %#v, want string", engramServer["command"])
+		t.Fatalf("OpenClaw sdd-memory command = %#v, want string", sddMemoryServer["command"])
 	}
-	if got := filepath.Base(command); got != "engram" {
-		t.Fatalf("OpenClaw Engram command = %q, want executable named engram", command)
+	if got := filepath.Base(command); got != "sdd-memory" {
+		t.Fatalf("OpenClaw sdd-memory command = %q, want executable named sdd-memory", command)
 	}
 
 	agentsText := readText(t, filepath.Join(workspace, "AGENTS.md"))
-	for _, want := range []string{"specai:engram-protocol", "specai:sdd-orchestrator", "specai:strict-tdd-mode"} {
+	for _, want := range []string{"specai:sdd-memory-protocol", "specai:sdd-orchestrator", "specai:strict-tdd-mode"} {
 		if !strings.Contains(agentsText, want) {
 			t.Fatalf("OpenClaw AGENTS.md missing %q; got:\n%s", want, agentsText)
 		}
@@ -100,13 +100,13 @@ func TestOpenClawInjectorChainRerunIsIdempotent(t *testing.T) {
 
 func runOpenClawInjectorChain(t *testing.T, home, workspace string, adapter agents.Adapter) {
 	t.Helper()
-	if _, err := engram.InjectWithPromptDir(home, workspace, adapter); err != nil {
-		t.Fatalf("engram.Inject(openclaw) error = %v", err)
+	if _, err := sddmemory.InjectWithPromptDir(home, workspace, adapter); err != nil {
+		t.Fatalf("sddmemory.Inject(openclaw) error = %v", err)
 	}
 	if _, err := sdd.Inject(workspace, adapter, model.SDDModeSingle, sdd.InjectOptions{StrictTDD: true, WorkspaceDir: workspace}); err != nil {
 		t.Fatalf("sdd.Inject(openclaw) error = %v", err)
 	}
-	if _, err := persona.Inject(workspace, adapter, model.PersonaGentleman); err != nil {
+	if _, err := persona.Inject(workspace, adapter, model.PersonaModism); err != nil {
 		t.Fatalf("persona.Inject(openclaw) error = %v", err)
 	}
 }

@@ -10,13 +10,13 @@ import (
 
 func TestBuildReviewPayloadIncludesPlatformDecision(t *testing.T) {
 	selection := model.Selection{
-		Persona: model.PersonaGentleman,
-		Preset:  model.PresetFullGentleman,
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 	}
 
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentEngram},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 		PlatformDecision: PlatformDecision{
 			OS:             "linux",
 			LinuxDistro:    "arch",
@@ -99,8 +99,8 @@ func TestBuildReviewPayloadPlatformDecisionPropagatesPerProfile(t *testing.T) {
 	for _, decision := range profiles {
 		t.Run(decision.OS+"/"+decision.LinuxDistro, func(t *testing.T) {
 			selection := model.Selection{
-				Persona: model.PersonaGentleman,
-				Preset:  model.PresetFullGentleman,
+				Persona: model.PersonaModism,
+				Preset:  model.PresetFullModism,
 			}
 			resolved := ResolvedPlan{
 				Agents:           []model.AgentID{model.AgentClaudeCode},
@@ -123,13 +123,13 @@ func TestBuildReviewPayloadPlatformDecisionPropagatesPerProfile(t *testing.T) {
 // Closes #145.
 func TestBuildReviewPayloadIncludesSkills(t *testing.T) {
 	selection := model.Selection{
-		Persona: model.PersonaGentleman,
-		Preset:  model.PresetFullGentleman,
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 		Skills:  []model.SkillID{"sdd-apply", "sdd-spec", "go-testing"},
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentEngram, model.ComponentSkills},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory, model.ComponentSkills},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -151,13 +151,13 @@ func TestBuildReviewPayloadIncludesSkills(t *testing.T) {
 // Closes #145.
 func TestBuildReviewPayloadSkillsNilWhenNotSelected(t *testing.T) {
 	selection := model.Selection{
-		Persona: model.PersonaGentleman,
-		Preset:  model.PresetFullGentleman,
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 		// Skills not set
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentEngram},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -175,13 +175,13 @@ func TestBuildReviewPayloadSkillsNilWhenNotSelected(t *testing.T) {
 // Closes #149.
 func TestBuildReviewPayloadIncludesStrictTDD(t *testing.T) {
 	selection := model.Selection{
-		Persona:   model.PersonaGentleman,
-		Preset:    model.PresetFullGentleman,
+		Persona:   model.PersonaModism,
+		Preset:    model.PresetFullModism,
 		StrictTDD: true,
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentEngram, model.ComponentSDD},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -200,13 +200,13 @@ func TestBuildReviewPayloadIncludesStrictTDD(t *testing.T) {
 // Closes #149.
 func TestBuildReviewPayloadStrictTDDFalseWhenDisabled(t *testing.T) {
 	selection := model.Selection{
-		Persona:   model.PersonaGentleman,
-		Preset:    model.PresetFullGentleman,
+		Persona:   model.PersonaModism,
+		Preset:    model.PresetFullModism,
 		StrictTDD: false,
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentEngram, model.ComponentSDD},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -225,13 +225,13 @@ func TestBuildReviewPayloadStrictTDDFalseWhenDisabled(t *testing.T) {
 // Closes #149.
 func TestBuildReviewPayloadHasSDDFalseWithoutSDDComponent(t *testing.T) {
 	selection := model.Selection{
-		Persona:   model.PersonaGentleman,
-		Preset:    model.PresetFullGentleman,
+		Persona:   model.PersonaModism,
+		Preset:    model.PresetFullModism,
 		StrictTDD: true,
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentEngram}, // no SDD
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory}, // no SDD
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -247,7 +247,7 @@ func TestResolverOutputIsPlatformAgnostic(t *testing.T) {
 	resolver := NewResolver(MVPGraph())
 	selection := model.Selection{
 		Agents:     []model.AgentID{model.AgentClaudeCode},
-		Components: []model.ComponentID{model.ComponentEngram},
+		Components: []model.ComponentID{model.ComponentSddMemory},
 	}
 
 	plan, err := resolver.Resolve(selection)

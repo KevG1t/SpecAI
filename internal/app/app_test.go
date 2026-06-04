@@ -108,7 +108,7 @@ func TestListBackupsWithSourceMetadata(t *testing.T) {
 	}
 }
 
-// TestRunArgsRestoreListIsDispatched verifies that `gentle-ai restore --list`
+// TestRunArgsRestoreListIsDispatched verifies that `specai restore --list`
 // is correctly dispatched through RunArgs and produces a meaningful response
 // (either a backup list or a "no backups" message — never "unknown command").
 func TestRunArgsRestoreListIsDispatched(t *testing.T) {
@@ -381,7 +381,7 @@ func TestTuiSyncClaudeModelConfigWritesSelectedAssignments(t *testing.T) {
 	for _, want := range []string{
 		"| sdd-apply | haiku | Implementation |",
 		"| default | haiku | Non-SDD general delegation |",
-		"Gentle AI does not configure the main orchestrator model",
+		"SpecAI does not configure the main orchestrator model",
 	} {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("CLAUDE.md missing %q; got:\n%s", want, body)
@@ -624,7 +624,7 @@ func TestLoadPersistedAssignmentsWiresEffort(t *testing.T) {
 	}
 }
 
-// TestVersionBeforeSystemGuards verifies that `gentle-ai version` returns the
+// TestVersionBeforeSystemGuards verifies that `specai version` returns the
 // version string without going through system detection or platform guards.
 func TestVersionBeforeSystemGuards(t *testing.T) {
 	var buf bytes.Buffer

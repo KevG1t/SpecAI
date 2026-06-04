@@ -3,7 +3,7 @@ package storage
 import "fmt"
 
 // FormatBytes formats n bytes as a human-readable string using 1024-based units,
-// consistent with Engram CLI output.
+// consistent with SddMemory CLI output.
 func FormatBytes(n int64) string {
 	const (
 		kib = 1024

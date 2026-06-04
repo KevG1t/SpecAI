@@ -16,8 +16,8 @@ type UninstallModeOption struct {
 	Description string
 }
 
-type UninstallEngramScopeOption struct {
-	Scope       model.EngramUninstallScope
+type UninstallSddMemoryScopeOption struct {
+	Scope       model.SddMemoryUninstallScope
 	Label       string
 	Description string
 }
@@ -32,12 +32,12 @@ func UninstallModeOptions() []UninstallModeOption {
 		{
 			Mode:        model.UninstallModeFull,
 			Label:       "Full Uninstall",
-			Description: "Remove all gentle-ai managed configuration from all agents",
+			Description: "Remove all specai managed configuration from all agents",
 		},
 		{
 			Mode:        model.UninstallModeFullRemove,
 			Label:       "Full Uninstall & Remove Binary",
-			Description: "Remove all configuration AND delete the gentle-ai binary itself",
+			Description: "Remove all configuration AND delete the specai binary itself",
 		},
 		{
 			Mode:        model.UninstallModeCleanInstall,
@@ -52,7 +52,7 @@ func RenderUninstallMode(cursor int) string {
 
 	b.WriteString(styles.TitleStyle.Render("Uninstall Mode Selection"))
 	b.WriteString("\n\n")
-	b.WriteString(styles.SubtextStyle.Render("Choose how you want to uninstall gentle-ai:"))
+	b.WriteString(styles.SubtextStyle.Render("Choose how you want to uninstall specai:"))
 	b.WriteString("\n\n")
 
 	options := UninstallModeOptions()
@@ -95,7 +95,7 @@ func RenderUninstall(selected []model.AgentID, cursor int) string {
 	b.WriteString("\n\n")
 	b.WriteString(styles.HelpStyle.Render("Use j/k to move, space to toggle, enter to continue."))
 	b.WriteString("\n\n")
-	b.WriteString(styles.SubtextStyle.Render("Select the agents whose gentle-ai managed configuration should be removed."))
+	b.WriteString(styles.SubtextStyle.Render("Select the agents whose specai managed configuration should be removed."))
 	b.WriteString("\n\n")
 
 	selectedSet := make(map[model.AgentID]struct{}, len(selected))
@@ -136,7 +136,7 @@ func RenderUninstallComponents(selected []model.ComponentID, cursor int) string 
 	b.WriteString("\n\n")
 	b.WriteString(styles.HelpStyle.Render("Use j/k to move, space to toggle, enter to continue."))
 	b.WriteString("\n\n")
-	b.WriteString(styles.SubtextStyle.Render("Select which gentle-ai managed components should be removed from the selected agents."))
+	b.WriteString(styles.SubtextStyle.Render("Select which specai managed components should be removed from the selected agents."))
 	b.WriteString("\n\n")
 
 	selectedSet := make(map[model.ComponentID]struct{}, len(selected))
@@ -171,24 +171,24 @@ func RenderUninstallComponents(selected []model.ComponentID, cursor int) string 
 	return b.String()
 }
 
-func uninstallEngramScopeOptions(projectScopeAvailable bool) []UninstallEngramScopeOption {
-	options := make([]UninstallEngramScopeOption, 0, 2)
+func uninstallSddMemoryScopeOptions(projectScopeAvailable bool) []UninstallSddMemoryScopeOption {
+	options := make([]UninstallSddMemoryScopeOption, 0, 2)
 	if projectScopeAvailable {
-		options = append(options, UninstallEngramScopeOption{
-			Scope:       model.EngramUninstallScopeProject,
+		options = append(options, UninstallSddMemoryScopeOption{
+			Scope:       model.SddMemoryUninstallScopeProject,
 			Label:       "Project-only cleanup",
-			Description: "Delete only .engram/ in the current project",
+			Description: "Delete only .sdd-memory/ in the current project",
 		})
 	}
-	options = append(options, UninstallEngramScopeOption{
-		Scope:       model.EngramUninstallScopeGlobal,
+	options = append(options, UninstallSddMemoryScopeOption{
+		Scope:       model.SddMemoryUninstallScopeGlobal,
 		Label:       "Global cleanup",
-		Description: "Remove global Engram MCP/system prompt integration",
+		Description: "Remove global SddMemory MCP/system prompt integration",
 	})
 	return options
 }
 
-func RenderUninstallProfiles(available []string, selected []string, engramProjectScopeAvailable bool, selectedEngramScope model.EngramUninstallScope, cursor int) string {
+func RenderUninstallProfiles(available []string, selected []string, sddMemoryProjectScopeAvailable bool, selectedSddMemoryScope model.SddMemoryUninstallScope, cursor int) string {
 	var b strings.Builder
 
 	b.WriteString(styles.TitleStyle.Render("Uninstall Scope Selection"))
@@ -212,18 +212,18 @@ func RenderUninstallProfiles(available []string, selected []string, engramProjec
 		b.WriteString(renderCheckbox(profileName, checked, focused))
 	}
 
-	engramScopeOptions := uninstallEngramScopeOptions(engramProjectScopeAvailable)
-	engramScopeDisplayed := 0
-	if len(engramScopeOptions) > 1 {
-		engramScopeDisplayed = len(engramScopeOptions)
+	sddMemoryScopeOptions := uninstallSddMemoryScopeOptions(sddMemoryProjectScopeAvailable)
+	sddMemoryScopeDisplayed := 0
+	if len(sddMemoryScopeOptions) > 1 {
+		sddMemoryScopeDisplayed = len(sddMemoryScopeOptions)
 		if len(available) > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(styles.SubtextStyle.Render("Select Engram cleanup scope:"))
+		b.WriteString(styles.SubtextStyle.Render("Select SddMemory cleanup scope:"))
 		b.WriteString("\n")
-		for idx, option := range engramScopeOptions {
+		for idx, option := range sddMemoryScopeOptions {
 			focused := len(available)+idx == cursor
-			checked := selectedEngramScope == option.Scope
+			checked := selectedSddMemoryScope == option.Scope
 			b.WriteString(renderCheckbox(option.Label, checked, focused))
 			b.WriteString(styles.SubtextStyle.Render("    " + option.Description))
 			b.WriteString("\n")
@@ -231,7 +231,7 @@ func RenderUninstallProfiles(available []string, selected []string, engramProjec
 	}
 
 	b.WriteString("\n")
-	relCursor := cursor - (len(available) + engramScopeDisplayed)
+	relCursor := cursor - (len(available) + sddMemoryScopeDisplayed)
 	b.WriteString(renderOptions([]string{"Continue", "Back"}, relCursor))
 	b.WriteString("\n")
 	b.WriteString(styles.HelpStyle.Render("space: toggle/select • enter: continue • esc: back"))
@@ -239,7 +239,7 @@ func RenderUninstallProfiles(available []string, selected []string, engramProjec
 	return b.String()
 }
 
-func RenderUninstallConfirm(mode model.UninstallMode, selected []model.AgentID, components []model.ComponentID, profilesToRemove []string, engramScope model.EngramUninstallScope, engramProjectScopeAvailable bool, cursor int, operationRunning bool, spinnerFrame int) string {
+func RenderUninstallConfirm(mode model.UninstallMode, selected []model.AgentID, components []model.ComponentID, profilesToRemove []string, sddMemoryScope model.SddMemoryUninstallScope, sddMemoryProjectScopeAvailable bool, cursor int, operationRunning bool, spinnerFrame int) string {
 	var b strings.Builder
 
 	b.WriteString(styles.TitleStyle.Render("Confirm Uninstall"))
@@ -279,21 +279,21 @@ func RenderUninstallConfirm(mode model.UninstallMode, selected []model.AgentID, 
 	case model.UninstallModeFull:
 		b.WriteString(styles.SubtextStyle.Render("Mode: Full Uninstall"))
 		b.WriteString("\n\n")
-		b.WriteString(styles.UnselectedStyle.Render("This will remove all gentle-ai managed configuration from all supported agents."))
+		b.WriteString(styles.UnselectedStyle.Render("This will remove all specai managed configuration from all supported agents."))
 		b.WriteString("\n")
 	case model.UninstallModeFullRemove:
 		b.WriteString(styles.ErrorStyle.Render("Mode: Full Uninstall & Remove Binary"))
 		b.WriteString("\n\n")
-		b.WriteString(styles.UnselectedStyle.Render("This will remove all gentle-ai managed configuration from all agents"))
+		b.WriteString(styles.UnselectedStyle.Render("This will remove all specai managed configuration from all agents"))
 		b.WriteString("\n")
-		b.WriteString(styles.ErrorStyle.Render("AND delete the gentle-ai binary itself."))
+		b.WriteString(styles.ErrorStyle.Render("AND delete the specai binary itself."))
 		b.WriteString("\n\n")
 		b.WriteString(styles.ErrorStyle.Render("⚠ WARNING: This action cannot be undone without reinstalling!"))
 		b.WriteString("\n")
 	case model.UninstallModeCleanInstall:
 		b.WriteString(styles.SuccessStyle.Render("Mode: Full Uninstall + Clean Install"))
 		b.WriteString("\n\n")
-		b.WriteString(styles.UnselectedStyle.Render("This will remove all gentle-ai managed configuration from all agents"))
+		b.WriteString(styles.UnselectedStyle.Render("This will remove all specai managed configuration from all agents"))
 		b.WriteString("\n")
 		b.WriteString(styles.SuccessStyle.Render("and immediately re-sync all managed assets from scratch."))
 		b.WriteString("\n\n")
@@ -311,15 +311,15 @@ func RenderUninstallConfirm(mode model.UninstallMode, selected []model.AgentID, 
 		}
 	}
 
-	if hasSelectedComponent(components, model.ComponentEngram) {
+	if hasSelectedComponent(components, model.ComponentSddMemory) {
 		b.WriteString("\n")
-		b.WriteString(styles.SubtextStyle.Render("Engram cleanup scope:"))
+		b.WriteString(styles.SubtextStyle.Render("SddMemory cleanup scope:"))
 		b.WriteString("\n")
 		scopeLabel := "Global"
-		detail := "  • Removes global Engram MCP/system prompt configuration"
-		if engramScope == model.EngramUninstallScopeProject && engramProjectScopeAvailable {
+		detail := "  • Removes global SddMemory MCP/system prompt configuration"
+		if sddMemoryScope == model.SddMemoryUninstallScopeProject && sddMemoryProjectScopeAvailable {
 			scopeLabel = "Project-only"
-			detail = "  • Deletes .engram/ in the current project only"
+			detail = "  • Deletes .sdd-memory/ in the current project only"
 		}
 		b.WriteString(styles.UnselectedStyle.Render("  • " + scopeLabel))
 		b.WriteString("\n")
@@ -344,7 +344,7 @@ func RenderUninstallConfirm(mode model.UninstallMode, selected []model.AgentID, 
 		b.WriteString("\n")
 		b.WriteString(styles.SubtextStyle.Render("  • .windsurf/workflows/ (SDD workflows)"))
 		b.WriteString("\n")
-		b.WriteString(styles.SubtextStyle.Render("  • .engram/ (persistent memory context)"))
+		b.WriteString(styles.SubtextStyle.Render("  • .sdd-memory/ (persistent memory context)"))
 		b.WriteString("\n")
 		b.WriteString(styles.SubtextStyle.Render("  • Skills directories"))
 		b.WriteString("\n\n")
@@ -361,7 +361,7 @@ func RenderUninstallConfirm(mode model.UninstallMode, selected []model.AgentID, 
 	return b.String()
 }
 
-func RenderUninstallResult(result componentuninstall.Result, err error, mode model.UninstallMode, selectedProfiles []string, engramScope model.EngramUninstallScope, engramProjectScopeAvailable bool, syncFiles []string, syncErr error) string {
+func RenderUninstallResult(result componentuninstall.Result, err error, mode model.UninstallMode, selectedProfiles []string, sddMemoryScope model.SddMemoryUninstallScope, sddMemoryProjectScopeAvailable bool, syncFiles []string, syncErr error) string {
 	var b strings.Builder
 
 	b.WriteString(styles.TitleStyle.Render("Uninstall Result"))
@@ -413,12 +413,12 @@ func RenderUninstallResult(result componentuninstall.Result, err error, mode mod
 			b.WriteString(styles.UnselectedStyle.Render("Profiles removed: " + strings.Join(selectedProfiles, ", ")))
 		}
 
-		if hasEngramArtifacts(result) {
+		if hasSddMemoryArtifacts(result) {
 			b.WriteString("\n\n")
-			if engramScope == model.EngramUninstallScopeProject && engramProjectScopeAvailable {
-				b.WriteString(styles.UnselectedStyle.Render("Engram scope: Project-only (.engram/ removed from current workspace)"))
+			if sddMemoryScope == model.SddMemoryUninstallScopeProject && sddMemoryProjectScopeAvailable {
+				b.WriteString(styles.UnselectedStyle.Render("SddMemory scope: Project-only (.sdd-memory/ removed from current workspace)"))
 			} else {
-				b.WriteString(styles.UnselectedStyle.Render("Engram scope: Global (MCP/system prompt integration removed)"))
+				b.WriteString(styles.UnselectedStyle.Render("SddMemory scope: Global (MCP/system prompt integration removed)"))
 			}
 		}
 
@@ -430,7 +430,7 @@ func RenderUninstallResult(result componentuninstall.Result, err error, mode mod
 				b.WriteString("\n")
 				b.WriteString(styles.ErrorStyle.Render("  " + syncErr.Error()))
 				b.WriteString("\n\n")
-				b.WriteString(styles.WarningStyle.Render("You can run 'gentle-ai sync' manually to retry."))
+				b.WriteString(styles.WarningStyle.Render("You can run 'specai sync' manually to retry."))
 			} else {
 				b.WriteString(styles.SuccessStyle.Render("✓ Clean install sync complete"))
 				b.WriteString("\n")
@@ -444,19 +444,19 @@ func RenderUninstallResult(result componentuninstall.Result, err error, mode mod
 	return b.String()
 }
 
-func hasEngramArtifacts(result componentuninstall.Result) bool {
+func hasSddMemoryArtifacts(result componentuninstall.Result) bool {
 	for _, path := range result.ChangedFiles {
-		if strings.Contains(path, "engram") {
+		if strings.Contains(path, "sdd-memory") {
 			return true
 		}
 	}
 	for _, path := range result.RemovedFiles {
-		if strings.Contains(path, "engram") {
+		if strings.Contains(path, "sdd-memory") {
 			return true
 		}
 	}
 	for _, path := range result.RemovedDirectories {
-		if strings.Contains(path, ".engram") {
+		if strings.Contains(path, ".sdd-memory") {
 			return true
 		}
 	}

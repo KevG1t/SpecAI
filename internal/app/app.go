@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/KevG1t/specai/internal/backup"
 	"github.com/KevG1t/specai/internal/cli"
 	componentuninstall "github.com/KevG1t/specai/internal/components/uninstall"
@@ -23,6 +22,7 @@ import (
 	"github.com/KevG1t/specai/internal/update"
 	"github.com/KevG1t/specai/internal/update/upgrade"
 	"github.com/KevG1t/specai/internal/verify"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Version is set from main via ldflags at build time.
@@ -35,8 +35,12 @@ var (
 	selfUpdateFn             = selfUpdate
 	ensureCurrentOSSupported = system.EnsureCurrentOSSupported
 	detectSystem             = system.Detect
-	runTUI                   = func(m tea.Model, opts ...tea.ProgramOption) (tea.Model, error) {
+	runTUI = func(m tea.Model, opts ...tea.ProgramOption) (tea.Model, error) {
 		p := tea.NewProgram(m, opts...)
+		if tuiM, ok := m.(tui.Model); ok {
+			tuiM.SendFn = p.Send
+			m = tuiM
+		}
 		return p.Run()
 	}
 )
@@ -47,7 +51,7 @@ func Run() error {
 
 func RunArgs(args []string, stdout io.Writer) error {
 	// Propagate the build-time version to the CLI and upgrade layers so backup
-	// manifests record which version of gentle-ai created them.
+	// manifests record which version of specai created them.
 	cli.AppVersion = Version
 	upgrade.AppVersion = Version
 
@@ -93,7 +97,7 @@ func RunArgs(args []string, stdout io.Writer) error {
 		return profile
 	}
 
-	// Self-update: check for a newer gentle-ai release and apply it before
+	// Self-update: check for a newer specai release and apply it before
 	// CLI/TUI dispatch. Errors are non-fatal — logged and swallowed.
 	// Skip auto-upgrade on TUI entry (len(args) == 0) to avoid silently
 	// replacing the binary while the user expects a clean TUI launch (#696).
@@ -249,13 +253,13 @@ func runUpdate(ctx context.Context, currentVersion string, profile system.Platfo
 	return updateCheckError(results)
 }
 
-// runUpgrade handles the `gentle-ai upgrade [--dry-run] [tool...]` command.
+// runUpgrade handles the `specai upgrade [--dry-run] [tool...]` command.
 //
 // This command:
-//   - Checks for available updates for managed tools (gentle-ai, engram, gga)
+//   - Checks for available updates for managed tools (specai, sdd-memory)
 //   - Snapshots agent config paths before execution (config preservation by design)
 //   - Executes binary-only upgrades; does NOT invoke install or sync pipelines
-//   - Skips gentle-ai itself when running as a dev build (version="dev")
+//   - Skips specai itself when running as a dev build (version="dev")
 //   - Falls back to manual guidance for unsafe platforms (Windows binary self-replace)
 func runUpgrade(ctx context.Context, args []string, detection system.DetectionResult, stdout io.Writer) error {
 	dryRun := false
@@ -430,12 +434,12 @@ func tuiUninstall(homeDir string) tui.UninstallFunc {
 }
 
 func tuiUninstallWithProfiles(homeDir string) tui.UninstallWithProfilesFunc {
-	return func(agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, engramScope model.EngramUninstallScope) (componentuninstall.Result, error) {
+	return func(agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, sddMemoryScope model.SddMemoryUninstallScope) (componentuninstall.Result, error) {
 		workspaceDir, err := os.Getwd()
 		if err != nil {
 			return componentuninstall.Result{}, fmt.Errorf("resolve workspace directory: %w", err)
 		}
-		return cli.RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir, agentIDs, componentIDs, profileNames, engramScope)
+		return cli.RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir, agentIDs, componentIDs, profileNames, sddMemoryScope)
 	}
 }
 
@@ -558,7 +562,7 @@ func claudeAliasesToStrings(m map[string]model.ClaudeModelAlias) map[string]stri
 	out := make(map[string]string, len(m))
 	for k, v := range m {
 		// Claude Code owns the main session/orchestrator model; do not persist it
-		// as a Gentle AI model assignment.
+		// as a SpecAI model assignment.
 		if k == "orchestrator" {
 			continue
 		}

@@ -1,10 +1,10 @@
 ---
 description: Validate implementation matches specs, design, and tasks
-agent: gentle-orchestrator
+agent: specai-orchestrator
 subtask: true
 ---
 
-You are the `gentle-orchestrator`, not an SDD executor. This command may launch the hidden `sdd-verify` sub-agent only after the orchestration gates below pass.
+You are the `specai-orchestrator`, not an SDD executor. This command may launch the hidden `sdd-verify` sub-agent only after the orchestration gates below pass.
 
 CONTEXT:
 
@@ -16,7 +16,7 @@ HARD GATES:
 1. SDD Session Preflight must already be complete for this session. It must include execution mode, artifact store, chained PR strategy, and review budget. If missing, ask the exact orchestrator preflight prompt and STOP. Do not run verify in the same turn.
 2. `sdd-init` must already exist or be run after preflight, per the orchestrator init guard.
 3. The active change must have spec, design, tasks, and apply-progress artifacts in the selected artifact store.
-4. Use the resolved artifact store from session preflight; do not hardcode Engram.
+4. Use the resolved artifact store from session preflight; do not hardcode SddMemory.
 
 DEPENDENCY CHECK:
 

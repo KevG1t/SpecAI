@@ -12,7 +12,7 @@ func TestParseInstallFlagsSupportsCSVAndRepeated(t *testing.T) {
 	flags, err := ParseInstallFlags([]string{
 		"--agent", "claude-code,opencode",
 		"--agent", "cursor",
-		"--component", "engram,sdd",
+		"--component", "sdd-memory,sdd",
 		"--component", "skills",
 		"--skill", "sdd-apply",
 		"--persona", "neutral",
@@ -27,7 +27,7 @@ func TestParseInstallFlagsSupportsCSVAndRepeated(t *testing.T) {
 		t.Fatalf("agents = %v", flags.Agents)
 	}
 
-	if !reflect.DeepEqual(flags.Components, []string{"engram", "sdd", "skills"}) {
+	if !reflect.DeepEqual(flags.Components, []string{"sdd-memory", "sdd", "skills"}) {
 		t.Fatalf("components = %v", flags.Components)
 	}
 
@@ -59,17 +59,15 @@ func TestNormalizeInstallFlagsDefaults(t *testing.T) {
 
 	want := model.Selection{
 		Agents:  []model.AgentID{model.AgentClaudeCode, model.AgentOpenCode, model.AgentKilocode, model.AgentGeminiCLI, model.AgentCodex, model.AgentCursor, model.AgentVSCodeCopilot, model.AgentAntigravity, model.AgentWindsurf, model.AgentKimi, model.AgentQwenCode, model.AgentKiroIDE, model.AgentOpenClaw, model.AgentPi, model.AgentTrae},
-		Persona: model.PersonaGentleman,
-		Preset:  model.PresetFullGentleman,
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 		Components: []model.ComponentID{
-			model.ComponentEngram,
+			model.ComponentSddMemory,
 			model.ComponentSDD,
 			model.ComponentSkills,
 			model.ComponentContext7,
 			model.ComponentPermission,
-			model.ComponentGGA,
 			model.ComponentClaudeTheme,
-			model.ComponentOpenCodeGentleLogo,
 			model.ComponentPersona,
 		},
 	}
@@ -79,22 +77,22 @@ func TestNormalizeInstallFlagsDefaults(t *testing.T) {
 	}
 }
 
-func TestNormalizeInstallFlagsCustomAcceptsOptionalGentlemanInstallables(t *testing.T) {
+func TestNormalizeInstallFlagsCustomAcceptsOptionalInstallables(t *testing.T) {
 	input, err := NormalizeInstallFlags(InstallFlags{
 		Preset:     string(model.PresetCustom),
-		Components: []string{string(model.ComponentClaudeTheme), string(model.ComponentOpenCodeGentleLogo)},
+		Components: []string{string(model.ComponentClaudeTheme)},
 	}, system.DetectionResult{})
 	if err != nil {
 		t.Fatalf("NormalizeInstallFlags() error = %v", err)
 	}
 
-	want := []model.ComponentID{model.ComponentClaudeTheme, model.ComponentOpenCodeGentleLogo}
+	want := []model.ComponentID{model.ComponentClaudeTheme}
 	if !reflect.DeepEqual(input.Selection.Components, want) {
 		t.Fatalf("components = %#v, want %#v", input.Selection.Components, want)
 	}
 }
 
-func TestNormalizeInstallFlagsPiOnlyDefaultsToEngramOnly(t *testing.T) {
+func TestNormalizeInstallFlagsPiOnlyDefaultsToSddMemoryOnly(t *testing.T) {
 	input, err := NormalizeInstallFlags(InstallFlags{
 		Agents: []string{string(model.AgentPi)},
 	}, system.DetectionResult{})
@@ -106,7 +104,7 @@ func TestNormalizeInstallFlagsPiOnlyDefaultsToEngramOnly(t *testing.T) {
 	if !reflect.DeepEqual(input.Selection.Agents, wantAgents) {
 		t.Fatalf("agents = %#v, want %#v", input.Selection.Agents, wantAgents)
 	}
-	wantComponents := []model.ComponentID{model.ComponentEngram}
+	wantComponents := []model.ComponentID{model.ComponentSddMemory}
 	if !reflect.DeepEqual(input.Selection.Components, wantComponents) {
 		t.Fatalf("components = %#v, want %#v", input.Selection.Components, wantComponents)
 	}
@@ -115,13 +113,13 @@ func TestNormalizeInstallFlagsPiOnlyDefaultsToEngramOnly(t *testing.T) {
 func TestNormalizeInstallFlagsPiOnlyRespectsExplicitComponents(t *testing.T) {
 	input, err := NormalizeInstallFlags(InstallFlags{
 		Agents:     []string{string(model.AgentPi)},
-		Components: []string{string(model.ComponentEngram)},
+		Components: []string{string(model.ComponentSddMemory)},
 	}, system.DetectionResult{})
 	if err != nil {
 		t.Fatalf("NormalizeInstallFlags() error = %v", err)
 	}
 
-	want := []model.ComponentID{model.ComponentEngram}
+	want := []model.ComponentID{model.ComponentSddMemory}
 	if !reflect.DeepEqual(input.Selection.Components, want) {
 		t.Fatalf("components = %#v, want %#v", input.Selection.Components, want)
 	}
@@ -136,9 +134,9 @@ func TestNormalizeInstallFlagsPiOnlyRespectsExplicitPreset(t *testing.T) {
 		t.Fatalf("NormalizeInstallFlags() error = %v", err)
 	}
 
-	// Pi + explicit minimal preset with default gentleman persona now includes ComponentPersona.
+	// Pi + explicit minimal preset with default specai persona now includes ComponentPersona.
 	// Persona is persona-screen-driven; preset only controls the ecosystem stack.
-	want := []model.ComponentID{model.ComponentEngram, model.ComponentPersona}
+	want := []model.ComponentID{model.ComponentSddMemory, model.ComponentPersona}
 	if !reflect.DeepEqual(input.Selection.Components, want) {
 		t.Fatalf("components = %#v, want %#v", input.Selection.Components, want)
 	}

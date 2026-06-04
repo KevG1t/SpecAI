@@ -1,7 +1,6 @@
 package screens
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/KevG1t/specai/internal/tui/styles"
@@ -14,7 +13,7 @@ import (
 // profileCount is used to show a badge with the current profile count.
 // When hasEngines is false, "Create your own Agent" is shown as disabled
 // (labelled "(no agents)") to signal that no supported AI engine is installed.
-func WelcomeOptions(updateResults []update.UpdateResult, updateCheckDone bool, showProfiles bool, profileCount int, hasEngines bool) []string {
+func WelcomeOptions(updateResults []update.UpdateResult, updateCheckDone bool, _ bool, _ int, _ bool) []string {
 	upgradeLabel := "Upgrade tools"
 	if updateCheckDone && update.HasUpdates(updateResults) {
 		upgradeLabel = "Upgrade tools ★"
@@ -22,34 +21,16 @@ func WelcomeOptions(updateResults []update.UpdateResult, updateCheckDone bool, s
 		upgradeLabel = "Upgrade tools (up to date)"
 	}
 
-	agentLabel := "Create your own Agent"
-	if !hasEngines {
-		agentLabel = "Create your own Agent (no agents)"
-	}
-
-	opts := []string{
+	return []string{
 		"Start installation",
 		upgradeLabel,
 		"Sync configs",
 		"Upgrade + Sync",
 		"Configure models",
-		agentLabel,
-		"OpenCode Community Plugins",
+		"Manage backups",
+		"Managed uninstall",
+		"Quit",
 	}
-
-	if showProfiles {
-		profilesLabel := "OpenCode SDD Profiles"
-		if profileCount > 0 {
-			profilesLabel = fmt.Sprintf("OpenCode SDD Profiles (%d)", profileCount)
-		}
-		opts = append(opts, profilesLabel)
-	}
-
-	opts = append(opts, "Manage backups")
-	opts = append(opts, "Managed uninstall")
-	opts = append(opts, "Quit")
-
-	return opts
 }
 
 func RenderWelcome(cursor int, version string, updateBanner string, updateResults []update.UpdateResult, updateCheckDone bool, showProfiles bool, profileCount int, hasEngines bool) string {

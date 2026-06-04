@@ -10,10 +10,10 @@ import (
 
 func TestRenderDryRunIncludesPlatformDecision(t *testing.T) {
 	result := InstallResult{
-		Selection: model.Selection{Persona: model.PersonaGentleman, Preset: model.PresetFullGentleman},
+		Selection: model.Selection{Persona: model.PersonaModism, Preset: model.PresetFullModism},
 		Resolved: planner.ResolvedPlan{
 			Agents:            []model.AgentID{model.AgentClaudeCode},
-			OrderedComponents: []model.ComponentID{model.ComponentEngram},
+			OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 		},
 		Review: planner.ReviewPayload{
 			PlatformDecision: planner.PlatformDecision{

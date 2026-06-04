@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/KevG1t/specai/internal/cli"
 	"github.com/KevG1t/specai/internal/planner"
 	"github.com/KevG1t/specai/internal/system"
 	"github.com/KevG1t/specai/internal/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestInstallDefaultsMatchTUIModelDefaults(t *testing.T) {
@@ -231,7 +231,7 @@ func TestRunArgsSyncUnknownFlagReturnsError(t *testing.T) {
 	}
 }
 
-// TestRunArgsSyncNoAgentsIsNoOp verifies that `gentle-ai sync` with no
+// TestRunArgsSyncNoAgentsIsNoOp verifies that `specai sync` with no
 // agents flag and an empty home dir (no config dirs) completes as a no-op
 // and does NOT return an error.
 func TestRunArgsSyncNoAgentsIsNoOp(t *testing.T) {
@@ -355,28 +355,28 @@ func TestInstallPlannerParityLinuxPreservesComponentOrder(t *testing.T) {
 		},
 	}
 
-	result, err := cli.RunInstall([]string{"--dry-run", "--agent", "opencode", "--component", "engram,sdd,skills"}, linuxDetection)
+	result, err := cli.RunInstall([]string{"--dry-run", "--agent", "opencode", "--component", "sdd-memory,sdd,skills"}, linuxDetection)
 	if err != nil {
 		t.Fatalf("RunInstall() error = %v", err)
 	}
 
-	// Engram must come before SDD, SDD before Skills (dependency order)
+	// SddMemory must come before SDD, SDD before Skills (dependency order)
 	order := result.Resolved.OrderedComponents
-	engramIdx, sddIdx, skillsIdx := -1, -1, -1
+	sddMemoryIdx, sddIdx, skillsIdx := -1, -1, -1
 	for i, c := range order {
 		switch c {
-		case "engram":
-			engramIdx = i
+		case "sdd-memory":
+			sddMemoryIdx = i
 		case "sdd":
 			sddIdx = i
 		case "skills":
 			skillsIdx = i
 		}
 	}
-	if engramIdx < 0 || sddIdx < 0 || skillsIdx < 0 {
+	if sddMemoryIdx < 0 || sddIdx < 0 || skillsIdx < 0 {
 		t.Fatalf("missing expected components in order: %v", order)
 	}
-	if engramIdx >= sddIdx || sddIdx >= skillsIdx {
-		t.Fatalf("dependency order violated: engram@%d sdd@%d skills@%d", engramIdx, sddIdx, skillsIdx)
+	if sddMemoryIdx >= sddIdx || sddIdx >= skillsIdx {
+		t.Fatalf("dependency order violated: sdd-memory@%d sdd@%d skills@%d", sddMemoryIdx, sddIdx, skillsIdx)
 	}
 }

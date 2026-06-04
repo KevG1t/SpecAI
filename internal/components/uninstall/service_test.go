@@ -422,7 +422,7 @@ func applySDDOpenCodeOperations(t *testing.T, svc *Service, adapter agents.Adapt
 	}
 }
 
-func TestComponentOperationsEngram_ProjectScopeRemovesWorkspaceDataOnly(t *testing.T) {
+func TestComponentOperationsSddMemory_ProjectScopeRemovesWorkspaceDataOnly(t *testing.T) {
 	homeDir := t.TempDir()
 	workspaceDir := t.TempDir()
 
@@ -440,11 +440,11 @@ func TestComponentOperationsEngram_ProjectScopeRemovesWorkspaceDataOnly(t *testi
 	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 		t.Fatalf("MkdirAll(settings dir) error = %v", err)
 	}
-	if err := os.WriteFile(settingsPath, []byte(`{"mcp":{"engram":{"command":["engram"]}}}`), 0o644); err != nil {
+	if err := os.WriteFile(settingsPath, []byte(`{"mcp":{"sdd-memory":{"command":["sdd-memory"]}}}`), 0o644); err != nil {
 		t.Fatalf("WriteFile(settings) error = %v", err)
 	}
 
-	projectDataDir := filepath.Join(workspaceDir, ".engram")
+	projectDataDir := filepath.Join(workspaceDir, ".sdd-memory")
 	if err := os.MkdirAll(projectDataDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(projectDataDir) error = %v", err)
 	}
@@ -452,9 +452,9 @@ func TestComponentOperationsEngram_ProjectScopeRemovesWorkspaceDataOnly(t *testi
 		t.Fatalf("WriteFile(memory.db) error = %v", err)
 	}
 
-	svc.SetEngramUninstallScope(model.EngramUninstallScopeProject)
+	svc.SetSddMemoryUninstallScope(model.SddMemoryUninstallScopeProject)
 
-	ops, _, err := svc.componentOperations(adapter, model.ComponentEngram)
+	ops, _, err := svc.componentOperations(adapter, model.ComponentSddMemory)
 	if err != nil {
 		t.Fatalf("componentOperations() error = %v", err)
 	}
@@ -466,19 +466,19 @@ func TestComponentOperationsEngram_ProjectScopeRemovesWorkspaceDataOnly(t *testi
 	}
 
 	if _, err := os.Stat(projectDataDir); !os.IsNotExist(err) {
-		t.Fatalf("project .engram dir should be removed; err = %v", err)
+		t.Fatalf("project .sdd-memory dir should be removed; err = %v", err)
 	}
 
 	raw, err := os.ReadFile(settingsPath)
 	if err != nil {
 		t.Fatalf("ReadFile(settings) error = %v", err)
 	}
-	if !strings.Contains(string(raw), `"engram"`) {
-		t.Fatalf("global engram config should be preserved in project scope, got: %s", string(raw))
+	if !strings.Contains(string(raw), `"sdd-memory"`) {
+		t.Fatalf("global sdd-memory config should be preserved in project scope, got: %s", string(raw))
 	}
 }
 
-func TestComponentOperationsEngram_GlobalScopeKeepsWorkspaceProjectData(t *testing.T) {
+func TestComponentOperationsSddMemory_GlobalScopeKeepsWorkspaceProjectData(t *testing.T) {
 	homeDir := t.TempDir()
 	workspaceDir := t.TempDir()
 
@@ -496,11 +496,11 @@ func TestComponentOperationsEngram_GlobalScopeKeepsWorkspaceProjectData(t *testi
 	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 		t.Fatalf("MkdirAll(settings dir) error = %v", err)
 	}
-	if err := os.WriteFile(settingsPath, []byte(`{"mcp":{"engram":{"command":["engram"]}}}`), 0o644); err != nil {
+	if err := os.WriteFile(settingsPath, []byte(`{"mcp":{"sdd-memory":{"command":["sdd-memory"]}}}`), 0o644); err != nil {
 		t.Fatalf("WriteFile(settings) error = %v", err)
 	}
 
-	projectDataDir := filepath.Join(workspaceDir, ".engram")
+	projectDataDir := filepath.Join(workspaceDir, ".sdd-memory")
 	if err := os.MkdirAll(projectDataDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(projectDataDir) error = %v", err)
 	}
@@ -508,9 +508,9 @@ func TestComponentOperationsEngram_GlobalScopeKeepsWorkspaceProjectData(t *testi
 		t.Fatalf("WriteFile(memory.db) error = %v", err)
 	}
 
-	svc.SetEngramUninstallScope(model.EngramUninstallScopeGlobal)
+	svc.SetSddMemoryUninstallScope(model.SddMemoryUninstallScopeGlobal)
 
-	ops, _, err := svc.componentOperations(adapter, model.ComponentEngram)
+	ops, _, err := svc.componentOperations(adapter, model.ComponentSddMemory)
 	if err != nil {
 		t.Fatalf("componentOperations() error = %v", err)
 	}
@@ -522,7 +522,7 @@ func TestComponentOperationsEngram_GlobalScopeKeepsWorkspaceProjectData(t *testi
 	}
 
 	if _, err := os.Stat(projectDataDir); err != nil {
-		t.Fatalf("project .engram dir should be preserved in global scope, err = %v", err)
+		t.Fatalf("project .sdd-memory dir should be preserved in global scope, err = %v", err)
 	}
 
 	raw, err := os.ReadFile(settingsPath)
@@ -532,8 +532,8 @@ func TestComponentOperationsEngram_GlobalScopeKeepsWorkspaceProjectData(t *testi
 		}
 		return
 	}
-	if strings.Contains(string(raw), `"engram"`) {
-		t.Fatalf("global engram config should be removed in global scope, got: %s", string(raw))
+	if strings.Contains(string(raw), `"sdd-memory"`) {
+		t.Fatalf("global sdd-memory config should be removed in global scope, got: %s", string(raw))
 	}
 }
 
@@ -559,7 +559,7 @@ func TestComponentOperationsSDD_ClaudeRemovesSkillRegistryHook(t *testing.T) {
       {
         "matcher": "",
         "hooks": [
-          {"type": "command", "command": "gentle-ai skill-registry refresh --quiet --no-gitignore --cwd \"${CLAUDE_PROJECT_DIR:-$PWD}\" || true"},
+          {"type": "command", "command": "specai skill-registry refresh --quiet --no-gitignore --cwd \"${CLAUDE_PROJECT_DIR:-$PWD}\" || true"},
           {"type": "command", "command": "echo keep"}
         ]
       }
@@ -592,7 +592,7 @@ func TestComponentOperationsSDD_ClaudeRemovesSkillRegistryHook(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(raw)
-	if strings.Contains(text, "gentle-ai skill-registry refresh") {
+	if strings.Contains(text, "specai skill-registry refresh") {
 		t.Fatalf("managed hook should be removed:\n%s", text)
 	}
 	if !strings.Contains(text, "echo keep") || !strings.Contains(text, "echo pre") {

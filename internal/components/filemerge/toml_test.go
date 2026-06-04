@@ -5,42 +5,42 @@ import (
 	"testing"
 )
 
-// ─── UpsertCodexEngramBlock ───────────────────────────────────────────────────
+// ─── UpsertCodexSddMemoryBlock ───────────────────────────────────────────────────
 
-func TestUpsertCodexEngramBlock_Empty(t *testing.T) {
-	result := UpsertCodexEngramBlock("", "")
+func TestUpsertCodexSddMemoryBlock_Empty(t *testing.T) {
+	result := UpsertCodexSddMemoryBlock("", "")
 
-	if !strings.Contains(result, "[mcp_servers.engram]") {
-		t.Fatalf("result missing [mcp_servers.engram]; got:\n%s", result)
+	if !strings.Contains(result, "[mcp_servers.sdd-memory]") {
+		t.Fatalf("result missing [mcp_servers.sdd-memory]; got:\n%s", result)
 	}
-	if !strings.Contains(result, `command = "engram"`) {
-		t.Fatalf("result missing command = \"engram\"; got:\n%s", result)
+	if !strings.Contains(result, `command = "sdd-memory"`) {
+		t.Fatalf("result missing command = \"sdd-memory\"; got:\n%s", result)
 	}
-	if !strings.Contains(result, `"--tools=agent"`) {
-		t.Fatalf("result missing --tools=agent; got:\n%s", result)
+	if !strings.Contains(result, `"mcp"`) {
+		t.Fatalf("result missing mcp arg; got:\n%s", result)
 	}
-	if !strings.Contains(result, `args = ["mcp", "--tools=agent"]`) {
+	if !strings.Contains(result, `args = ["mcp"]`) {
 		t.Fatalf("result has wrong args format; got:\n%s", result)
 	}
 }
 
-func TestUpsertCodexEngramBlock_ExistingBlock(t *testing.T) {
+func TestUpsertCodexSddMemoryBlock_ExistingBlock(t *testing.T) {
 	input := `[other_section]
 key = "value"
 
-[mcp_servers.engram]
-command = "engram"
+[mcp_servers.sdd-memory]
+command = "sdd-memory"
 args = ["mcp"]
 
 [another_section]
 foo = "bar"
 `
-	result := UpsertCodexEngramBlock(input, "")
+	result := UpsertCodexSddMemoryBlock(input, "")
 
-	// Must have exactly one [mcp_servers.engram] block.
-	count := strings.Count(result, "[mcp_servers.engram]")
+	// Must have exactly one [mcp_servers.sdd-memory] block.
+	count := strings.Count(result, "[mcp_servers.sdd-memory]")
 	if count != 1 {
-		t.Fatalf("expected 1 [mcp_servers.engram] block, got %d; result:\n%s", count, result)
+		t.Fatalf("expected 1 [mcp_servers.sdd-memory] block, got %d; result:\n%s", count, result)
 	}
 
 	// Must preserve unrelated sections.
@@ -51,19 +51,19 @@ foo = "bar"
 		t.Fatalf("result missing [another_section]; got:\n%s", result)
 	}
 
-	// Must use the updated args with --tools=agent.
-	if !strings.Contains(result, `"--tools=agent"`) {
-		t.Fatalf("result missing --tools=agent; got:\n%s", result)
+	// Must have canonical args.
+	if !strings.Contains(result, `args = ["mcp"]`) {
+		t.Fatalf("result missing canonical args; got:\n%s", result)
 	}
 }
 
-func TestUpsertCodexEngramBlock_PreservesOtherSections(t *testing.T) {
+func TestUpsertCodexSddMemoryBlock_PreservesOtherSections(t *testing.T) {
 	input := `model = "gpt-4o"
 
 [settings]
 timeout = 30
 `
-	result := UpsertCodexEngramBlock(input, "")
+	result := UpsertCodexSddMemoryBlock(input, "")
 
 	if !strings.Contains(result, `model = "gpt-4o"`) {
 		t.Fatalf("result missing top-level model key; got:\n%s", result)
@@ -71,50 +71,50 @@ timeout = 30
 	if !strings.Contains(result, "[settings]") {
 		t.Fatalf("result missing [settings] section; got:\n%s", result)
 	}
-	if !strings.Contains(result, "[mcp_servers.engram]") {
-		t.Fatalf("result missing [mcp_servers.engram]; got:\n%s", result)
+	if !strings.Contains(result, "[mcp_servers.sdd-memory]") {
+		t.Fatalf("result missing [mcp_servers.sdd-memory]; got:\n%s", result)
 	}
 }
 
-func TestUpsertCodexEngramBlock_AbsolutePath(t *testing.T) {
-	result := UpsertCodexEngramBlock("", "/usr/local/bin/engram")
+func TestUpsertCodexSddMemoryBlock_AbsolutePath(t *testing.T) {
+	result := UpsertCodexSddMemoryBlock("", "/usr/local/bin/sdd-memory")
 
-	if !strings.Contains(result, "[mcp_servers.engram]") {
-		t.Fatalf("result missing [mcp_servers.engram]; got:\n%s", result)
+	if !strings.Contains(result, "[mcp_servers.sdd-memory]") {
+		t.Fatalf("result missing [mcp_servers.sdd-memory]; got:\n%s", result)
 	}
-	if !strings.Contains(result, `command = "/usr/local/bin/engram"`) {
+	if !strings.Contains(result, `command = "/usr/local/bin/sdd-memory"`) {
 		t.Fatalf("result missing absolute command path; got:\n%s", result)
 	}
-	if strings.Contains(result, `command = "engram"`) {
-		t.Fatalf("result should NOT have relative command when absolute path given; got:\n%s", result)
+	if strings.Contains(result, `command = "sdd-memory"`) && !strings.Contains(result, "/usr/local/bin/sdd-memory") {
+		t.Fatalf("result should use the given absolute path, not relative command; got:\n%s", result)
 	}
 }
 
-func TestUpsertCodexEngramBlock_Idempotent(t *testing.T) {
+func TestUpsertCodexSddMemoryBlock_Idempotent(t *testing.T) {
 	input := `[other]
 key = "val"
 `
-	first := UpsertCodexEngramBlock(input, "")
-	second := UpsertCodexEngramBlock(first, "")
+	first := UpsertCodexSddMemoryBlock(input, "")
+	second := UpsertCodexSddMemoryBlock(first, "")
 
 	if first != second {
-		t.Fatalf("UpsertCodexEngramBlock is not idempotent:\nfirst:\n%s\nsecond:\n%s", first, second)
+		t.Fatalf("UpsertCodexSddMemoryBlock is not idempotent:\nfirst:\n%s\nsecond:\n%s", first, second)
 	}
 
-	count := strings.Count(second, "[mcp_servers.engram]")
+	count := strings.Count(second, "[mcp_servers.sdd-memory]")
 	if count != 1 {
-		t.Fatalf("after two runs: expected 1 [mcp_servers.engram] block, got %d; result:\n%s", count, second)
+		t.Fatalf("after two runs: expected 1 [mcp_servers.sdd-memory] block, got %d; result:\n%s", count, second)
 	}
 }
 
-func TestUpsertCodexEngramBlockWindowsPath(t *testing.T) {
+func TestUpsertCodexSddMemoryBlockWindowsPath(t *testing.T) {
 	// Windows paths contain backslashes which must be escaped in TOML double-quoted strings.
 	// \U would be interpreted as a Unicode escape sequence → parse error.
-	windowsCmd := `C:\Users\PERC\AppData\Local\engram\bin\engram.exe`
-	result := UpsertCodexEngramBlock("", windowsCmd)
+	windowsCmd := `C:\Users\PERC\AppData\Local\sdd-memory\bin\sdd-memory.exe`
+	result := UpsertCodexSddMemoryBlock("", windowsCmd)
 
 	// TOML double-quoted string must have double backslashes.
-	want := `command = "C:\\Users\\PERC\\AppData\\Local\\engram\\bin\\engram.exe"`
+	want := `command = "C:\\Users\\PERC\\AppData\\Local\\sdd-memory\\bin\\sdd-memory.exe"`
 	if !strings.Contains(result, want) {
 		t.Fatalf("result missing properly escaped Windows path;\nwant substring: %s\ngot:\n%s", want, result)
 	}
@@ -123,8 +123,8 @@ func TestUpsertCodexEngramBlockWindowsPath(t *testing.T) {
 // ─── UpsertTopLevelTOMLString ─────────────────────────────────────────────────
 
 func TestUpsertTopLevelTOMLString_NewKey(t *testing.T) {
-	input := `[mcp_servers.engram]
-command = "engram"
+	input := `[mcp_servers.sdd-memory]
+command = "sdd-memory"
 `
 	result := UpsertTopLevelTOMLString(input, "model_instructions_file", "/home/user/.codex/instructions.md")
 
@@ -133,17 +133,17 @@ command = "engram"
 	}
 	// Must appear before the first [section].
 	idx := strings.Index(result, "model_instructions_file")
-	sectionIdx := strings.Index(result, "[mcp_servers.engram]")
+	sectionIdx := strings.Index(result, "[mcp_servers.sdd-memory]")
 	if idx > sectionIdx {
-		t.Fatalf("model_instructions_file should appear before [mcp_servers.engram]; got:\n%s", result)
+		t.Fatalf("model_instructions_file should appear before [mcp_servers.sdd-memory]; got:\n%s", result)
 	}
 }
 
 func TestUpsertTopLevelTOMLString_ReplaceKey(t *testing.T) {
 	input := `model_instructions_file = "/old/path.md"
 
-[mcp_servers.engram]
-command = "engram"
+[mcp_servers.sdd-memory]
+command = "sdd-memory"
 `
 	result := UpsertTopLevelTOMLString(input, "model_instructions_file", "/new/path.md")
 
@@ -160,8 +160,8 @@ command = "engram"
 }
 
 func TestUpsertTopLevelTOMLString_Idempotent(t *testing.T) {
-	input := `[mcp_servers.engram]
-command = "engram"
+	input := `[mcp_servers.sdd-memory]
+command = "sdd-memory"
 `
 	first := UpsertTopLevelTOMLString(input, "model_instructions_file", "/path/instructions.md")
 	second := UpsertTopLevelTOMLString(first, "model_instructions_file", "/path/instructions.md")

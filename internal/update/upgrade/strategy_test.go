@@ -26,12 +26,12 @@ func TestRunStrategy_BrewUpgrade(t *testing.T) {
 	execCommand = func(name string, args ...string) *exec.Cmd {
 		gotName = name
 		gotArgs = args
-		return mockCmd("echo", "Upgraded engram")
+		return mockCmd("echo", "Upgraded sdd-memory")
 	}
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
+			Name:          "sdd-memory",
 			InstallMethod: update.InstallBrew,
 		},
 		LatestVersion: "0.4.0",
@@ -46,8 +46,8 @@ func TestRunStrategy_BrewUpgrade(t *testing.T) {
 	if gotName != "brew" {
 		t.Errorf("exec name = %q, want %q", gotName, "brew")
 	}
-	if len(gotArgs) < 2 || gotArgs[0] != "upgrade" || gotArgs[1] != "engram" {
-		t.Errorf("exec args = %v, want [upgrade engram]", gotArgs)
+	if len(gotArgs) < 2 || gotArgs[0] != "upgrade" || gotArgs[1] != "sdd-memory" {
+		t.Errorf("exec args = %v, want [upgrade sdd-memory]", gotArgs)
 	}
 }
 
@@ -67,9 +67,9 @@ func TestRunStrategy_GoInstallUpgrade(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
+			Name:          "sdd-memory",
 			InstallMethod: update.InstallGoInstall,
-			GoImportPath:  "github.com/Gentleman-Programming/engram/cmd/engram",
+			GoImportPath:  "github.com/KevG1t/sdd-memory/cmd/sdd-memory",
 		},
 		LatestVersion: "0.4.0",
 	}
@@ -83,8 +83,8 @@ func TestRunStrategy_GoInstallUpgrade(t *testing.T) {
 	if gotName != "go" {
 		t.Errorf("exec name = %q, want %q", gotName, "go")
 	}
-	// Expected: go install github.com/Gentleman-Programming/engram/cmd/engram@v0.4.0
-	wantArg0, wantArg1 := "install", "github.com/Gentleman-Programming/engram/cmd/engram@v0.4.0"
+	// Expected: go install github.com/KevG1t/sdd-memory/cmd/sdd-memory@v0.4.0
+	wantArg0, wantArg1 := "install", "github.com/KevG1t/sdd-memory/cmd/sdd-memory@v0.4.0"
 	if len(gotArgs) < 2 || gotArgs[0] != wantArg0 || gotArgs[1] != wantArg1 {
 		t.Errorf("exec args = %v, want [%s %s]", gotArgs, wantArg0, wantArg1)
 	}
@@ -95,7 +95,7 @@ func TestRunStrategy_GoInstallUpgrade(t *testing.T) {
 func TestRunStrategy_GoInstallMissingImportPath(t *testing.T) {
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
+			Name:          "sdd-memory",
 			InstallMethod: update.InstallGoInstall,
 			GoImportPath:  "", // missing
 		},
@@ -140,7 +140,7 @@ func TestRunStrategy_BrewUpgradeFailure(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
+			Name:          "sdd-memory",
 			InstallMethod: update.InstallBrew,
 		},
 		LatestVersion: "0.4.0",
@@ -165,9 +165,9 @@ func TestRunStrategy_GoInstallFailure(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
+			Name:          "sdd-memory",
 			InstallMethod: update.InstallGoInstall,
-			GoImportPath:  "github.com/Gentleman-Programming/engram/cmd/engram",
+			GoImportPath:  "github.com/KevG1t/sdd-memory/cmd/sdd-memory",
 		},
 		LatestVersion: "0.4.0",
 	}
@@ -182,7 +182,7 @@ func TestRunStrategy_GoInstallFailure(t *testing.T) {
 // --- TestRunStrategy_BinaryWindowsSelfUpdateSkipped ---
 
 // TestRunStrategy_BinaryWindowsSelfUpdateSkipped verifies that the Windows binary
-// self-replace for gentle-ai is NOT attempted in Phase 1 — it must return a
+// self-replace for specai is NOT attempted in Phase 1 — it must return a
 // manual hint error, not execute.
 func TestRunStrategy_BinaryWindowsSelfUpdateSkipped(t *testing.T) {
 	origExecCommand := execCommand
@@ -196,11 +196,11 @@ func TestRunStrategy_BinaryWindowsSelfUpdateSkipped(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "gentle-ai",
+			Name:          "specai",
 			InstallMethod: update.InstallBinary,
 		},
 		LatestVersion: "1.5.0",
-		ReleaseURL:    "https://github.com/Gentleman-Programming/gentle-ai/releases/tag/v1.5.0",
+		ReleaseURL:    "https://github.com/KevG1t/SpecAI/releases/tag/v1.5.0",
 	}
 	profile := system.PlatformProfile{OS: "windows", PackageManager: "winget"}
 
@@ -226,37 +226,37 @@ func TestEffectiveMethod(t *testing.T) {
 	}{
 		{
 			name:    "brew profile overrides go-install",
-			tool:    update.ToolInfo{Name: "engram", InstallMethod: update.InstallGoInstall},
+			tool:    update.ToolInfo{Name: "sdd-memory", InstallMethod: update.InstallGoInstall},
 			profile: system.PlatformProfile{PackageManager: "brew"},
 			want:    update.InstallBrew,
 		},
 		{
 			name:    "brew profile overrides binary",
-			tool:    update.ToolInfo{Name: "gga", InstallMethod: update.InstallBinary},
+			tool:    update.ToolInfo{Name: "script-tool", InstallMethod: update.InstallBinary},
 			profile: system.PlatformProfile{PackageManager: "brew"},
 			want:    update.InstallBrew,
 		},
 		{
 			name:    "brew profile overrides script",
-			tool:    update.ToolInfo{Name: "gga", InstallMethod: update.InstallScript},
+			tool:    update.ToolInfo{Name: "script-tool", InstallMethod: update.InstallScript},
 			profile: system.PlatformProfile{PackageManager: "brew"},
 			want:    update.InstallBrew,
 		},
 		{
 			name:    "apt profile respects declared method (go-install)",
-			tool:    update.ToolInfo{Name: "engram", InstallMethod: update.InstallGoInstall},
+			tool:    update.ToolInfo{Name: "sdd-memory", InstallMethod: update.InstallGoInstall},
 			profile: system.PlatformProfile{PackageManager: "apt"},
 			want:    update.InstallGoInstall,
 		},
 		{
 			name:    "apt profile respects declared method (binary)",
-			tool:    update.ToolInfo{Name: "gga", InstallMethod: update.InstallBinary},
+			tool:    update.ToolInfo{Name: "script-tool", InstallMethod: update.InstallBinary},
 			profile: system.PlatformProfile{PackageManager: "apt"},
 			want:    update.InstallBinary,
 		},
 		{
 			name:    "apt profile respects declared method (script)",
-			tool:    update.ToolInfo{Name: "gga", InstallMethod: update.InstallScript},
+			tool:    update.ToolInfo{Name: "script-tool", InstallMethod: update.InstallScript},
 			profile: system.PlatformProfile{PackageManager: "apt"},
 			want:    update.InstallScript,
 		},
@@ -364,7 +364,7 @@ func TestRunStrategyOpenCodePluginUpgradesMaterializedPackage(t *testing.T) {
 	}
 	cacheRoot := filepath.Join(home, ".cache", "opencode", "packages")
 	targetCache := filepath.Join(cacheRoot, pkg+"@latest")
-	otherPluginCache := filepath.Join(cacheRoot, "opencode-sdd-engram-manage@latest")
+	otherPluginCache := filepath.Join(cacheRoot, "opencode-sdd-sdd-memory-manage@latest")
 	versionedCache := filepath.Join(cacheRoot, pkg+"@0.5.2")
 	for _, dir := range []string{targetCache, otherPluginCache, versionedCache} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -388,8 +388,8 @@ func TestRunStrategyOpenCodePluginUpgradesMaterializedPackage(t *testing.T) {
 		gotArgs = append([]string(nil), args...)
 		cmd := exec.Command(os.Args[0], "-test.run=TestOpenCodePluginUpgradeHelperProcess", "--")
 		cmd.Env = append(os.Environ(),
-			"GENTLE_AI_UPGRADE_HELPER=1",
-			"GENTLE_AI_UPGRADE_HELPER_CWD_FILE="+cwdFile,
+			"SPECAI_AI_UPGRADE_HELPER=1",
+			"SPECAI_AI_UPGRADE_HELPER_CWD_FILE="+cwdFile,
 		)
 		return cmd
 	}
@@ -451,11 +451,11 @@ func TestRunStrategyOpenCodePluginRegisteredPendingRunsPackageManager(t *testing
 
 	home := t.TempDir()
 	opencodeDir := filepath.Join(home, ".config", "opencode")
-	pkg := "opencode-sdd-engram-manage"
+	pkg := "opencode-sdd-sdd-memory-manage"
 	if err := os.MkdirAll(opencodeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(opencodeDir, "tui.json"), []byte(`{"plugin":["opencode-sdd-engram-manage"]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(opencodeDir, "tui.json"), []byte(`{"plugin":["opencode-sdd-sdd-memory-manage"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -506,7 +506,7 @@ func TestRunStrategyOpenCodePluginFallsBackWithoutPackageManager(t *testing.T) {
 
 	home := t.TempDir()
 	opencodeDir := filepath.Join(home, ".config", "opencode")
-	pkg := "opencode-sdd-engram-manage"
+	pkg := "opencode-sdd-sdd-memory-manage"
 	if err := os.MkdirAll(filepath.Join(opencodeDir, "node_modules", pkg), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -564,7 +564,7 @@ func TestSelectOpenCodePackageManagerPrefersPackageMetadata(t *testing.T) {
 }
 
 func TestOpenCodePluginUpgradeHelperProcess(t *testing.T) {
-	if os.Getenv("GENTLE_AI_UPGRADE_HELPER") != "1" {
+	if os.Getenv("SPECAI_AI_UPGRADE_HELPER") != "1" {
 		return
 	}
 	cwd, err := os.Getwd()
@@ -572,7 +572,7 @@ func TestOpenCodePluginUpgradeHelperProcess(t *testing.T) {
 		_, _ = os.Stderr.WriteString(err.Error())
 		os.Exit(2)
 	}
-	if err := os.WriteFile(os.Getenv("GENTLE_AI_UPGRADE_HELPER_CWD_FILE"), []byte(cwd), 0o644); err != nil {
+	if err := os.WriteFile(os.Getenv("SPECAI_AI_UPGRADE_HELPER_CWD_FILE"), []byte(cwd), 0o644); err != nil {
 		_, _ = os.Stderr.WriteString(err.Error())
 		os.Exit(2)
 	}
@@ -586,11 +586,11 @@ func TestOpenCodePluginUpgradeHelperProcess(t *testing.T) {
 func TestManualFallbackHint(t *testing.T) {
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "gentle-ai",
+			Name:          "specai",
 			InstallMethod: update.InstallBinary,
 		},
 		LatestVersion: "1.5.0",
-		UpdateHint:    "See https://github.com/Gentleman-Programming/gentle-ai/releases",
+		UpdateHint:    "See https://github.com/KevG1t/SpecAI/releases",
 	}
 	profile := system.PlatformProfile{OS: "windows", PackageManager: "winget"}
 
@@ -639,7 +639,7 @@ func TestBrewUpgrade_RunsUpdateBeforeUpgrade(t *testing.T) {
 		return mockCmd("echo", "ok")
 	}
 
-	err := brewUpgrade(context.Background(), "gentle-ai")
+	err := brewUpgrade(context.Background(), "specai")
 	if err != nil {
 		t.Fatalf("brewUpgrade: unexpected error: %v", err)
 	}
@@ -674,10 +674,10 @@ func TestBrewUpgrade_UpdateFailureIsNonFatal(t *testing.T) {
 			}
 		}
 		// brew upgrade succeeds.
-		return mockCmd("echo", "Upgraded gentle-ai")
+		return mockCmd("echo", "Upgraded specai")
 	}
 
-	err := brewUpgrade(context.Background(), "gentle-ai")
+	err := brewUpgrade(context.Background(), "specai")
 	// brew update failed but brew upgrade succeeded → overall success.
 	if err != nil {
 		t.Errorf("expected success when brew update fails but brew upgrade succeeds, got: %v", err)
@@ -698,7 +698,7 @@ func TestBrewUpgrade_UpdateFailureIsNonFatal(t *testing.T) {
 // --- TestBrewUpgrade_TapsBeforeUpdateAndUpgrade ---
 
 // TestBrewUpgrade_TapsBeforeUpdateAndUpgrade verifies that brewUpgrade calls
-// `brew tap Gentleman-Programming/homebrew-tap` BEFORE `brew update` and
+// `brew tap KevG1t/homebrew-tap` BEFORE `brew update` and
 // `brew upgrade <toolName>`. This makes the upgrade idempotent when a user
 // has lost the tap (untap, machine swap, brew cleanup). See issue #455.
 func TestBrewUpgrade_TapsBeforeUpdateAndUpgrade(t *testing.T) {
@@ -721,7 +721,7 @@ func TestBrewUpgrade_TapsBeforeUpdateAndUpgrade(t *testing.T) {
 		return mockCmd("echo", "ok")
 	}
 
-	if err := brewUpgrade(context.Background(), "engram"); err != nil {
+	if err := brewUpgrade(context.Background(), "sdd-memory"); err != nil {
 		t.Fatalf("brewUpgrade: unexpected error: %v", err)
 	}
 
@@ -731,8 +731,8 @@ func TestBrewUpgrade_TapsBeforeUpdateAndUpgrade(t *testing.T) {
 	if calls[0].subcommand != "tap" {
 		t.Errorf("first brew call subcommand = %q, want %q", calls[0].subcommand, "tap")
 	}
-	if calls[0].arg != "Gentleman-Programming/homebrew-tap" {
-		t.Errorf("first brew call arg = %q, want %q", calls[0].arg, "Gentleman-Programming/homebrew-tap")
+	if calls[0].arg != "KevG1t/homebrew-tap" {
+		t.Errorf("first brew call arg = %q, want %q", calls[0].arg, "KevG1t/homebrew-tap")
 	}
 	if calls[1].subcommand != "update" {
 		t.Errorf("second brew call = %q, want %q", calls[1].subcommand, "update")
@@ -753,7 +753,7 @@ func TestRunStrategy_ExecErrorWrapped(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
+			Name:          "sdd-memory",
 			InstallMethod: update.InstallBrew,
 		},
 		LatestVersion: "0.4.0",
@@ -815,9 +815,9 @@ func TestRunStrategy_ScriptUpgradeSuccess(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "gga",
-			Owner:         "Gentleman-Programming",
-			Repo:          "gentleman-guardian-angel",
+			Name:          "script-tool",
+			Owner:         "KevG1t",
+			Repo:          "script-tool",
 			InstallMethod: update.InstallScript,
 		},
 		LatestVersion: "2.8.0",
@@ -856,9 +856,9 @@ func TestRunStrategy_ScriptUpgradeDownloadFailure(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "gga",
-			Owner:         "Gentleman-Programming",
-			Repo:          "gentleman-guardian-angel",
+			Name:          "script-tool",
+			Owner:         "KevG1t",
+			Repo:          "script-tool",
 			InstallMethod: update.InstallScript,
 		},
 		LatestVersion: "2.8.0",
@@ -885,9 +885,9 @@ func TestRunStrategy_ScriptUpgradeWindowsManualFallback(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "gga",
-			Owner:         "Gentleman-Programming",
-			Repo:          "gentleman-guardian-angel",
+			Name:          "script-tool",
+			Owner:         "KevG1t",
+			Repo:          "script-tool",
 			InstallMethod: update.InstallScript,
 		},
 		LatestVersion: "2.8.0",
@@ -901,184 +901,6 @@ func TestRunStrategy_ScriptUpgradeWindowsManualFallback(t *testing.T) {
 
 	if execCalled {
 		t.Errorf("exec should NOT be called for Windows script manual fallback")
-	}
-}
-
-// --- TestGGAScriptUpgradeUsesGitClone ---
-
-// TestGGAScriptUpgradeUsesGitClone verifies that ggaScriptUpgrade:
-// 1. First calls `git clone --depth=1 --branch v<version> <repo-url> <tmpDir>`
-// 2. Then calls `bash <path-to-install.sh>`
-// — not `bash -c <script-content>` like the generic scriptUpgrade.
-// The clone is pinned to the target release tag so that install.sh matches the
-// version being upgraded to, not whatever is on main at upgrade time.
-func TestGGAScriptUpgradeUsesGitClone(t *testing.T) {
-	origExecCommand := execCommand
-	origDetectOS := detectOS
-	t.Cleanup(func() {
-		execCommand = origExecCommand
-		detectOS = origDetectOS
-	})
-	detectOS = func() string { return "linux" }
-
-	type call struct {
-		name string
-		args []string
-	}
-	var calls []call
-
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		calls = append(calls, call{name: name, args: args})
-		return mockCmd("echo", "ok")
-	}
-
-	r := update.UpdateResult{
-		Tool: update.ToolInfo{
-			Name:          "gga",
-			Owner:         "Gentleman-Programming",
-			Repo:          "gentleman-guardian-angel",
-			InstallMethod: update.InstallScript,
-		},
-		LatestVersion: "2.8.0",
-	}
-
-	err := ggaScriptUpgrade(context.Background(), r)
-	if err != nil {
-		t.Fatalf("ggaScriptUpgrade: unexpected error: %v", err)
-	}
-
-	// Must have at least 2 exec calls.
-	if len(calls) < 2 {
-		t.Fatalf("expected at least 2 exec calls (git clone + bash install.sh), got %d: %v", len(calls), calls)
-	}
-
-	// First call must be `git clone`.
-	if calls[0].name != "git" {
-		t.Errorf("first exec call name = %q, want %q", calls[0].name, "git")
-	}
-	if len(calls[0].args) == 0 || calls[0].args[0] != "clone" {
-		t.Errorf("first exec args[0] = %q, want %q", calls[0].args[0], "clone")
-	}
-	// The clone args must include the target tag via --branch.
-	cloneArgs := calls[0].args
-	foundRepoURL := false
-	foundTag := false
-	for i, a := range cloneArgs {
-		if containsAny(a, "gentleman-guardian-angel") {
-			foundRepoURL = true
-		}
-		if a == "--branch" && i+1 < len(cloneArgs) && cloneArgs[i+1] == "v2.8.0" {
-			foundTag = true
-		}
-	}
-	if !foundRepoURL {
-		t.Errorf("git clone args %v should include the repo URL (gentleman-guardian-angel)", cloneArgs)
-	}
-	if !foundTag {
-		t.Errorf("git clone args %v should include --branch v2.8.0 to pin to the release tag", cloneArgs)
-	}
-
-	// Second call must be `bash <path-to-install.sh>` (not bash -c <content>).
-	if calls[1].name != "bash" {
-		t.Errorf("second exec call name = %q, want %q", calls[1].name, "bash")
-	}
-	if len(calls[1].args) == 0 {
-		t.Fatalf("second exec call has no args")
-	}
-	installScriptArg := calls[1].args[0]
-	if !containsAny(installScriptArg, "install.sh") {
-		t.Errorf("bash arg = %q, want path containing install.sh", installScriptArg)
-	}
-	// Must NOT be bash -c (inline script content) — must be a file path.
-	if installScriptArg == "-c" {
-		t.Errorf("bash was called with -c (inline script), expected a file path to install.sh")
-	}
-}
-
-// --- TestGGAScriptUpgradeWindowsManualFallback ---
-
-// TestGGAScriptUpgradeWindowsManualFallback verifies that on Windows,
-// ggaScriptUpgrade returns a ManualFallbackError without calling exec.
-func TestGGAScriptUpgradeWindowsManualFallback(t *testing.T) {
-	origExecCommand := execCommand
-	t.Cleanup(func() { execCommand = origExecCommand })
-
-	execCalled := false
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		execCalled = true
-		return mockCmd("echo", "should not run")
-	}
-
-	r := update.UpdateResult{
-		Tool: update.ToolInfo{
-			Name:          "gga",
-			Owner:         "Gentleman-Programming",
-			Repo:          "gentleman-guardian-angel",
-			InstallMethod: update.InstallScript,
-		},
-		LatestVersion: "2.8.0",
-	}
-
-	err := ggaScriptUpgradeForOS(context.Background(), r, "windows")
-	if err == nil {
-		t.Errorf("expected ManualFallbackError for Windows, got nil")
-	}
-	var mfe *ManualFallbackError
-	if !errors.As(err, &mfe) {
-		t.Errorf("expected *ManualFallbackError, got %T: %v", err, err)
-	}
-	if execCalled {
-		t.Errorf("exec should NOT be called on Windows for ggaScriptUpgrade")
-	}
-}
-
-// --- TestRunStrategy_GGAUsesGitClone ---
-
-// TestRunStrategy_GGAUsesGitClone verifies that when runStrategy is called with
-// a GGA tool (InstallScript), it routes to ggaScriptUpgrade (git clone approach)
-// rather than the generic scriptUpgrade (bash -c <content>).
-func TestRunStrategy_GGAUsesGitClone(t *testing.T) {
-	origExecCommand := execCommand
-	origDetectOS := detectOS
-	t.Cleanup(func() {
-		execCommand = origExecCommand
-		detectOS = origDetectOS
-	})
-	detectOS = func() string { return "linux" }
-
-	type call struct {
-		name string
-		args []string
-	}
-	var calls []call
-
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		calls = append(calls, call{name: name, args: args})
-		return mockCmd("echo", "ok")
-	}
-
-	r := update.UpdateResult{
-		Tool: update.ToolInfo{
-			Name:          "gga",
-			Owner:         "Gentleman-Programming",
-			Repo:          "gentleman-guardian-angel",
-			InstallMethod: update.InstallScript,
-		},
-		LatestVersion: "2.8.0",
-	}
-	profile := system.PlatformProfile{OS: "linux", PackageManager: "apt"}
-
-	err := runStrategy(context.Background(), r, profile)
-	if err != nil {
-		t.Fatalf("runStrategy GGA: unexpected error: %v", err)
-	}
-
-	// Must have used git clone (not bash -c).
-	if len(calls) < 2 {
-		t.Fatalf("expected at least 2 calls (git clone + bash), got %d: %v", len(calls), calls)
-	}
-	if calls[0].name != "git" || (len(calls[0].args) > 0 && calls[0].args[0] != "clone") {
-		t.Errorf("expected first call to be `git clone`, got: %q %v", calls[0].name, calls[0].args)
 	}
 }
 
@@ -1096,30 +918,30 @@ func TestInstallScriptURL(t *testing.T) {
 	}{
 		{
 			name:        "pins to release tag",
-			owner:       "Gentleman-Programming",
-			repo:        "gentleman-guardian-angel",
+			owner:       "KevG1t",
+			repo:        "SpecAI",
 			version:     "1.31.0",
-			wantURL:     "https://raw.githubusercontent.com/Gentleman-Programming/gentleman-guardian-angel/v1.31.0/install.sh",
+			wantURL:     "https://raw.githubusercontent.com/KevG1t/SpecAI/v1.31.0/install.sh",
 			wantContain: "v1.31.0",
 		},
 		{
 			name:    "empty version returns error",
-			owner:   "Gentleman-Programming",
-			repo:    "gentle-ai",
+			owner:   "KevG1t",
+			repo:    "SpecAI",
 			version: "",
 			wantErr: true,
 		},
 		{
 			name:    "whitespace-only version returns error",
-			owner:   "Gentleman-Programming",
-			repo:    "gentle-ai",
+			owner:   "KevG1t",
+			repo:    "SpecAI",
 			version: "   ",
 			wantErr: true,
 		},
 		{
 			name:        "does not reference main",
-			owner:       "Gentleman-Programming",
-			repo:        "gentle-ai",
+			owner:       "KevG1t",
+			repo:        "SpecAI",
 			version:     "2.0.0",
 			wantContain: "v2.0.0",
 		},
@@ -1149,17 +971,17 @@ func TestInstallScriptURL(t *testing.T) {
 	}
 }
 
-// --- TestEngramUpgradeUsesDownloadNotGoInstall ---
+// --- TestSDDMemoryUpgradeUsesDownloadNotGoInstall ---
 
-// TestEngramUpgradeUsesDownloadNotGoInstall verifies that on Windows (non-brew),
-// engram upgrade calls the binary download function, NOT go install.
+// TestSDDMemoryUpgradeUsesDownloadNotGoInstall verifies that on Windows (non-brew),
+// sdd-memory upgrade calls the binary download function, NOT go install.
 // This is the regression test for issue #160.
-func TestEngramUpgradeUsesDownloadNotGoInstall(t *testing.T) {
+func TestSddMemoryUpgradeUsesDownloadNotGoInstall(t *testing.T) {
 	origExecCommand := execCommand
-	origEngramDownloadFn := engramDownloadFn
+	origSddMemoryDownloadFn := sddMemoryDownloadFn
 	t.Cleanup(func() {
 		execCommand = origExecCommand
-		engramDownloadFn = origEngramDownloadFn
+		sddMemoryDownloadFn = origSddMemoryDownloadFn
 	})
 
 	execCalled := false
@@ -1169,16 +991,16 @@ func TestEngramUpgradeUsesDownloadNotGoInstall(t *testing.T) {
 	}
 
 	downloadCalled := false
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
 		downloadCalled = true
-		return "/fake/path/engram.exe", nil
+		return "/fake/path/sdd-memory.exe", nil
 	}
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
-			Owner:         "Gentleman-Programming",
-			Repo:          "engram",
+			Name:          "sdd-memory",
+			Owner:         "KevG1t",
+			Repo:          "sdd-memory",
 			InstallMethod: update.InstallBinary, // should be InstallBinary after fix
 		},
 		LatestVersion: "0.5.0",
@@ -1187,28 +1009,28 @@ func TestEngramUpgradeUsesDownloadNotGoInstall(t *testing.T) {
 
 	err := runStrategy(context.Background(), r, profile)
 	if err != nil {
-		t.Fatalf("runStrategy engram windows: unexpected error: %v", err)
+		t.Fatalf("runStrategy sdd-memory windows: unexpected error: %v", err)
 	}
 
 	// Must call binary download, NOT go install.
 	if !downloadCalled {
-		t.Errorf("expected engramDownloadFn to be called, but it was not")
+		t.Errorf("expected sddMemoryDownloadFn to be called, but it was not")
 	}
 	if execCalled {
-		t.Errorf("exec (go install) should NOT be called for engram on Windows — use binary download")
+		t.Errorf("exec (go install) should NOT be called for sdd-memory on Windows — use binary download")
 	}
 }
 
-// --- TestEngramUpgradeLinuxUsesDownload ---
+// --- TestSDDMemoryUpgradeLinuxUsesDownload ---
 
-// TestEngramUpgradeLinuxUsesDownload verifies that on Linux (non-brew),
-// engram upgrade uses the binary download function, not go install.
-func TestEngramUpgradeLinuxUsesDownload(t *testing.T) {
+// TestSddMemoryUpgradeLinuxUsesDownload verifies that on Linux (non-brew),
+// sdd-memory upgrade uses the binary download function, not go install.
+func TestSddMemoryUpgradeLinuxUsesDownload(t *testing.T) {
 	origExecCommand := execCommand
-	origEngramDownloadFn := engramDownloadFn
+	origSddMemoryDownloadFn := sddMemoryDownloadFn
 	t.Cleanup(func() {
 		execCommand = origExecCommand
-		engramDownloadFn = origEngramDownloadFn
+		sddMemoryDownloadFn = origSddMemoryDownloadFn
 	})
 
 	execCalled := false
@@ -1218,17 +1040,17 @@ func TestEngramUpgradeLinuxUsesDownload(t *testing.T) {
 	}
 
 	downloadCalled := false
-	engramDownloadFn = func(profile system.PlatformProfile) (string, error) {
+	sddMemoryDownloadFn = func(profile system.PlatformProfile) (string, error) {
 		downloadCalled = true
-		return "/home/user/.local/bin/engram", nil
+		return "/home/user/.local/bin/sdd-memory", nil
 	}
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "engram",
-			Owner:         "Gentleman-Programming",
-			Repo:          "engram",
-			InstallMethod: update.InstallBinary, // should be InstallBinary after fix
+			Name:          "sdd-memory",
+			Owner:         "KevG1t",
+			Repo:          "sdd-memory",
+			InstallMethod: update.InstallBinary,
 		},
 		LatestVersion: "0.5.0",
 	}
@@ -1236,14 +1058,14 @@ func TestEngramUpgradeLinuxUsesDownload(t *testing.T) {
 
 	err := runStrategy(context.Background(), r, profile)
 	if err != nil {
-		t.Fatalf("runStrategy engram linux: unexpected error: %v", err)
+		t.Fatalf("runStrategy sdd-memory linux: unexpected error: %v", err)
 	}
 
 	if !downloadCalled {
-		t.Errorf("expected engramDownloadFn to be called for engram on Linux, but it was not")
+		t.Errorf("expected sddMemoryDownloadFn to be called for sdd-memory on Linux, but it was not")
 	}
 	if execCalled {
-		t.Errorf("exec (go install) should NOT be called for engram on Linux — use binary download")
+		t.Errorf("exec (go install) should NOT be called for sdd-memory on Linux — use binary download")
 	}
 }
 
@@ -1275,9 +1097,9 @@ func TestRunStrategy_ScriptUpgradeExecFailure(t *testing.T) {
 
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
-			Name:          "gga",
-			Owner:         "Gentleman-Programming",
-			Repo:          "gentleman-guardian-angel",
+			Name:          "example-tool",
+			Owner:         "kevg1t",
+			Repo:          "specai-example",
 			InstallMethod: update.InstallScript,
 		},
 		LatestVersion: "2.8.0",
@@ -1289,5 +1111,3 @@ func TestRunStrategy_ScriptUpgradeExecFailure(t *testing.T) {
 		t.Errorf("expected error when install.sh execution fails, got nil")
 	}
 }
-
-

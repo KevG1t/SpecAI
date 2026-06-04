@@ -199,8 +199,6 @@ func TestAdapter_Detect_FallbackPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
-
 	a := &Adapter{
 		lookPath: func(string) (string, error) {
 			return "", os.ErrNotExist // Not in PATH
@@ -247,12 +245,12 @@ func TestAdapter_PostInstallMessage(t *testing.T) {
 		{
 			name:     "Unix paths",
 			os:       "linux",
-			expected: "/.kimi/agents/gentleman.yaml",
+			expected: "/.kimi/agents/modism.yaml",
 		},
 		{
 			name:     "Windows paths",
 			os:       "windows",
-			expected: `\.kimi\agents\gentleman.yaml`,
+			expected: `\.kimi\agents\modism.yaml`,
 		},
 	}
 
@@ -266,35 +264,35 @@ func TestAdapter_PostInstallMessage(t *testing.T) {
 			if tt.os == "windows" {
 				homeDir = `C:\Users\test`
 			}
-			
+
 			msg := a.PostInstallMessage(homeDir)
 
 			// Construct expected path to verify against quoted output
-			gentlemanYaml := filepath.Join(homeDir, ".kimi", "agents", "gentleman.yaml")
-			
+			specaiYaml := filepath.Join(homeDir, ".kimi", "agents", "modism.yaml")
+
 			// Normalize the expected string to the current host's separator.
 			// Since the code uses filepath.Join, it will use \ on Windows and / on Linux.
 			// The test should expect the host's actual separator if we want it to PASS
 			// while running on that host.
 			normalizedExpected := filepath.FromSlash(tt.expected)
-			
+
 			// On Windows, if we are simulating we want backslashes.
-			// If we are on Windows and testing 'Unix paths' case, it will fail because 
+			// If we are on Windows and testing 'Unix paths' case, it will fail because
 			// the code (running on Windows) used \. This is expected.
-			// We skip the cross-platform check if it contradicts the host's logic, 
+			// We skip the cross-platform check if it contradicts the host's logic,
 			// or we only check the one matching the current host.
 			// On Windows, if we are simulating we want backslashes.
-			// If we are on Windows and testing 'Unix paths' case, it will fail because 
+			// If we are on Windows and testing 'Unix paths' case, it will fail because
 			// the code (running on Windows) used \. This is expected.
-			// We skip the cross-platform check if it contradicts the host's logic, 
+			// We skip the cross-platform check if it contradicts the host's logic,
 			// or we only check the one matching the current host.
 			if (runtime.GOOS == "windows" && tt.os == "windows") || (runtime.GOOS != "windows" && tt.os == "linux") {
 				// Verify path is present
 				if !strings.Contains(msg, normalizedExpected) {
 					t.Errorf("PostInstallMessage() for %s missing expected path: %q\ngot: %q", tt.os, normalizedExpected, msg)
 				}
-				// Verify path is quoted (specifically the gentleman.yaml path)
-				quotedExpected := `"` + gentlemanYaml + `"`
+				// Verify path is quoted (specifically the modism.yaml path)
+				quotedExpected := `"` + specaiYaml + `"`
 				if !strings.Contains(msg, quotedExpected) {
 					t.Errorf("PostInstallMessage() for %s: path not quoted: %q", tt.os, quotedExpected)
 				}
@@ -302,5 +300,3 @@ func TestAdapter_PostInstallMessage(t *testing.T) {
 		})
 	}
 }
-
-

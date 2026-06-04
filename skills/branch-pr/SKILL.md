@@ -1,19 +1,19 @@
 ---
-name: gentle-ai-branch-pr
-description: "Create Gentle AI pull requests with issue-first checks. Trigger: creating, opening, or preparing PRs for review."
+name: specai-branch-pr
+description: "Create SpecAI pull requests with issue-first checks. Trigger: creating, opening, or preparing PRs for review."
 license: Apache-2.0
 metadata:
-  author: gentleman-programming
+  author: kevg1t
   version: "2.0"
 ---
 
-# Gentle AI — Branch & PR Skill
+# SpecAI — Branch & PR Skill
 
 ## When to Use
 
 Load this skill whenever you need to:
 - Create a branch for a new fix or feature
-- Open a pull request on [Gentleman-Programming/gentle-ai](https://github.com/Gentleman-Programming/gentle-ai)
+- Open a pull request on [kevg1t/specai](https://github.com/kevg1t/specai)
 - Prepare changes for review
 
 ## Critical Rules
@@ -29,7 +29,7 @@ Load this skill whenever you need to:
 
 ```
 1. Confirm the issue has status:approved
-   gh issue view <N> --repo Gentleman-Programming/gentle-ai
+   gh issue view <N> --repo kevg1t/specai
 
 2. Create a branch from main using the naming convention below
 
@@ -221,7 +221,7 @@ feat(cli)!: change default config path
 
 ```bash
 # Confirm issue is approved before starting
-gh issue view <N> --repo Gentleman-Programming/gentle-ai
+gh issue view <N> --repo kevg1t/specai
 
 # Create branch
 git checkout main && git pull
@@ -248,7 +248,7 @@ cd e2e && ./docker-test.sh
 
 ```bash
 gh pr create \
-  --repo Gentleman-Programming/gentle-ai \
+  --repo kevg1t/specai \
   --title "fix(agent): correct Claude Code detection on Linux" \
   --body "$(cat <<'EOF'
 ## 🔗 Linked Issue
@@ -292,12 +292,12 @@ EOF
 ### Check PR Status
 
 ```bash
-gh pr checks --repo Gentleman-Programming/gentle-ai <PR-number>
-gh pr view --repo Gentleman-Programming/gentle-ai <PR-number>
+gh pr checks --repo kevg1t/specai <PR-number>
+gh pr view --repo kevg1t/specai <PR-number>
 ```
 
 ### Add a Label
 
 ```bash
-gh pr edit <PR-number> --repo Gentleman-Programming/gentle-ai --add-label "type:bug"
+gh pr edit <PR-number> --repo kevg1t/specai --add-label "type:bug"
 ```

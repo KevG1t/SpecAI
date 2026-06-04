@@ -2,7 +2,7 @@ Select Components
 
 Toggle components with enter or space.
 
-▸ [ ] engram
+▸ [ ] sdd-memory
     Persistent cross-session memory
   [ ] sdd
     Spec-driven development workflow
@@ -11,17 +11,13 @@ Toggle components with enter or space.
   [ ] context7
     Latest framework and library docs
   [ ] persona
-    Gentleman, neutral or custom behavior
+    Modism, neutral or custom persona
   [ ] permissions
     Security-first defaults and guardrails
-  [ ] gga
-    Gentleman Guardian Angel — AI provider switcher
   [ ] theme
-    Gentleman Kanagawa theme overlay
+    Kanagawa theme overlay
   [ ] claude-theme
-    Claude Code Gentleman custom theme
-  [ ] opencode-gentle-logo
-    OpenCode home logo TUI plugin with Braille rose
+    Claude Code custom theme
 
   Continue
   Back

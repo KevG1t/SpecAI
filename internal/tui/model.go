@@ -1,21 +1,15 @@
-package tui
+﻿package tui
 
 import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textarea"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/KevG1t/specai/internal/agentbuilder"
 	"github.com/KevG1t/specai/internal/backup"
 	"github.com/KevG1t/specai/internal/catalog"
-	"github.com/KevG1t/specai/internal/components/opencodeplugin"
 	"github.com/KevG1t/specai/internal/components/sdd"
 	componentuninstall "github.com/KevG1t/specai/internal/components/uninstall"
 	"github.com/KevG1t/specai/internal/model"
@@ -27,6 +21,7 @@ import (
 	"github.com/KevG1t/specai/internal/tui/screens"
 	"github.com/KevG1t/specai/internal/update"
 	"github.com/KevG1t/specai/internal/update/upgrade"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // osStatModelCache is a package-level variable so tests can override it to
@@ -36,7 +31,6 @@ var osStatPathFn = os.Stat
 var osGetwdFn = os.Getwd
 var osExecutableFn = os.Executable
 var osRemoveFn = os.Remove
-var execCommandFn = exec.Command
 
 // readCurrentAssignmentsFn is a package-level variable so tests can override
 // how current model assignments are read from opencode.json. It wraps
@@ -149,10 +143,10 @@ type SyncDoneMsg struct {
 
 // UninstallDoneMsg is sent when the uninstall operation completes.
 type UninstallDoneMsg struct {
-	Result      componentuninstall.Result
-	Err         error
-	SyncFiles   []string // only set for CleanInstall mode
-	SyncErr     error    // only set for CleanInstall mode
+	Result    componentuninstall.Result
+	Err       error
+	SyncFiles []string // only set for CleanInstall mode
+	SyncErr   error    // only set for CleanInstall mode
 }
 
 // UpgradePhaseCompletedMsg is sent by startUpgradeSync when the upgrade phase
@@ -161,41 +155,6 @@ type UninstallDoneMsg struct {
 type UpgradePhaseCompletedMsg struct {
 	Report upgrade.UpgradeReport
 	Err    error
-}
-
-// AgentBuilderGeneratedMsg is sent when the AI generation goroutine completes.
-type AgentBuilderGeneratedMsg struct {
-	Agent *agentbuilder.GeneratedAgent
-	Err   error
-}
-
-// AgentBuilderInstallDoneMsg is sent when the agent installation goroutine completes.
-type AgentBuilderInstallDoneMsg struct {
-	Results []agentbuilder.InstallResult
-	Err     error
-}
-
-type OpenCodePluginRegistrationDoneMsg struct {
-	Results []opencodeplugin.Result
-	Err     error
-}
-
-// AgentBuilderState holds all transient state for the agent-builder TUI flow.
-type AgentBuilderState struct {
-	AvailableEngines []model.AgentID
-	SelectedEngine   model.AgentID
-	Textarea         textarea.Model
-	SDDMode          agentbuilder.SDDIntegrationMode
-	SDDTargetPhase   string
-	Generating       bool
-	GenerationCancel context.CancelFunc
-	Generated        *agentbuilder.GeneratedAgent
-	GenerationErr    error
-	ConflictWarning  string
-	Installing       bool
-	InstallResults   []agentbuilder.InstallResult
-	InstallErr       error
-	PreviewScroll    int
 }
 
 // UpgradeFunc is the signature of the function injected to perform tool upgrades.
@@ -211,7 +170,7 @@ type UninstallFunc func(agentIDs []model.AgentID, componentIDs []model.Component
 
 // UninstallWithProfilesFunc is an uninstall function variant that accepts an
 // explicit profile selection for OpenCode SDD profile cleanup.
-type UninstallWithProfilesFunc func(agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, engramScope model.EngramUninstallScope) (componentuninstall.Result, error)
+type UninstallWithProfilesFunc func(agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, sddMemoryScope model.SddMemoryUninstallScope) (componentuninstall.Result, error)
 
 // ExecuteFunc builds and runs the installation pipeline. It receives a ProgressFunc
 // callback to emit step-level progress events, and returns the ExecutionResult.
@@ -248,8 +207,6 @@ const (
 	ScreenKiroModelPicker
 	ScreenSDDMode
 	ScreenStrictTDD
-	ScreenOpenCodePlugins
-	ScreenOpenCodePluginResult
 	ScreenDependencyTree
 	ScreenSkillPicker
 	ScreenReview
@@ -272,17 +229,6 @@ const (
 	ScreenUninstallProfiles
 	ScreenUninstallConfirm
 	ScreenUninstallResult
-	ScreenProfiles
-	ScreenProfileCreate
-	ScreenProfileDelete
-	ScreenAgentBuilderEngine
-	ScreenAgentBuilderPrompt
-	ScreenAgentBuilderSDD
-	ScreenAgentBuilderSDDPhase
-	ScreenAgentBuilderGenerating
-	ScreenAgentBuilderPreview
-	ScreenAgentBuilderInstalling
-	ScreenAgentBuilderComplete
 )
 
 type Model struct {
@@ -406,18 +352,6 @@ type Model struct {
 	// UpgradeErr holds the error from the last upgrade run (nil on success).
 	UpgradeErr error
 
-	// Profile management state
-	ProfileList          []model.Profile // profiles detected from opencode.json
-	ProfileCreateStep    int             // 0=name, 1=assign-models, 2=confirm
-	ProfileDraft         model.Profile   // profile being created/edited
-	ProfileEditMode      bool            // true when editing, false when creating
-	ProfileDeleteTarget  string          // name of profile to delete
-	ProfileNameInput     string          // text input buffer for name step
-	ProfileNamePos       int             // cursor position in name input
-	ProfileNameErr       string          // validation error message
-	ProfileNameCollision bool            // true when name collides with existing profile (awaiting second enter to overwrite)
-	ProfileDeleteErr     error           // error from the last RemoveProfileAgents call, displayed on ScreenProfiles
-
 	// UninstallMode holds the selected uninstall mode (partial, full, full-remove).
 	UninstallMode model.UninstallMode
 
@@ -427,11 +361,11 @@ type Model struct {
 	UninstallProfilesAvailable []string
 	UninstallProfilesToRemove  []string
 	UninstallProfileSelection  bool
-	// UninstallEngramProjectScopeAvailable indicates whether .engram project data
+	// UninstallSddMemoryProjectScopeAvailable indicates whether .sdd-memory project data
 	// was detected for the current workspace, enabling project-only cleanup.
-	UninstallEngramProjectScopeAvailable bool
-	// UninstallEngramScope controls Engram cleanup behavior in uninstall.
-	UninstallEngramScope model.EngramUninstallScope
+	UninstallSddMemoryProjectScopeAvailable bool
+	// UninstallSddMemoryScope controls SddMemory cleanup behavior in uninstall.
+	UninstallSddMemoryScope model.SddMemoryUninstallScope
 
 	// UninstallResult holds the last uninstall execution result.
 	UninstallResult componentuninstall.Result
@@ -452,16 +386,10 @@ type Model struct {
 	// cleanup selection when the current flow requires it.
 	UninstallWithProfilesFn UninstallWithProfilesFunc
 
-	// AgentBuilder holds the transient state for the agent-builder TUI flow.
-	AgentBuilder AgentBuilderState
-
-	// OpenCodePluginsStandalone is true when ScreenOpenCodePlugins was opened
-	// from the main menu shortcut instead of the full installation flow.
-	OpenCodePluginsStandalone bool
-
-	// OpenCodePluginRegistrationResults and Err hold the dedicated shortcut result.
-	OpenCodePluginRegistrationResults []opencodeplugin.Result
-	OpenCodePluginRegistrationErr     error
+	// SendFn dispatches a Bubbletea message from a goroutine to the event loop.
+	// Set by app.go before p.Run(). When nil, pipeline progress events are silently
+	// dropped — tests that do not need progress animation can leave it nil.
+	SendFn func(tea.Msg)
 }
 
 // NewModel constructs the initial TUI model for the given detection result.
@@ -475,26 +403,26 @@ func NewModel(detection system.DetectionResult, version string, installState ...
 		s = installState[0]
 	}
 	agents := preselectedAgents(detection, s)
-	components := componentsForPreset(model.PresetFullGentleman, model.PersonaGentleman)
+	components := componentsForPreset(model.PresetFullModism, model.PersonaModism)
 	if isPiOnlyAgents(agents) {
 		components = piOnlyComponents()
 	}
 
 	selection := model.Selection{
 		Agents:     agents,
-		Persona:    model.PersonaGentleman,
-		Preset:     model.PresetFullGentleman,
+		Persona:    model.PersonaModism,
+		Preset:     model.PresetFullModism,
 		Components: components,
 	}
 
 	return Model{
-		Screen:               ScreenWelcome,
-		Version:              version,
-		Selection:            selection,
-		Detection:            detection,
-		UninstallAgents:      agents,
-		UninstallComponents:  defaultUninstallComponents(),
-		UninstallEngramScope: model.EngramUninstallScopeGlobal,
+		Screen:                  ScreenWelcome,
+		Version:                 version,
+		Selection:               selection,
+		Detection:               detection,
+		UninstallAgents:         agents,
+		UninstallComponents:     defaultUninstallComponents(),
+		UninstallSddMemoryScope: model.SddMemoryUninstallScopeGlobal,
 		Progress: NewProgressState([]string{
 			"Install dependencies",
 			"Configure selected agents",
@@ -532,52 +460,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.SpinnerFrame = (m.SpinnerFrame + 1) % 10
 			return m, tickCmd()
 		}
-		// Keep spinner running for agent builder generating/installing screens.
-		if m.AgentBuilder.Generating || m.AgentBuilder.Installing {
-			m.SpinnerFrame = (m.SpinnerFrame + 1) % 10
-			return m, tickCmd()
-		}
-		return m, nil
-	case AgentBuilderGeneratedMsg:
-		// If generation was cancelled (Esc while generating), ignore the result.
-		if !m.AgentBuilder.Generating {
-			return m, nil
-		}
-		m.AgentBuilder.Generating = false
-		if msg.Err != nil {
-			m.AgentBuilder.GenerationErr = msg.Err
-			// Stay on generating screen to show error.
-		} else {
-			m.AgentBuilder.Generated = msg.Agent
-			m.AgentBuilder.GenerationErr = nil
-			// Check for builtin conflict and set warning before showing preview.
-			if msg.Agent != nil && agentbuilder.HasConflictWithBuiltin(msg.Agent.Name) {
-				m.AgentBuilder.ConflictWarning = fmt.Sprintf(
-					"Warning: '%s' conflicts with a built-in skill. It will be installed as '%s-custom'.",
-					msg.Agent.Name, msg.Agent.Name,
-				)
-			} else {
-				m.AgentBuilder.ConflictWarning = ""
-			}
-			m.setScreen(ScreenAgentBuilderPreview)
-		}
-		return m, nil
-	case AgentBuilderInstallDoneMsg:
-		m.AgentBuilder.Installing = false
-		if msg.Err != nil {
-			m.AgentBuilder.InstallErr = msg.Err
-			m.setScreen(ScreenAgentBuilderPreview)
-		} else {
-			m.AgentBuilder.InstallResults = msg.Results
-			m.AgentBuilder.InstallErr = nil
-			m.setScreen(ScreenAgentBuilderComplete)
-		}
-		return m, nil
-	case OpenCodePluginRegistrationDoneMsg:
-		m.OperationRunning = false
-		m.OpenCodePluginRegistrationResults = msg.Results
-		m.OpenCodePluginRegistrationErr = msg.Err
-		m.setScreen(ScreenOpenCodePluginResult)
 		return m, nil
 	case StepProgressMsg:
 		return m.handleStepProgress(msg)
@@ -605,20 +487,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.SyncErr = msg.Err
 		m.HasSyncRun = true
 		m.PendingSyncOverrides = nil
-		// Refresh profile list after sync (profile create/delete/edit flows use sync).
-		// On failure, keep the existing list — this is a non-critical background refresh.
-		// Do NOT set m.Err: ScreenSync never renders it and it would leak to other screens.
-		if profiles, err := readProfilesFn(opencode.DefaultSettingsPath()); err == nil {
-			m.ProfileList = profiles
-			// Clamp cursor to avoid out-of-bounds access when list shrinks after a delete.
-			if m.Cursor >= len(m.ProfileList) {
-				if len(m.ProfileList) > 0 {
-					m.Cursor = len(m.ProfileList) - 1
-				} else {
-					m.Cursor = 0
-				}
-			}
-		} // else keep existing list
 		return m, nil
 	case UninstallDoneMsg:
 		m.OperationRunning = false
@@ -641,27 +509,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.Screen == ScreenRenameBackup {
 			return m.handleRenameInput(msg)
-		}
-		if m.Screen == ScreenProfileCreate && m.ProfileCreateStep == 0 && !m.ProfileEditMode {
-			return m.handleProfileNameInput(msg)
-		}
-		// Delegate to textarea when on the agent builder prompt screen,
-		// unless the user pressed Esc (to go back) or Tab (to continue).
-		if m.Screen == ScreenAgentBuilderPrompt {
-			if msg.String() == "esc" {
-				return m.handleKeyPress(msg)
-			}
-			if msg.String() == "tab" || msg.String() == "ctrl+enter" {
-				// "Continue" — proceed to SDD selection if textarea is not empty.
-				if m.AgentBuilder.Textarea.Value() != "" {
-					m.setScreen(ScreenAgentBuilderSDD)
-				}
-				return m, nil
-			}
-			// All other keys go to the textarea.
-			var taCmd tea.Cmd
-			m.AgentBuilder.Textarea, taCmd = m.AgentBuilder.Textarea.Update(msg)
-			return m, taCmd
 		}
 		return m.handleKeyPress(msg)
 	}
@@ -750,29 +597,13 @@ func (m Model) View() string {
 		if m.UpdateCheckDone && update.HasUpdates(m.UpdateResults) {
 			banner = "Updates available: " + update.UpdateSummaryLine(m.UpdateResults)
 		}
-		return screens.RenderWelcome(m.Cursor, m.Version, banner, m.UpdateResults, m.UpdateCheckDone, m.hasDetectedOpenCode(), len(m.ProfileList), m.hasAgentBuilderEngines())
+		return screens.RenderWelcome(m.Cursor, m.Version, banner, m.UpdateResults, m.UpdateCheckDone, false, 0, false)
 	case ScreenUpgrade:
 		return screens.RenderUpgrade(m.UpdateResults, m.UpgradeReport, m.UpgradeErr, m.OperationRunning, m.UpdateCheckDone, m.Cursor, m.SpinnerFrame)
 	case ScreenSync:
 		return screens.RenderSync(m.SyncFiles, m.SyncErr, m.OperationRunning, m.HasSyncRun, m.SpinnerFrame)
 	case ScreenModelConfig:
 		return screens.RenderModelConfig(m.Cursor)
-	case ScreenProfiles:
-		return screens.RenderProfiles(m.ProfileList, m.Cursor, m.ProfileDeleteErr)
-	case ScreenProfileCreate:
-		return screens.RenderProfileCreate(
-			m.ProfileCreateStep,
-			m.ProfileDraft,
-			m.ProfileNameInput,
-			m.ProfileNamePos,
-			m.ProfileNameErr,
-			m.ProfileEditMode,
-			m.Selection.ModelAssignments,
-			m.ModelPicker,
-			m.Cursor,
-		)
-	case ScreenProfileDelete:
-		return screens.RenderProfileDelete(m.ProfileDeleteTarget, m.Cursor)
 	case ScreenUpgradeSync:
 		return screens.RenderUpgradeSync(m.UpdateResults, m.UpgradeReport, m.SyncFiles, m.UpgradeErr, m.SyncErr, m.OperationRunning, m.UpdateCheckDone, m.Cursor, m.SpinnerFrame)
 	case ScreenUninstallMode:
@@ -782,11 +613,11 @@ func (m Model) View() string {
 	case ScreenUninstallComponents:
 		return screens.RenderUninstallComponents(m.UninstallComponents, m.Cursor)
 	case ScreenUninstallProfiles:
-		return screens.RenderUninstallProfiles(m.UninstallProfilesAvailable, m.UninstallProfilesToRemove, m.UninstallEngramProjectScopeAvailable, m.UninstallEngramScope, m.Cursor)
+		return screens.RenderUninstallProfiles(m.UninstallProfilesAvailable, m.UninstallProfilesToRemove, m.UninstallSddMemoryProjectScopeAvailable, m.UninstallSddMemoryScope, m.Cursor)
 	case ScreenUninstallConfirm:
-		return screens.RenderUninstallConfirm(m.UninstallMode, m.UninstallAgents, m.UninstallComponents, m.UninstallProfilesToRemove, m.UninstallEngramScope, m.UninstallEngramProjectScopeAvailable, m.Cursor, m.OperationRunning, m.SpinnerFrame)
+		return screens.RenderUninstallConfirm(m.UninstallMode, m.UninstallAgents, m.UninstallComponents, m.UninstallProfilesToRemove, m.UninstallSddMemoryScope, m.UninstallSddMemoryProjectScopeAvailable, m.Cursor, m.OperationRunning, m.SpinnerFrame)
 	case ScreenUninstallResult:
-		return screens.RenderUninstallResult(m.UninstallResult, m.UninstallErr, m.UninstallMode, m.UninstallProfilesToRemove, m.UninstallEngramScope, m.UninstallEngramProjectScopeAvailable, m.SyncCleanInstallFiles, m.SyncCleanInstallErr)
+		return screens.RenderUninstallResult(m.UninstallResult, m.UninstallErr, m.UninstallMode, m.UninstallProfilesToRemove, m.UninstallSddMemoryScope, m.UninstallSddMemoryProjectScopeAvailable, m.SyncCleanInstallFiles, m.SyncCleanInstallErr)
 	case ScreenDetection:
 		return screens.RenderDetection(m.Detection, m.Cursor)
 	case ScreenAgents:
@@ -803,10 +634,6 @@ func (m Model) View() string {
 		return screens.RenderSDDMode(m.Selection.SDDMode, m.Cursor)
 	case ScreenStrictTDD:
 		return screens.RenderStrictTDD(m.Selection.StrictTDD, m.Cursor)
-	case ScreenOpenCodePlugins:
-		return screens.RenderOpenCodePlugins(m.Selection.OpenCodePlugins, m.Cursor)
-	case ScreenOpenCodePluginResult:
-		return screens.RenderOpenCodePluginResult(m.OpenCodePluginRegistrationResults, m.OpenCodePluginRegistrationErr)
 	case ScreenModelPicker:
 		return screens.RenderModelPicker(m.Selection.ModelAssignments, m.ModelPicker, m.Cursor)
 	case ScreenDependencyTree:
@@ -821,7 +648,6 @@ func (m Model) View() string {
 		return screens.RenderComplete(screens.CompletePayload{
 			ConfiguredAgents:    len(m.Selection.Agents),
 			InstalledComponents: len(m.Selection.Components),
-			GGAInstalled:        hasSelectedComponent(m.Selection.Components, model.ComponentGGA),
 			FailedSteps:         extractFailedSteps(m.Execution),
 			RollbackPerformed:   len(m.Execution.Rollback.Steps) > 0,
 			MissingDeps:         extractMissingDeps(m.Detection),
@@ -839,25 +665,6 @@ func (m Model) View() string {
 		return screens.RenderDeleteResult(m.SelectedBackup, m.DeleteErr)
 	case ScreenRenameBackup:
 		return screens.RenderRenameBackup(m.SelectedBackup, m.BackupRenameText, m.BackupRenamePos)
-	case ScreenAgentBuilderEngine:
-		return screens.RenderABEngine(m.AgentBuilder.AvailableEngines, m.Cursor)
-	case ScreenAgentBuilderPrompt:
-		return screens.RenderABPrompt(m.AgentBuilder.Textarea)
-	case ScreenAgentBuilderSDD:
-		return screens.RenderABSDD(string(m.AgentBuilder.SDDMode), m.Cursor)
-	case ScreenAgentBuilderSDDPhase:
-		return screens.RenderABSDDPhase(screens.ABSDDPhases(), m.Cursor, m.AgentBuilder.SDDMode == agentbuilder.SDDNewPhase)
-	case ScreenAgentBuilderGenerating:
-		engineName := string(m.AgentBuilder.SelectedEngine)
-		return screens.RenderABGenerating(engineName, m.SpinnerFrame, m.AgentBuilder.GenerationErr)
-	case ScreenAgentBuilderPreview:
-		targets := m.agentBuilderInstallTargets()
-		return screens.RenderABPreview(m.AgentBuilder.Generated, targets, m.AgentBuilder.PreviewScroll, m.Height, m.Cursor, m.AgentBuilder.InstallErr, m.AgentBuilder.ConflictWarning)
-	case ScreenAgentBuilderInstalling:
-		engineName := string(m.AgentBuilder.SelectedEngine)
-		return screens.RenderABInstalling(engineName, m.SpinnerFrame, m.AgentBuilder.InstallErr)
-	case ScreenAgentBuilderComplete:
-		return screens.RenderABComplete(m.AgentBuilder.Generated, m.AgentBuilder.InstallResults)
 	default:
 		return ""
 	}
@@ -868,16 +675,6 @@ func (m Model) handleKeyPress(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// When the model picker is in a sub-mode, delegate navigation there first.
 	if m.Screen == ScreenModelPicker && m.ModelPicker.Mode != screens.ModePhaseList {
-		handled, updated := screens.HandleModelPickerNav(keyStr, &m.ModelPicker, m.Selection.ModelAssignments)
-		if handled {
-			m.Selection.ModelAssignments = updated
-			return m, nil
-		}
-	}
-
-	// Profile create step 1 reuses the ModelPicker sub-modes (provider/model drill-down).
-	if (m.Screen == ScreenProfileCreate && m.ProfileCreateStep == 1) &&
-		m.ModelPicker.Mode != screens.ModePhaseList {
 		handled, updated := screens.HandleModelPickerNav(keyStr, &m.ModelPicker, m.Selection.ModelAssignments)
 		if handled {
 			m.Selection.ModelAssignments = updated
@@ -980,13 +777,6 @@ func (m Model) handleKeyPress(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c", "q":
 		return m, tea.Quit
 	case "up":
-		// On the preview screen, up arrow scrolls content up.
-		if m.Screen == ScreenAgentBuilderPreview {
-			if m.AgentBuilder.PreviewScroll > 0 {
-				m.AgentBuilder.PreviewScroll--
-			}
-			return m, nil
-		}
 		count := m.optionCount()
 		if count > 0 {
 			if m.Cursor > 0 {
@@ -1008,11 +798,6 @@ func (m Model) handleKeyPress(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "down":
-		// On the preview screen, down arrow scrolls content down.
-		if m.Screen == ScreenAgentBuilderPreview {
-			m.AgentBuilder.PreviewScroll++
-			return m, nil
-		}
 		count := m.optionCount()
 		if m.Cursor+1 < count {
 			m.Cursor++
@@ -1093,7 +878,7 @@ func (m Model) handleKeyPress(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.Cursor < len(m.UninstallProfilesAvailable) {
 				m.toggleCurrentUninstallProfile()
 			} else {
-				m.toggleCurrentUninstallEngramScope()
+				m.toggleCurrentUninstallSddMemoryScope()
 			}
 		case ScreenDependencyTree:
 			if m.Selection.Preset == model.PresetCustom {
@@ -1101,8 +886,6 @@ func (m Model) handleKeyPress(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case ScreenSkillPicker:
 			m.toggleCurrentSkill()
-		case ScreenOpenCodePlugins:
-			m.toggleCurrentOpenCodePlugin()
 		}
 		return m, nil
 	case "r":
@@ -1114,30 +897,11 @@ func (m Model) handleKeyPress(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.setScreen(ScreenRenameBackup)
 			return m, nil
 		}
-	case "n":
-		// "n" on ScreenProfiles: shortcut for "Create new profile".
-		if m.Screen == ScreenProfiles {
-			m.ProfileEditMode = false
-			m.ProfileDraft = model.Profile{}
-			m.ProfileCreateStep = 0
-			m.ProfileNameInput = ""
-			m.ProfileNamePos = 0
-			m.ProfileNameErr = ""
-			m.Selection.ModelAssignments = nil
-			m.setScreen(ScreenProfileCreate)
-			return m, nil
-		}
 	case "d":
 		// Delete: only when on ScreenBackups and cursor is on a backup item (not "Back").
 		if m.Screen == ScreenBackups && m.Cursor < len(m.Backups) {
 			m.SelectedBackup = m.Backups[m.Cursor]
 			m.setScreen(ScreenDeleteConfirm)
-			return m, nil
-		}
-		// Delete on ScreenProfiles: only non-default profiles (those in ProfileList).
-		if m.Screen == ScreenProfiles && m.Cursor < len(m.ProfileList) {
-			m.ProfileDeleteTarget = m.ProfileList[m.Cursor].Name
-			m.setScreen(ScreenProfileDelete)
 			return m, nil
 		}
 	case "p":
@@ -1190,54 +954,11 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 		case 4:
 			m.setScreen(ScreenModelConfig)
 		case 5:
-			// "Create your own Agent" — blocked when no engines are available.
-			if !m.hasAgentBuilderEngines() {
-				return m, nil
-			}
-			m.AgentBuilder = AgentBuilderState{}
-			m.AgentBuilder.AvailableEngines = m.detectAgentBuilderEngines()
-			ta := textarea.New()
-			ta.Placeholder = "Describe what you want your agent to do..."
-			ta.Focus()
-			ta.SetWidth(60)
-			ta.SetHeight(5)
-			m.AgentBuilder.Textarea = ta
-			m.setScreen(ScreenAgentBuilderEngine)
+			m.setScreen(ScreenBackups)
+		case 6:
+			m.setScreen(ScreenUninstallMode)
 		default:
-			next := 6
-			if m.Cursor == next {
-				m.OpenCodePluginsStandalone = true
-				m.OpenCodePluginRegistrationResults = nil
-				m.OpenCodePluginRegistrationErr = nil
-				m.Selection.OpenCodePlugins = nil
-				m.setScreen(ScreenOpenCodePlugins)
-				return m, nil
-			}
-			next++
-
-			if m.hasDetectedOpenCode() {
-				if m.Cursor == next {
-					m.setScreen(ScreenProfiles)
-					return m, nil
-				}
-				next++
-			}
-
-			if m.Cursor == next {
-				m.setScreen(ScreenBackups)
-				return m, nil
-			}
-			next++
-
-			if m.Cursor == next {
-				m.setScreen(ScreenUninstallMode)
-				return m, nil
-			}
-			next++
-
-			if m.Cursor == next {
-				return m, tea.Quit
-			}
+			return m, tea.Quit
 		}
 	case ScreenUninstallMode:
 		m.refreshUninstallProfiles()
@@ -1305,16 +1026,16 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 		return m, nil
 	case ScreenUninstallProfiles:
 		profileCount := len(m.UninstallProfilesAvailable)
-		engramScopeOptionCount := 0
-		if m.shouldShowUninstallEngramScopeSelection() {
-			engramScopeOptionCount = 2
+		sddMemoryScopeOptionCount := 0
+		if m.shouldShowUninstallSddMemoryScopeSelection() {
+			sddMemoryScopeOptionCount = 2
 		}
-		continueIdx := profileCount + engramScopeOptionCount
+		continueIdx := profileCount + sddMemoryScopeOptionCount
 		switch {
 		case m.Cursor < profileCount:
 			m.toggleCurrentUninstallProfile()
 		case m.Cursor < continueIdx:
-			m.toggleCurrentUninstallEngramScope()
+			m.toggleCurrentUninstallSddMemoryScope()
 		case m.Cursor == continueIdx:
 			m.UninstallProfileSelection = true
 			m.setScreen(ScreenUninstallConfirm)
@@ -1407,66 +1128,6 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 		m.OperationRunning = true
 		m.OperationMode = "upgrade-sync"
 		return m, tea.Batch(tickCmd(), m.startUpgradeSync())
-	case ScreenProfiles:
-		// Profiles are: 0..len(ProfileList)-1, then Create, then Back.
-		profileCount := len(m.ProfileList)
-		switch {
-		case m.Cursor < profileCount:
-			// Edit an existing profile.
-			profile := m.ProfileList[m.Cursor]
-			m.ProfileEditMode = true
-			m.ProfileDraft = profile
-			m.ProfileCreateStep = 0
-			m.ProfileNameInput = profile.Name
-			m.ProfileNamePos = len([]rune(profile.Name))
-			m.ProfileNameErr = ""
-			// Build ModelAssignments from the profile's phase assignments + orchestrator.
-			// The ModelPicker shows gentle-orchestrator as the base row, so we need
-			// to include it in the map for it to display the current model.
-			assignments := make(map[string]model.ModelAssignment)
-			for k, v := range profile.PhaseAssignments {
-				assignments[k] = v
-			}
-			if profile.OrchestratorModel.ProviderID != "" {
-				assignments[screens.SDDOrchestratorPhase] = profile.OrchestratorModel
-			}
-			m.Selection.ModelAssignments = assignments
-			m.setScreen(ScreenProfileCreate)
-		case m.Cursor == profileCount:
-			// "Create new profile"
-			m.ProfileEditMode = false
-			m.ProfileDraft = model.Profile{}
-			m.ProfileCreateStep = 0
-			m.ProfileNameInput = ""
-			m.ProfileNamePos = 0
-			m.ProfileNameErr = ""
-			m.Selection.ModelAssignments = nil
-			m.setScreen(ScreenProfileCreate)
-		default:
-			// "Back"
-			m.setScreen(ScreenWelcome)
-		}
-		return m, nil
-	case ScreenProfileCreate:
-		return m.confirmProfileCreate()
-	case ScreenProfileDelete:
-		switch m.Cursor {
-		case 0: // "Delete & Sync"
-			if err := sdd.RemoveProfileAgents(opencode.DefaultSettingsPath(), m.ProfileDeleteTarget); err != nil {
-				// Store the error so it can be displayed on ScreenProfiles.
-				m.ProfileDeleteErr = err
-				m.setScreen(ScreenProfiles)
-			} else {
-				m.ProfileDeleteErr = nil
-				m.PendingSyncOverrides = nil
-				m = m.withResetSyncState()
-				m.setScreen(ScreenSync)
-				return m, tea.Batch(tickCmd(), m.startSync(nil))
-			}
-		default: // "Cancel"
-			m.setScreen(ScreenProfiles)
-		}
-		return m, nil
 	case ScreenModelConfig:
 		switch m.Cursor {
 		case 0: // Configure Claude models
@@ -1559,10 +1220,6 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 			}
 			if m.shouldShowStrictTDDScreen() {
 				m.setScreen(ScreenStrictTDD)
-				return m, nil
-			}
-			if m.shouldShowOpenCodePluginsScreen() {
-				m.setScreen(ScreenOpenCodePlugins)
 				return m, nil
 			}
 			m.buildDependencyPlan()
@@ -1754,9 +1411,7 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 		if m.Cursor < len(options) {
 			// Enable is index 0, Disable is index 1.
 			m.Selection.StrictTDD = (m.Cursor == screens.StrictTDDOptionEnable)
-			if m.shouldShowOpenCodePluginsScreen() {
-				m.setScreen(ScreenOpenCodePlugins)
-			} else if m.Selection.Preset == model.PresetCustom {
+			if m.Selection.Preset == model.PresetCustom {
 				// Custom preset: dependency plan was already built before SDD mode.
 				// Check skill picker before going to review.
 				if m.shouldShowSkillPickerScreen() {
@@ -1793,15 +1448,6 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 		} else {
 			m.setScreen(ScreenPreset)
 		}
-	case ScreenOpenCodePlugins:
-		return m.confirmOpenCodePlugins()
-	case ScreenOpenCodePluginResult:
-		m.OpenCodePluginsStandalone = false
-		m.Selection.OpenCodePlugins = nil
-		m.OpenCodePluginRegistrationResults = nil
-		m.OpenCodePluginRegistrationErr = nil
-		m.setScreen(ScreenWelcome)
-		return m, nil
 	case ScreenDependencyTree:
 		if m.Selection.Preset == model.PresetCustom {
 			allComps := screens.AllComponents()
@@ -1822,10 +1468,6 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 				}
 				if m.shouldShowStrictTDDScreen() {
 					m.setScreen(ScreenStrictTDD)
-					return m, nil
-				}
-				if m.shouldShowOpenCodePluginsScreen() {
-					m.setScreen(ScreenOpenCodePlugins)
 					return m, nil
 				}
 				// Show skill picker if Skills component is selected.
@@ -1991,75 +1633,6 @@ func (m Model) confirmSelection() (tea.Model, tea.Cmd) {
 		}
 		m.DeleteErr = nil
 		m.setScreen(ScreenBackups)
-	case ScreenAgentBuilderEngine:
-		engines := m.AgentBuilder.AvailableEngines
-		if m.Cursor < len(engines) {
-			m.AgentBuilder.SelectedEngine = engines[m.Cursor]
-			m.setScreen(ScreenAgentBuilderPrompt)
-		} else {
-			// "Back" option.
-			m.setScreen(ScreenWelcome)
-		}
-	case ScreenAgentBuilderPrompt:
-		// "Continue" only if textarea is not empty.
-		if m.AgentBuilder.Textarea.Value() != "" {
-			m.setScreen(ScreenAgentBuilderSDD)
-		}
-	case ScreenAgentBuilderSDD:
-		opts := screens.ABSDDOptions()
-		switch m.Cursor {
-		case 0:
-			m.AgentBuilder.SDDMode = agentbuilder.SDDStandalone
-			return m.startGeneration()
-		case 1:
-			m.AgentBuilder.SDDMode = agentbuilder.SDDNewPhase
-			m.setScreen(ScreenAgentBuilderSDDPhase)
-		case 2:
-			m.AgentBuilder.SDDMode = agentbuilder.SDDPhaseSupport
-			m.setScreen(ScreenAgentBuilderSDDPhase)
-		case len(opts) - 1:
-			m.setScreen(ScreenAgentBuilderPrompt)
-		}
-	case ScreenAgentBuilderSDDPhase:
-		phases := screens.ABSDDPhases()
-		if m.Cursor < len(phases) {
-			m.AgentBuilder.SDDTargetPhase = phases[m.Cursor]
-			return m.startGeneration()
-		}
-		// "Back" option.
-		m.setScreen(ScreenAgentBuilderSDD)
-	case ScreenAgentBuilderGenerating:
-		// Only interactive when an error is shown (retry/back).
-		if m.AgentBuilder.GenerationErr != nil {
-			if m.Cursor == 0 {
-				// Retry.
-				return m.startGeneration()
-			}
-			// Back.
-			m.AgentBuilder.GenerationErr = nil
-			m.setScreen(ScreenAgentBuilderPrompt)
-		}
-	case ScreenAgentBuilderPreview:
-		switch m.Cursor {
-		case 0:
-			// Install — guard against nil generated agent.
-			if m.AgentBuilder.Generated == nil {
-				return m, nil
-			}
-			return m.startInstallation()
-		case 1:
-			// Regenerate — go back to generating.
-			return m.startGeneration()
-		default:
-			// Back.
-			m.setScreen(ScreenAgentBuilderPrompt)
-		}
-	case ScreenAgentBuilderInstalling:
-		if !m.AgentBuilder.Installing {
-			m.setScreen(ScreenAgentBuilderComplete)
-		}
-	case ScreenAgentBuilderComplete:
-		m.setScreen(ScreenWelcome)
 	}
 
 	return m, nil
@@ -2098,14 +1671,17 @@ func (m Model) startInstalling() (tea.Model, tea.Cmd) {
 	selection := m.Selection
 	resolved := m.DependencyPlan
 	detection := m.Detection
+	sendFn := m.SendFn // capture before goroutine; nil is safe (guarded below)
 
 	return m, tea.Batch(tickCmd(), func() tea.Msg {
 		onProgress := func(event pipeline.ProgressEvent) {
-			// NOTE: ProgressFunc is called synchronously from the pipeline goroutine.
-			// We cannot use p.Send() here because we don't have a reference to the
-			// tea.Program. Instead, these events are collected in the ExecutionResult
-			// and the PipelineDoneMsg handles the final state. For real-time updates,
-			// we rely on the pipeline calling this synchronously from each step.
+			if sendFn != nil {
+				sendFn(StepProgressMsg{
+					StepID: event.StepID,
+					Status: event.Status,
+					Err:    event.Err,
+				})
+			}
 		}
 
 		result := executeFn(selection, resolved, detection, onProgress)
@@ -2149,8 +1725,8 @@ func (m Model) withResetUninstallState() Model {
 	m.UninstallProfilesAvailable = nil
 	m.UninstallProfilesToRemove = nil
 	m.UninstallProfileSelection = false
-	m.UninstallEngramProjectScopeAvailable = false
-	m.UninstallEngramScope = model.EngramUninstallScopeGlobal
+	m.UninstallSddMemoryProjectScopeAvailable = false
+	m.UninstallSddMemoryScope = model.SddMemoryUninstallScopeGlobal
 	m.UninstallResult = componentuninstall.Result{}
 	m.UninstallErr = nil
 	m.SyncCleanInstallFiles = nil
@@ -2188,22 +1764,6 @@ func (m Model) startSync(overrides *model.SyncOverrides) tea.Cmd {
 	}
 }
 
-func (m Model) startOpenCodePluginRegistration() tea.Cmd {
-	plugins := append([]model.OpenCodeCommunityPluginID(nil), m.Selection.OpenCodePlugins...)
-	home := homeDir()
-	return func() tea.Msg {
-		results := make([]opencodeplugin.Result, 0, len(plugins))
-		for _, plugin := range plugins {
-			result, err := opencodeplugin.Install(home, plugin)
-			if err != nil {
-				return OpenCodePluginRegistrationDoneMsg{Results: results, Err: err}
-			}
-			results = append(results, result)
-		}
-		return OpenCodePluginRegistrationDoneMsg{Results: results}
-	}
-}
-
 func (m Model) startUninstall() tea.Cmd {
 	uninstallFn := m.UninstallFn
 	uninstallWithProfilesFn := m.UninstallWithProfilesFn
@@ -2211,7 +1771,7 @@ func (m Model) startUninstall() tea.Cmd {
 	agentIDs := append([]model.AgentID(nil), m.UninstallAgents...)
 	componentIDs := append([]model.ComponentID(nil), m.UninstallComponents...)
 	profileNamesToRemove := append([]string(nil), m.UninstallProfilesToRemove...)
-	engramScope := m.UninstallEngramScope
+	sddMemoryScope := m.UninstallSddMemoryScope
 	profileSelectionUsed := m.UninstallProfileSelection || len(profileNamesToRemove) > 0
 	mode := m.UninstallMode
 	return func() tea.Msg {
@@ -2224,7 +1784,7 @@ func (m Model) startUninstall() tea.Cmd {
 			err    error
 		)
 		if uninstallWithProfilesFn != nil && profileSelectionUsed {
-			result, err = uninstallWithProfilesFn(agentIDs, componentIDs, profileNamesToRemove, engramScope)
+			result, err = uninstallWithProfilesFn(agentIDs, componentIDs, profileNamesToRemove, sddMemoryScope)
 		} else {
 			result, err = uninstallFn(agentIDs, componentIDs)
 		}
@@ -2262,8 +1822,8 @@ func (m Model) startUninstall() tea.Cmd {
 }
 
 func (m *Model) refreshUninstallProfiles() {
-	m.UninstallEngramProjectScopeAvailable = m.detectProjectEngramData()
-	m.UninstallEngramScope = model.EngramUninstallScopeGlobal
+	m.UninstallSddMemoryProjectScopeAvailable = m.detectProjectSddMemoryData()
+	m.UninstallSddMemoryScope = model.SddMemoryUninstallScopeGlobal
 
 	if !m.hasDetectedOpenCode() {
 		m.UninstallProfilesAvailable = nil
@@ -2279,18 +1839,24 @@ func (m *Model) refreshUninstallProfiles() {
 		m.UninstallProfileSelection = false
 		return
 	}
-	m.UninstallProfilesAvailable = profileNames(profiles)
+	names := make([]string, 0, len(profiles))
+	for _, p := range profiles {
+		if strings.TrimSpace(p.Name) != "" {
+			names = append(names, p.Name)
+		}
+	}
+	m.UninstallProfilesAvailable = names
 }
 
-func (m Model) detectProjectEngramData() bool {
-	if !hasSelectedComponent(m.UninstallComponents, model.ComponentEngram) {
+func (m Model) detectProjectSddMemoryData() bool {
+	if !hasSelectedComponent(m.UninstallComponents, model.ComponentSddMemory) {
 		return false
 	}
 	cwd, err := osGetwdFn()
 	if err != nil || strings.TrimSpace(cwd) == "" {
 		return false
 	}
-	info, err := osStatPathFn(filepath.Join(cwd, ".engram"))
+	info, err := osStatPathFn(filepath.Join(cwd, ".sdd-memory"))
 	if err != nil {
 		return false
 	}
@@ -2373,46 +1939,6 @@ func (m Model) goBack() Model {
 		return m
 	}
 
-	// Block going back while agent installation is in progress.
-	if m.AgentBuilder.Installing {
-		return m
-	}
-
-	if m.Screen == ScreenOpenCodePluginResult {
-		m.OpenCodePluginsStandalone = false
-		m.Selection.OpenCodePlugins = nil
-		m.OpenCodePluginRegistrationResults = nil
-		m.OpenCodePluginRegistrationErr = nil
-		m.setScreen(ScreenWelcome)
-		return m
-	}
-
-	// Agent builder back navigation.
-	switch m.Screen {
-	case ScreenAgentBuilderComplete:
-		m.setScreen(ScreenWelcome)
-		return m
-	case ScreenAgentBuilderInstalling:
-		// Can't go back while installing — guard above handles this.
-		return m
-	case ScreenAgentBuilderGenerating:
-		if m.AgentBuilder.GenerationErr != nil {
-			// Error state: allow going back.
-			m.AgentBuilder.GenerationErr = nil
-			m.setScreen(ScreenAgentBuilderPrompt)
-			return m
-		}
-		if m.AgentBuilder.Generating {
-			// Cancel in-progress generation and navigate back to prompt.
-			if m.AgentBuilder.GenerationCancel != nil {
-				m.AgentBuilder.GenerationCancel()
-			}
-			m.AgentBuilder.Generating = false
-			m.setScreen(ScreenAgentBuilderPrompt)
-			return m
-		}
-	}
-
 	// ScreenUninstallConfirm: dynamic back navigation based on uninstall mode.
 	// - with profile selection: go back to profile selection screen
 	// - partial: go back to component selection (ScreenUninstallComponents)
@@ -2487,10 +2013,6 @@ func (m Model) goBack() Model {
 			m.setScreen(ScreenAgents)
 			return m
 		}
-		if m.shouldShowOpenCodePluginsScreen() {
-			m.setScreen(ScreenOpenCodePlugins)
-			return m
-		}
 		if m.shouldShowStrictTDDScreen() {
 			// StrictTDD screen is between (SDDMode/ClaudeModelPicker/Preset) and DependencyTree.
 			m.setScreen(ScreenStrictTDD)
@@ -2536,10 +2058,6 @@ func (m Model) goBack() Model {
 		// All other non-custom agents: go back to Preset selection.
 		m.setScreen(ScreenPreset)
 		return m
-	}
-
-	if m.Screen == ScreenOpenCodePlugins {
-		return m.goBackFromOpenCodePlugins()
 	}
 
 	// In custom preset, going back from SDDMode should return to ClaudeModelPicker
@@ -2651,28 +2169,11 @@ func (m *Model) setScreen(next Screen) {
 		m.BackupScroll = 0
 		m.PinErr = nil
 	}
-	if next == ScreenProfiles {
-		// Clear stale delete error so it is not shown after Cancel/Esc from ScreenProfileDelete.
-		m.ProfileDeleteErr = nil
-		// Refresh profile list on entry. Surface errors via m.Err so callers can react.
-		profiles, err := readProfilesFn(opencode.DefaultSettingsPath())
-		if err != nil {
-			m.Err = err
-			m.ProfileList = nil
-		} else {
-			m.ProfileList = profiles
-		}
-		// Clamp cursor so it never points past the end of a refreshed list.
-		// m.Cursor was just reset to 0 above, so this only triggers if ProfileList is empty.
-		if m.Cursor >= len(m.ProfileList) {
-			m.Cursor = 0
-		}
-	}
 	if next == ScreenUninstallMode {
 		m.refreshUninstallProfiles()
 		m.UninstallProfilesToRemove = nil
 		m.UninstallProfileSelection = false
-		m.UninstallEngramScope = model.EngramUninstallScopeGlobal
+		m.UninstallSddMemoryScope = model.SddMemoryUninstallScopeGlobal
 	}
 }
 
@@ -2726,7 +2227,7 @@ func (m Model) handleRenameInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) optionCount() int {
 	switch m.Screen {
 	case ScreenWelcome:
-		return len(screens.WelcomeOptions(m.UpdateResults, m.UpdateCheckDone, m.hasDetectedOpenCode(), len(m.ProfileList), m.hasAgentBuilderEngines()))
+		return len(screens.WelcomeOptions(m.UpdateResults, m.UpdateCheckDone, false, 0, false))
 	case ScreenUpgrade:
 		if m.UpgradeReport != nil || m.UpgradeErr != nil {
 			return 1 // "return" option in results/error state
@@ -2749,7 +2250,7 @@ func (m Model) optionCount() int {
 		return len(screens.UninstallComponentOptions()) + 2
 	case ScreenUninstallProfiles:
 		count := len(m.UninstallProfilesAvailable) + 2
-		if m.shouldShowUninstallEngramScopeSelection() {
+		if m.shouldShowUninstallSddMemoryScopeSelection() {
 			count += 2
 		}
 		return count
@@ -2773,10 +2274,6 @@ func (m Model) optionCount() int {
 		return len(screens.SDDModeOptions()) + 1
 	case ScreenStrictTDD:
 		return len(screens.StrictTDDOptions()) + 1 // Enable + Disable + Back
-	case ScreenOpenCodePlugins:
-		return screens.OpenCodePluginsOptionCount()
-	case ScreenOpenCodePluginResult:
-		return 1
 	case ScreenModelPicker:
 		if len(m.ModelPicker.AvailableIDs) == 0 {
 			return 2 // Continue with defaults + Back to SDD mode
@@ -2807,31 +2304,6 @@ func (m Model) optionCount() int {
 		return 1 // "Done" / continue
 	case ScreenRenameBackup:
 		return 0 // text input mode — no cursor navigation
-	case ScreenProfiles:
-		return screens.ProfileListOptionCount(m.ProfileList)
-	case ScreenProfileCreate:
-		return screens.ProfileCreateOptionCount(m.ProfileCreateStep, m.ModelPicker)
-	case ScreenProfileDelete:
-		return screens.ProfileDeleteOptionCount()
-	case ScreenAgentBuilderEngine:
-		return len(m.AgentBuilder.AvailableEngines) + 1 // engines + Back
-	case ScreenAgentBuilderPrompt:
-		return 0 // textarea mode — cursor navigation via textarea
-	case ScreenAgentBuilderSDD:
-		return len(screens.ABSDDOptions()) // 3 modes + Back
-	case ScreenAgentBuilderSDDPhase:
-		return len(screens.ABSDDPhases()) + 1 // phases + Back
-	case ScreenAgentBuilderGenerating:
-		if m.AgentBuilder.GenerationErr != nil {
-			return 2 // Retry + Back
-		}
-		return 0 // generating — no cursor navigation
-	case ScreenAgentBuilderPreview:
-		return len(screens.ABPreviewActions()) // Install + Regenerate + Back
-	case ScreenAgentBuilderInstalling:
-		return 0 // no cursor navigation while installing
-	case ScreenAgentBuilderComplete:
-		return 1 // Done
 	default:
 		return 0
 	}
@@ -2953,18 +2425,18 @@ func (m *Model) toggleCurrentUninstallProfile() {
 	m.UninstallProfilesToRemove = append(m.UninstallProfilesToRemove, profileName)
 }
 
-func (m *Model) toggleCurrentUninstallEngramScope() {
+func (m *Model) toggleCurrentUninstallSddMemoryScope() {
 	profileCount := len(m.UninstallProfilesAvailable)
-	if m.Cursor < profileCount || !m.shouldShowUninstallEngramScopeSelection() {
+	if m.Cursor < profileCount || !m.shouldShowUninstallSddMemoryScopeSelection() {
 		return
 	}
 	idx := m.Cursor - profileCount
 	if idx == 0 {
-		m.UninstallEngramScope = model.EngramUninstallScopeProject
+		m.UninstallSddMemoryScope = model.SddMemoryUninstallScopeProject
 		return
 	}
 	if idx == 1 {
-		m.UninstallEngramScope = model.EngramUninstallScopeGlobal
+		m.UninstallSddMemoryScope = model.SddMemoryUninstallScopeGlobal
 	}
 }
 
@@ -2985,120 +2457,6 @@ func (m *Model) toggleCurrentSkill() {
 	m.SkillPicker = append(m.SkillPicker, skillID)
 }
 
-func (m *Model) toggleCurrentOpenCodePlugin() {
-	defs := opencodepluginDefinitions()
-	if m.Cursor%2 != 0 || m.Cursor/2 >= len(defs) {
-		return
-	}
-	id := defs[m.Cursor/2]
-	for idx, selected := range m.Selection.OpenCodePlugins {
-		if selected == id {
-			m.Selection.OpenCodePlugins = append(m.Selection.OpenCodePlugins[:idx], m.Selection.OpenCodePlugins[idx+1:]...)
-			return
-		}
-	}
-	m.Selection.OpenCodePlugins = append(m.Selection.OpenCodePlugins, id)
-}
-
-func (m Model) confirmOpenCodePlugins() (tea.Model, tea.Cmd) {
-	defs := opencodepluginDefinitions()
-	pluginRows := len(defs) * 2
-	switch {
-	case m.Cursor < pluginRows && m.Cursor%2 == 0:
-		m.toggleCurrentOpenCodePlugin()
-		return m, nil
-	case m.Cursor < pluginRows && m.Cursor%2 == 1:
-		idx := m.Cursor / 2
-		url := opencodepluginRepoURLs()[idx]
-		return m, openBrowserCmd(url)
-	case m.Cursor == pluginRows:
-		if m.OpenCodePluginsStandalone {
-			m.OpenCodePluginRegistrationResults = nil
-			m.OpenCodePluginRegistrationErr = nil
-			m.OperationRunning = len(m.Selection.OpenCodePlugins) > 0
-			m.setScreen(ScreenOpenCodePluginResult)
-			if len(m.Selection.OpenCodePlugins) == 0 {
-				return m, nil
-			}
-			return m, m.startOpenCodePluginRegistration()
-		}
-		return m.continueAfterOpenCodePlugins(), nil
-	default:
-		return m.goBackFromOpenCodePlugins(), nil
-	}
-}
-
-func (m Model) continueAfterOpenCodePlugins() Model {
-	if m.OpenCodePluginsStandalone {
-		m.OpenCodePluginRegistrationResults = nil
-		m.OpenCodePluginRegistrationErr = nil
-		m.setScreen(ScreenOpenCodePluginResult)
-		return m
-	}
-
-	if m.Selection.Preset == model.PresetCustom {
-		if m.shouldShowSkillPickerScreen() {
-			if len(m.SkillPicker) == 0 {
-				m.initSkillPicker()
-			}
-			m.setScreen(ScreenSkillPicker)
-		} else {
-			m.Review = planner.BuildReviewPayload(m.Selection, m.DependencyPlan)
-			m.setScreen(ScreenReview)
-		}
-		return m
-	}
-	m.buildDependencyPlan()
-	m.setScreen(ScreenDependencyTree)
-	return m
-}
-
-func (m Model) goBackFromOpenCodePlugins() Model {
-	if m.OpenCodePluginsStandalone {
-		m.OpenCodePluginsStandalone = false
-		m.Selection.OpenCodePlugins = nil
-		m.OpenCodePluginRegistrationResults = nil
-		m.OpenCodePluginRegistrationErr = nil
-		m.setScreen(ScreenWelcome)
-		return m
-	}
-
-	if m.shouldShowStrictTDDScreen() {
-		m.setScreen(ScreenStrictTDD)
-		return m
-	}
-	if m.shouldShowSDDModeScreen() {
-		m.setScreen(ScreenSDDMode)
-		return m
-	}
-	m.setScreen(ScreenPreset)
-	return m
-}
-
-func opencodepluginDefinitions() []model.OpenCodeCommunityPluginID {
-	return []model.OpenCodeCommunityPluginID{model.OpenCodePluginSubAgentStatusline, model.OpenCodePluginSDDEngramManage}
-}
-
-func opencodepluginRepoURLs() []string {
-	return []string{"https://github.com/Joaquinvesapa/sub-agent-statusline", "https://github.com/j0k3r-dev-rgl/sdd-engram-plugin"}
-}
-
-func openBrowserCmd(url string) tea.Cmd {
-	return func() tea.Msg {
-		var cmd *exec.Cmd
-		switch runtime.GOOS {
-		case "darwin":
-			cmd = execCommandFn("open", url)
-		case "windows":
-			cmd = execCommandFn("rundll32", "url.dll,FileProtocolHandler", url)
-		default:
-			cmd = execCommandFn("xdg-open", url)
-		}
-		_ = cmd.Start()
-		return nil
-	}
-}
-
 // initSkillPicker pre-selects ALL available skills (custom mode default).
 func (m *Model) initSkillPicker() {
 	all := screens.AllSkillsOrdered()
@@ -3111,22 +2469,6 @@ func (m *Model) initSkillPicker() {
 func (m Model) shouldShowSkillPickerScreen() bool {
 	return m.Selection.Preset == model.PresetCustom &&
 		hasSelectedComponent(m.Selection.Components, model.ComponentSkills)
-}
-
-func (m Model) shouldShowOpenCodePluginsScreen() bool {
-	if !m.Selection.HasAgent(model.AgentOpenCode) {
-		return false
-	}
-
-	// Custom preset starts with an empty component selection. At the preset stage
-	// the next screen must be the custom component selector; optional OpenCode
-	// plugins are offered only after the custom flow has a concrete component
-	// selection and reaches the plugin stage.
-	if m.Selection.Preset == model.PresetCustom && m.Screen == ScreenPreset {
-		return false
-	}
-
-	return true
 }
 
 func (m *Model) buildDependencyPlan() {
@@ -3213,7 +2555,7 @@ func isPiOnlyAgents(agents []model.AgentID) bool {
 }
 
 func piOnlyComponents() []model.ComponentID {
-	return []model.ComponentID{model.ComponentEngram}
+	return []model.ComponentID{model.ComponentSddMemory}
 }
 
 func defaultUninstallComponents() []model.ComponentID {
@@ -3308,21 +2650,19 @@ func componentsForPreset(preset model.PresetID, persona model.PersonaID) []model
 	var components []model.ComponentID
 	switch preset {
 	case model.PresetMinimal:
-		components = []model.ComponentID{model.ComponentEngram}
+		components = []model.ComponentID{model.ComponentSddMemory}
 	case model.PresetEcosystemOnly:
-		components = []model.ComponentID{model.ComponentEngram, model.ComponentSDD, model.ComponentSkills, model.ComponentContext7, model.ComponentGGA}
+		components = []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD, model.ComponentSkills, model.ComponentContext7}
 	case model.PresetCustom:
 		return nil
-	default: // full-gentleman
+	default: // full-modism
 		components = []model.ComponentID{
-			model.ComponentEngram,
+			model.ComponentSddMemory,
 			model.ComponentSDD,
 			model.ComponentSkills,
 			model.ComponentContext7,
 			model.ComponentPermission,
-			model.ComponentGGA,
 			model.ComponentClaudeTheme,
-			model.ComponentOpenCodeGentleLogo,
 		}
 	}
 	if persona != model.PersonaCustom {
@@ -3349,17 +2689,6 @@ func hasSelectedAgent(agents []model.AgentID, target model.AgentID) bool {
 	return false
 }
 
-func profileNames(profiles []model.Profile) []string {
-	names := make([]string, 0, len(profiles))
-	for _, profile := range profiles {
-		if strings.TrimSpace(profile.Name) == "" {
-			continue
-		}
-		names = append(names, profile.Name)
-	}
-	return names
-}
-
 func (m Model) shouldShowUninstallProfilesSelection() bool {
 	if len(m.UninstallProfilesAvailable) == 0 {
 		return false
@@ -3373,15 +2702,15 @@ func (m Model) shouldShowUninstallProfilesSelection() bool {
 	return true
 }
 
-func (m Model) shouldShowUninstallEngramScopeSelection() bool {
-	if !hasSelectedComponent(m.UninstallComponents, model.ComponentEngram) {
+func (m Model) shouldShowUninstallSddMemoryScopeSelection() bool {
+	if !hasSelectedComponent(m.UninstallComponents, model.ComponentSddMemory) {
 		return false
 	}
-	return m.UninstallEngramProjectScopeAvailable
+	return m.UninstallSddMemoryProjectScopeAvailable
 }
 
 func (m Model) shouldShowUninstallSubSelection() bool {
-	return m.shouldShowUninstallProfilesSelection() || m.shouldShowUninstallEngramScopeSelection()
+	return m.shouldShowUninstallProfilesSelection() || m.shouldShowUninstallSddMemoryScopeSelection()
 }
 
 func (m *Model) selectAllUninstallProfiles() {
@@ -3395,238 +2724,6 @@ func (m Model) isScrollableScreen() bool {
 	return m.Screen == ScreenBackups
 }
 
-// handleProfileNameInput processes key events when the profile create screen
-// is at step 0 (name input). In edit mode, step 0 is skipped to step 1 — this
-// handler is only called when NOT in edit mode.
-func (m Model) handleProfileNameInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
-	case tea.KeyEnter:
-		// Validate and advance to step 1.
-		name := strings.ToLower(m.ProfileNameInput)
-		if err := sdd.ValidateProfileName(name); err != nil {
-			m.ProfileNameErr = err.Error()
-			m.ProfileNameCollision = false
-			return m, nil
-		}
-
-		// Check for collision with an existing profile.
-		if !m.ProfileNameCollision {
-			for _, p := range m.ProfileList {
-				if p.Name == name {
-					m.ProfileNameErr = fmt.Sprintf("Profile '%s' already exists. Press enter to overwrite.", name)
-					m.ProfileNameCollision = true
-					return m, nil
-				}
-			}
-		}
-
-		// Clear collision flag and proceed.
-		m.ProfileNameErr = ""
-		m.ProfileNameCollision = false
-		m.ProfileDraft.Name = name
-		m.ProfileCreateStep = 1
-		// Initialize model picker for orchestrator step.
-		cachePath := opencode.DefaultCachePath()
-		if _, err := osStatModelCache(cachePath); err == nil {
-			m.ModelPicker = screens.NewModelPickerState(cachePath, opencode.DefaultSettingsPath())
-		} else {
-			m.ModelPicker = screens.ModelPickerState{}
-		}
-		m.ModelPicker.ForProfile = true
-		m.Cursor = 0
-		return m, nil
-	case tea.KeyEsc:
-		m.ProfileNameCollision = false
-		m.setScreen(ScreenProfiles)
-		return m, nil
-	case tea.KeyBackspace:
-		if m.ProfileNamePos > 0 {
-			runes := []rune(m.ProfileNameInput)
-			m.ProfileNameInput = string(append(runes[:m.ProfileNamePos-1], runes[m.ProfileNamePos:]...))
-			m.ProfileNamePos--
-			// Typing clears the collision warning so the user can modify the name.
-			m.ProfileNameCollision = false
-			m.ProfileNameErr = ""
-		}
-		return m, nil
-	case tea.KeyLeft:
-		if m.ProfileNamePos > 0 {
-			m.ProfileNamePos--
-		}
-		return m, nil
-	case tea.KeyRight:
-		if m.ProfileNamePos < len([]rune(m.ProfileNameInput)) {
-			m.ProfileNamePos++
-		}
-		return m, nil
-	case tea.KeyRunes:
-		runes := []rune(m.ProfileNameInput)
-		newRunes := make([]rune, 0, len(runes)+len(msg.Runes))
-		newRunes = append(newRunes, runes[:m.ProfileNamePos]...)
-		newRunes = append(newRunes, msg.Runes...)
-		newRunes = append(newRunes, runes[m.ProfileNamePos:]...)
-		m.ProfileNameInput = string(newRunes)
-		m.ProfileNamePos += len(msg.Runes)
-		// Typing clears the collision warning so the user can modify the name.
-		m.ProfileNameCollision = false
-		m.ProfileNameErr = ""
-		return m, nil
-	}
-	return m, nil
-}
-
-// confirmProfileCreate handles enter key presses on ScreenProfileCreate.
-// Step 0 (name input) is handled by handleProfileNameInput for create mode.
-// Steps: 0=name, 1=assign models (orchestrator + sub-agents), 2=confirm.
-func (m Model) confirmProfileCreate() (tea.Model, tea.Cmd) {
-	switch m.ProfileCreateStep {
-	case 0:
-		// Edit mode: step 0 shows read-only name, enter advances to step 1.
-		if m.ProfileEditMode {
-			m.ProfileCreateStep = 1
-			cachePath := opencode.DefaultCachePath()
-			if _, err := osStatModelCache(cachePath); err == nil {
-				m.ModelPicker = screens.NewModelPickerState(cachePath, opencode.DefaultSettingsPath())
-			} else {
-				m.ModelPicker = screens.ModelPickerState{}
-			}
-			m.ModelPicker.ForProfile = true
-			m.Cursor = 0
-		}
-		return m, nil
-	case 1:
-		// Model assignment picker: orchestrator + all sub-agent phases in one screen.
-		// Reuse the same enter-on-row logic as ScreenModelPicker.
-		// Profile creation uses filtered rows (no JD agents).
-		rows := screens.ModelPickerRowsForProfile()
-		if m.Cursor < len(rows) {
-			// Enter sub-selection: pick provider then model.
-			m.ModelPicker.SelectedPhaseIdx = m.Cursor
-			m.ModelPicker.Mode = screens.ModeProviderSelect
-			m.ModelPicker.ProviderCursor = 0
-			m.ModelPicker.ProviderScroll = 0
-			return m, nil
-		}
-		if m.Cursor == len(rows) {
-			// "Continue": extract orchestrator + phase assignments, advance to confirm.
-			assignments := sanitizeKnownModelEfforts(m.Selection.ModelAssignments, m.ModelPicker.SDDModels)
-			if assignments != nil {
-				// Extract orchestrator model.
-				if orch, ok := assignments[screens.SDDOrchestratorPhase]; ok {
-					m.ProfileDraft.OrchestratorModel = orch
-				}
-				// Copy all phase assignments (excluding orchestrator).
-				if m.ProfileDraft.PhaseAssignments == nil {
-					m.ProfileDraft.PhaseAssignments = make(map[string]model.ModelAssignment)
-				}
-				for k, v := range assignments {
-					if k != screens.SDDOrchestratorPhase {
-						m.ProfileDraft.PhaseAssignments[k] = v
-					}
-				}
-			}
-			m.ProfileCreateStep = 2
-			m.Cursor = 0
-		}
-		if m.Cursor == len(rows)+1 {
-			// "Back": return to step 0 (name) or profiles list.
-			if m.ProfileEditMode {
-				m.setScreen(ScreenProfiles)
-			} else {
-				m.ProfileCreateStep = 0
-				m.Cursor = 0
-			}
-		}
-		return m, nil
-	default:
-		// Step 2: confirm.
-		switch m.Cursor {
-		case 0: // "Create & Sync" / "Save & Sync"
-			draft := m.ProfileDraft
-			m.PendingSyncOverrides = &model.SyncOverrides{
-				TargetAgents: []model.AgentID{model.AgentOpenCode},
-				Profiles:     []model.Profile{draft},
-			}
-			m = m.withResetSyncState()
-			m.setScreen(ScreenSync)
-			return m, tea.Batch(tickCmd(), m.startSync(m.PendingSyncOverrides))
-		default: // "Cancel"
-			m.setScreen(ScreenProfiles)
-		}
-		return m, nil
-	}
-}
-
-// detectAgentBuilderEngines scans for supported AI agent binaries on PATH and
-// returns the list of available AgentIDs.
-func (m Model) detectAgentBuilderEngines() []model.AgentID {
-	candidateIDs := []model.AgentID{
-		model.AgentClaudeCode,
-		model.AgentOpenCode,
-		model.AgentGeminiCLI,
-		model.AgentCodex,
-	}
-	var available []model.AgentID
-	for _, id := range candidateIDs {
-		engine := agentbuilder.NewEngine(id)
-		if engine != nil && engine.Available() {
-			available = append(available, id)
-		}
-	}
-	return available
-}
-
-// hasAgentBuilderEngines reports whether any supported AI agent binary is installed.
-func (m Model) hasAgentBuilderEngines() bool {
-	return len(m.detectAgentBuilderEngines()) > 0
-}
-
-// agentBuilderInstallTargets returns the list of install target paths for the preview screen.
-// Each path is the full destination: {SkillsDir}/{agent.Name}/SKILL.md
-func (m Model) agentBuilderInstallTargets() []string {
-	adapters := m.buildAgentBuilderAdapters()
-	agent := m.AgentBuilder.Generated
-	targets := make([]string, 0, len(adapters))
-	for _, a := range adapters {
-		if agent != nil {
-			targets = append(targets, filepath.Join(a.SkillsDir, agent.Name, "SKILL.md"))
-		} else {
-			targets = append(targets, a.SkillsDir)
-		}
-	}
-	return targets
-}
-
-// buildAgentBuilderAdapters returns the AdapterInfo list for all detected agents.
-func (m Model) buildAgentBuilderAdapters() []agentbuilder.AdapterInfo {
-	var adapters []agentbuilder.AdapterInfo
-	for _, cfg := range m.Detection.Configs {
-		if !cfg.Exists {
-			continue
-		}
-		agentID := model.AgentID(strings.TrimSpace(cfg.Agent))
-		if skillsDir, ok := agentBuilderSkillsDir(agentID); ok {
-			adapters = append(adapters, agentbuilder.AdapterInfo{
-				AgentID:   agentID,
-				SkillsDir: skillsDir,
-			})
-		}
-	}
-	// Fallback: if no agents detected via config, use all engines that are available.
-	if len(adapters) == 0 {
-		for _, id := range m.AgentBuilder.AvailableEngines {
-			if skillsDir, ok := agentBuilderSkillsDir(id); ok {
-				adapters = append(adapters, agentbuilder.AdapterInfo{
-					AgentID:   id,
-					SkillsDir: skillsDir,
-				})
-			}
-		}
-	}
-	return adapters
-}
-
-// homeDir returns the current user's home directory path.
 func homeDir() string {
 	if h, err := os.UserHomeDir(); err == nil && h != "" {
 		return h
@@ -3635,204 +2732,4 @@ func homeDir() string {
 		return h
 	}
 	return "/tmp"
-}
-
-// buildInstalledAgentIDs returns the list of AgentIDs from the adapter list.
-func buildInstalledAgentIDs(adapters []agentbuilder.AdapterInfo) []model.AgentID {
-	ids := make([]model.AgentID, 0, len(adapters))
-	for _, a := range adapters {
-		ids = append(ids, a.AgentID)
-	}
-	return ids
-}
-
-// agentBuilderSkillsDir returns the skills directory for the given agent and a
-// flag indicating whether the path was found among the well-known agents.
-func agentBuilderSkillsDir(agentID model.AgentID) (string, bool) {
-	home := homeDir()
-	switch agentID {
-	case model.AgentClaudeCode:
-		return filepath.Join(home, ".claude", "skills"), true
-	case model.AgentOpenCode:
-		return filepath.Join(home, ".config", "opencode", "skills"), true
-	case model.AgentGeminiCLI:
-		return filepath.Join(home, ".gemini", "skills"), true
-	case model.AgentCodex:
-		return filepath.Join(home, ".codex", "skills"), true
-	default:
-		return "", false
-	}
-}
-
-// startGeneration launches the AI generation goroutine and transitions to the
-// generating screen.
-func (m Model) startGeneration() (tea.Model, tea.Cmd) {
-	m.AgentBuilder.Generating = true
-	m.AgentBuilder.GenerationErr = nil
-	m.AgentBuilder.Generated = nil
-	m.setScreen(ScreenAgentBuilderGenerating)
-
-	engineID := m.AgentBuilder.SelectedEngine
-	userInput := m.AgentBuilder.Textarea.Value()
-
-	var sddConfig *agentbuilder.SDDIntegration
-	if m.AgentBuilder.SDDMode != agentbuilder.SDDStandalone {
-		sddConfig = &agentbuilder.SDDIntegration{
-			Mode:        m.AgentBuilder.SDDMode,
-			TargetPhase: m.AgentBuilder.SDDTargetPhase,
-		}
-		// For SDDNewPhase, set a placeholder PhaseName before prompt composition.
-		// The actual PhaseName is updated after generation from agent.Name.
-		if m.AgentBuilder.SDDMode == agentbuilder.SDDNewPhase {
-			sddConfig.PhaseName = "to-be-determined-from-title"
-		}
-		// PhaseName will be set after generation from the agent's Name field.
-		// SDDTargetPhase is the "insert after" position, not the new phase name.
-	}
-
-	// Capture for goroutine.
-	capturedSDD := sddConfig
-	adapters := m.buildAgentBuilderAdapters()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	m.AgentBuilder.GenerationCancel = cancel
-
-	return m, tea.Batch(tickCmd(), func() tea.Msg {
-		defer cancel()
-
-		engine := agentbuilder.NewEngine(engineID)
-		if engine == nil {
-			return AgentBuilderGeneratedMsg{
-				Err: fmt.Errorf("no engine available for %s", engineID),
-			}
-		}
-
-		installedAgents := buildInstalledAgentIDs(adapters)
-		prompt := agentbuilder.ComposePrompt(userInput, capturedSDD, installedAgents)
-
-		raw, err := engine.Generate(ctx, prompt)
-		if err != nil {
-			return AgentBuilderGeneratedMsg{Err: err}
-		}
-
-		agent, err := agentbuilder.Parse(raw)
-		if err != nil {
-			return AgentBuilderGeneratedMsg{Err: err}
-		}
-
-		if capturedSDD != nil {
-			// For SDDNewPhase, derive the new phase name from the agent's Name,
-			// not from SDDTargetPhase (which is the "insert after" position).
-			if capturedSDD.Mode == agentbuilder.SDDNewPhase {
-				capturedSDD.PhaseName = agent.Name
-			}
-			agent.SDDConfig = capturedSDD
-		}
-
-		return AgentBuilderGeneratedMsg{Agent: agent}
-	})
-}
-
-// startInstallation launches the agent installation goroutine.
-func (m Model) startInstallation() (tea.Model, tea.Cmd) {
-	m.AgentBuilder.Installing = true
-	m.AgentBuilder.InstallErr = nil
-	m.setScreen(ScreenAgentBuilderInstalling)
-
-	agent := m.AgentBuilder.Generated
-	adapters := m.buildAgentBuilderAdapters()
-	engineID := m.AgentBuilder.SelectedEngine
-
-	return m, tea.Batch(tickCmd(), func() (msg tea.Msg) {
-		// Recover from panics so the spinner never runs forever.
-		defer func() {
-			if r := recover(); r != nil {
-				msg = AgentBuilderInstallDoneMsg{
-					Err: fmt.Errorf("install panicked: %v", r),
-				}
-			}
-		}()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-		_ = ctx // timeout enforced; Install itself is synchronous
-
-		// Resolve agent name, applying conflict suffix if needed.
-		installAgent := agent
-		if agentbuilder.HasConflictWithBuiltin(agent.Name) {
-			// Shallow copy so we don't mutate the generated agent in state.
-			copy := *agent
-			copy.Name = agent.Name + "-custom"
-			installAgent = &copy
-		}
-
-		results, err := agentbuilder.Install(installAgent, adapters, "")
-		if err != nil {
-			return AgentBuilderInstallDoneMsg{Results: results, Err: err}
-		}
-
-		// Persist entry to registry.
-		registryPath := filepath.Join(homeDir(), ".config", "specai", "custom-agents.json")
-		_ = os.MkdirAll(filepath.Dir(registryPath), 0755)
-		if reg, loadErr := agentbuilder.LoadRegistry(registryPath); loadErr == nil {
-			// Collect IDs of agents that were successfully installed.
-			var installedIDs []model.AgentID
-			for _, r := range results {
-				if r.Success {
-					installedIDs = append(installedIDs, r.AgentID)
-				}
-			}
-			entry := agentbuilder.RegistryEntry{
-				Name:             installAgent.Name,
-				Title:            installAgent.Title,
-				Description:      installAgent.Description,
-				CreatedAt:        time.Now(),
-				GenerationEngine: engineID,
-				SDDIntegration:   installAgent.SDDConfig,
-				InstalledAgents:  installedIDs,
-			}
-			// Update existing entry if present; otherwise append.
-			if existing := reg.FindByName(installAgent.Name); existing != nil {
-				existing.Title = entry.Title
-				existing.Description = entry.Description
-				existing.CreatedAt = entry.CreatedAt
-				existing.GenerationEngine = entry.GenerationEngine
-				existing.SDDIntegration = entry.SDDIntegration
-				existing.InstalledAgents = entry.InstalledAgents
-			} else {
-				reg.Add(entry)
-			}
-			// Best-effort save — ignore save errors.
-			_ = agentbuilder.SaveRegistry(registryPath, reg)
-		}
-
-		// Wire SDD injection: append custom-agent reference blocks to system prompts.
-		// Best-effort — don't fail the whole install if SDD injection fails.
-		if installAgent.SDDConfig != nil && installAgent.SDDConfig.Mode != agentbuilder.SDDStandalone {
-			for _, adapter := range adapters {
-				if systemPromptPath, ok := agentBuilderSystemPromptPath(adapter.AgentID); ok {
-					_ = agentbuilder.InjectSDDReference(installAgent, systemPromptPath)
-				}
-			}
-		}
-
-		return AgentBuilderInstallDoneMsg{Results: results, Err: nil}
-	})
-}
-
-// agentBuilderSystemPromptPath returns the system prompt file path for the given agent.
-func agentBuilderSystemPromptPath(agentID model.AgentID) (string, bool) {
-	home := homeDir()
-	switch agentID {
-	case model.AgentClaudeCode:
-		return filepath.Join(home, ".claude", "CLAUDE.md"), true
-	case model.AgentOpenCode:
-		return filepath.Join(home, ".config", "opencode", "AGENTS.md"), true
-	case model.AgentGeminiCLI:
-		return filepath.Join(home, ".gemini", "GEMINI.md"), true
-	case model.AgentCodex:
-		return filepath.Join(home, ".codex", "AGENTS.md"), true
-	default:
-		return "", false
-	}
 }

@@ -20,7 +20,7 @@ func renderUpgradeReportForTest(results []upgrade.ToolUpgradeResult, dryRun bool
 
 // --- TestRunArgs_UpgradeDryRunFlag ---
 
-// TestRunArgs_UpgradeDryRun verifies that `gentle-ai upgrade --dry-run` runs without
+// TestRunArgs_UpgradeDryRun verifies that `specai upgrade --dry-run` runs without
 // error, outputs relevant messaging, and does NOT attempt any real installation.
 // The environment has no tools installed, so no upgrades are available.
 func TestRunArgs_UpgradeDryRun(t *testing.T) {
@@ -52,7 +52,7 @@ func TestRunArgs_UpgradeDryRun(t *testing.T) {
 	}
 }
 
-// TestRunArgs_UpgradeNoArgs runs `gentle-ai upgrade` without flags.
+// TestRunArgs_UpgradeNoArgs runs `specai upgrade` without flags.
 // With no updates available in the test environment, it should exit cleanly.
 func TestRunArgs_UpgradeNoArgs(t *testing.T) {
 	var buf bytes.Buffer
@@ -69,24 +69,24 @@ func TestRunArgs_UpgradeNoArgs(t *testing.T) {
 	}
 }
 
-// TestRunArgs_UpgradeToolFilter verifies that `gentle-ai upgrade engram` filters
-// to only check/upgrade engram.
+// TestRunArgs_UpgradeToolFilter verifies that `specai upgrade sdd-memory` filters
+// to only check/upgrade sdd-memory.
 func TestRunArgs_UpgradeToolFilter(t *testing.T) {
 	var buf bytes.Buffer
-	err := RunArgs([]string{"upgrade", "engram"}, &buf)
+	err := RunArgs([]string{"upgrade", "sdd-memory"}, &buf)
 	if err != nil {
 		errStr := err.Error()
 		if strings.Contains(errStr, "unknown command") {
 			t.Fatalf("upgrade command is not registered: %v", err)
 		}
-		t.Logf("upgrade engram got non-fatal error (likely network/not installed): %v", err)
+		t.Logf("upgrade sdd-memory got non-fatal error (likely network/not installed): %v", err)
 	}
 
 	out := buf.String()
-	// Output should only mention engram or no-upgrades, not gentle-ai or gga.
+	// Output should only mention sdd-memory or no-upgrades, not specai.
 	// This is a soft check since the tool may not be installed.
-	if strings.Contains(out, "gentle-ai") && !strings.Contains(out, "engram") {
-		t.Errorf("filtering to engram should not show gentle-ai in output; got: %s", out)
+	if strings.Contains(out, "specai") && !strings.Contains(out, "sdd-memory") {
+		t.Errorf("filtering to sdd-memory should not show specai in output; got: %s", out)
 	}
 }
 
@@ -156,55 +156,55 @@ func TestRenderUpgradeReport_PerToolSemantics_Deterministic(t *testing.T) {
 			name: "succeeded tool shows old→new version",
 			results: []upgrade.ToolUpgradeResult{
 				{
-					ToolName:   "engram",
+					ToolName:   "sdd-memory",
 					OldVersion: "0.3.0",
 					NewVersion: "0.4.0",
 					Status:     upgrade.UpgradeSucceeded,
 				},
 			},
-			wantContains:   []string{"engram", "0.3.0", "0.4.0", "[ok]"},
+			wantContains:   []string{"sdd-memory", "0.3.0", "0.4.0", "[ok]"},
 			wantNotContain: []string{"FAILED", "manual update required"},
 		},
 		{
 			name: "dev-build skipped shows skipped status not failure",
 			results: []upgrade.ToolUpgradeResult{
 				{
-					ToolName:   "gentle-ai",
+					ToolName:   "specai",
 					OldVersion: "dev",
 					NewVersion: "1.0.0",
 					Status:     upgrade.UpgradeSkipped,
 					ManualHint: "source build — upgrade manually or install a release binary",
 				},
 			},
-			wantContains:   []string{"gentle-ai", "[--]", "source build"},
+			wantContains:   []string{"specai", "[--]", "source build"},
 			wantNotContain: []string{"[!!]", "FAILED"},
 		},
 		{
 			name: "manual fallback shows hint not failure",
 			results: []upgrade.ToolUpgradeResult{
 				{
-					ToolName:   "gentle-ai",
+					ToolName:   "specai",
 					OldVersion: "1.0.0",
 					NewVersion: "1.5.0",
 					Status:     upgrade.UpgradeSkipped,
-					ManualHint: "Download from https://github.com/Gentleman-Programming/gentle-ai/releases",
+					ManualHint: "Download from https://github.com/KevG1t/specai/releases",
 				},
 			},
-			wantContains:   []string{"gentle-ai", "manual update required", "github.com", "[--]"},
+			wantContains:   []string{"specai", "manual update required", "github.com", "[--]"},
 			wantNotContain: []string{"[!!]", "FAILED"},
 		},
 		{
 			name: "real failure shows error details",
 			results: []upgrade.ToolUpgradeResult{
 				{
-					ToolName:   "gga",
+					ToolName:   "sdd-memory",
 					OldVersion: "1.0.0",
 					NewVersion: "2.0.0",
 					Status:     upgrade.UpgradeFailed,
-					Err:        errors.New("brew upgrade gga: exit status 1"),
+					Err:        errors.New("brew upgrade sdd-memory: exit status 1"),
 				},
 			},
-			wantContains:   []string{"gga", "FAILED", "exit status 1", "[!!]"},
+			wantContains:   []string{"sdd-memory", "FAILED", "exit status 1", "[!!]"},
 			wantNotContain: []string{"manual update required"},
 		},
 		{
@@ -212,40 +212,40 @@ func TestRenderUpgradeReport_PerToolSemantics_Deterministic(t *testing.T) {
 			dryRun: true,
 			results: []upgrade.ToolUpgradeResult{
 				{
-					ToolName:   "engram",
+					ToolName:   "sdd-memory",
 					OldVersion: "0.3.0",
 					NewVersion: "0.4.0",
 					Status:     upgrade.UpgradeSkipped,
 				},
 			},
-			wantContains:   []string{"dry", "engram", "0.3.0", "0.4.0"},
+			wantContains:   []string{"dry", "sdd-memory", "0.3.0", "0.4.0"},
 			wantNotContain: []string{"FAILED"},
 		},
 		{
 			name: "mixed: success + skip + manual in same report",
 			results: []upgrade.ToolUpgradeResult{
 				{
-					ToolName:   "engram",
+					ToolName:   "sdd-memory",
 					OldVersion: "0.3.0",
 					NewVersion: "0.4.0",
 					Status:     upgrade.UpgradeSucceeded,
 				},
 				{
-					ToolName:   "gentle-ai",
+					ToolName:   "specai",
 					OldVersion: "dev",
 					NewVersion: "1.5.0",
 					Status:     upgrade.UpgradeSkipped,
 					ManualHint: "source build — upgrade manually",
 				},
 				{
-					ToolName:   "gga",
+					ToolName:   "sdd-memory",
 					OldVersion: "1.0.0",
 					NewVersion: "2.0.0",
 					Status:     upgrade.UpgradeSkipped,
-					ManualHint: "Download from https://github.com/Gentleman-Programming/gga/releases",
+					ManualHint: "Download from https://github.com/KevG1t/sdd-memory/releases",
 				},
 			},
-			wantContains:   []string{"engram", "[ok]", "gentle-ai", "[--]", "gga", "1 succeeded", "2 skipped"},
+			wantContains:   []string{"sdd-memory", "[ok]", "specai", "[--]", "sdd-memory", "1 succeeded", "2 skipped"},
 			wantNotContain: []string{"FAILED", "[!!]"},
 		},
 	}
