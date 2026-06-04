@@ -27,6 +27,10 @@ Thumbs.db
 cmd/specai/main
 dist/
 
+# npm-package dist binaries (populated at release time, not committed)
+npm-package/dist/*
+!npm-package/dist/.gitkeep
+
 # Agent tooling metadata (generated per-user, not product code)
 .atl/
 .pi/

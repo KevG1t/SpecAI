@@ -1,0 +1,33 @@
+{
+  "name": "spec-ai",
+  "version": "0.0.0",
+  "description": "Spec AI CLI — manage your development tools",
+  "bin": {
+    "spec-ai": "./bin/spec-ai.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "dist/"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KevG1t/SpecAI.git"
+  }
+}

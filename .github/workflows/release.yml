@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract binaries into npm-package/dist
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          DIST="npm-package/dist"
+          mkdir -p "$DIST"
+
+          # Unix archives (tar.gz)
+          for PAIR in linux_amd64:linux-amd64 linux_arm64:linux-arm64 darwin_amd64:darwin-amd64 darwin_arm64:darwin-arm64; do
+            GORELEASER_PAIR="${PAIR%%:*}"
+            JS_PAIR="${PAIR##*:}"
+            ARCHIVE="dist/specai_${VERSION}_${GORELEASER_PAIR}.tar.gz"
+            if [ -f "$ARCHIVE" ]; then
+              tar -xzf "$ARCHIVE" -C "$DIST" specai
+              mv "$DIST/specai" "$DIST/specai-${JS_PAIR}"
+            fi
+          done
+
+          # Windows archives (zip)
+          for PAIR in windows_amd64:windows-amd64 windows_arm64:windows-arm64; do
+            GORELEASER_PAIR="${PAIR%%:*}"
+            JS_PAIR="${PAIR##*:}"
+            ARCHIVE="dist/specai_${VERSION}_${GORELEASER_PAIR}.zip"
+            if [ -f "$ARCHIVE" ]; then
+              unzip -o "$ARCHIVE" specai.exe -d "$DIST"
+              mv "$DIST/specai.exe" "$DIST/specai-${JS_PAIR}.exe"
+            fi
+          done
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Bump npm package version and publish
+        working-directory: npm-package
+        run: |
+          npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
