@@ -1,74 +1,69 @@
 package tui
 
-// Screen represents an identifier for the different TUI screens.
-type Screen string
-
-const (
-	ScreenWelcome        Screen = "welcome"
-	ScreenLoading        Screen = "loading" // DEPRECATED: to be replaced by module-specific screens
-	ScreenBackups        Screen = "backups"
-	ScreenRestoreConfirm Screen = "restoreConfirm"
-	ScreenDeleteConfirm  Screen = "deleteConfirm"
-	ScreenBackupResult   Screen = "backupResult"
-	ScreenInstall           Screen = "install"
-	ScreenAgentSelect       Screen = "agentSelect"       // Agent selection before install pipeline
-	ScreenPersona           Screen = "persona"           // Persona selection after agent select
-	ScreenPreset            Screen = "preset"            // Ecosystem preset selection after persona
-	ScreenClaudeModelPicker Screen = "claudeModelPicker" // Claude model assignments (when Claude selected)
-	ScreenKiroModelPicker   Screen = "kiroModelPicker"   // Kiro model assignments (when Kiro selected)
-	ScreenSDDMode           Screen = "sddMode"           // SDD mode for OpenCode
-	ScreenStrictTDD         Screen = "strictTDD"         // Strict TDD for OpenCode+SDD
-	ScreenSetupLocal        Screen = "setupLocal"
-	ScreenUpgrade        Screen = "upgrade"
-	ScreenSync           Screen = "sync"
-	ScreenUpgradeSync    Screen = "upgradeSync"
-	ScreenUninstall      Screen = "uninstall"
-	ScreenComplete       Screen = "complete" // Post-install completion summary
-
-	ScreenDetection           Screen = "detection"          // System detection before agent select
-	ScreenReview              Screen = "review"             // Review and confirm before install
-	ScreenDependencyTree      Screen = "dependencyTree"     // Component list with auto-dep badges
-	ScreenOpenCodeModelPicker Screen = "openCodeModelPicker" // OpenCode 4-level model picker
-	ScreenSkillPicker         Screen = "skillPicker"        // Custom preset skill selection
-	ScreenMCPPicker           Screen = "mcpPicker"          // MCP server selection (Custom flow only)
-	ScreenConfigPicker        Screen = "configPicker"       // Config customization (Custom flow only)
-)
-
-// Route defines the transitions from a screen.
 type Route struct {
 	Forward  Screen
 	Backward Screen
 }
 
-// linearRoutes defines the standard navigation paths.
 var linearRoutes = map[Screen]Route{
-	ScreenWelcome: {
-		Forward:  ScreenLoading,
-		Backward: ScreenWelcome, // no backward from welcome
-	},
-	ScreenLoading: {
-		Forward:  ScreenLoading, // stays here for now
-		Backward: ScreenWelcome,
-	},
+	ScreenWelcome:                {Forward: ScreenDetection},
+	ScreenDetection:              {Forward: ScreenAgents, Backward: ScreenWelcome},
+	ScreenAgents:                 {Forward: ScreenPersona, Backward: ScreenDetection},
+	ScreenPersona:                {Forward: ScreenPreset, Backward: ScreenAgents},
+	ScreenPreset:                 {Forward: ScreenDependencyTree, Backward: ScreenPersona},
+	ScreenClaudeModelPicker:      {Forward: ScreenDependencyTree, Backward: ScreenPreset},
+	ScreenKiroModelPicker:        {Forward: ScreenDependencyTree, Backward: ScreenPreset},
+	ScreenSDDMode:                {Forward: ScreenStrictTDD, Backward: ScreenPreset},
+	ScreenStrictTDD:              {Forward: ScreenDependencyTree, Backward: ScreenSDDMode},
+	ScreenOpenCodePluginResult:   {Backward: ScreenWelcome},
+	ScreenModelPicker:            {Forward: ScreenStrictTDD, Backward: ScreenSDDMode},
+	ScreenDependencyTree:         {Forward: ScreenReview, Backward: ScreenPreset},
+	ScreenSkillPicker:            {Forward: ScreenReview, Backward: ScreenDependencyTree},
+	ScreenReview:                 {Forward: ScreenInstalling, Backward: ScreenDependencyTree},
+	ScreenInstalling:             {Forward: ScreenComplete, Backward: ScreenReview},
+	ScreenComplete:               {Backward: ScreenInstalling},
+	ScreenBackups:                {Backward: ScreenWelcome},
+	ScreenRestoreConfirm:         {Backward: ScreenBackups},
+	ScreenRestoreResult:          {Backward: ScreenBackups},
+	ScreenDeleteConfirm:          {Backward: ScreenBackups},
+	ScreenDeleteResult:           {Backward: ScreenBackups},
+	ScreenRenameBackup:           {Backward: ScreenBackups},
+	ScreenUpgrade:                {Backward: ScreenWelcome},
+	ScreenSync:                   {Backward: ScreenWelcome},
+	ScreenUpgradeSync:            {Backward: ScreenWelcome},
+	ScreenModelConfig:            {Backward: ScreenWelcome},
+	ScreenProfiles:               {Backward: ScreenWelcome},
+	ScreenProfileCreate:          {Backward: ScreenProfiles},
+	ScreenProfileDelete:          {Backward: ScreenProfiles},
+	ScreenAgentBuilderEngine:     {Backward: ScreenWelcome},
+	ScreenAgentBuilderPrompt:     {Backward: ScreenAgentBuilderEngine},
+	ScreenAgentBuilderSDD:        {Backward: ScreenAgentBuilderPrompt},
+	ScreenAgentBuilderSDDPhase:   {Backward: ScreenAgentBuilderSDD},
+	ScreenAgentBuilderGenerating: {Backward: ScreenAgentBuilderPrompt},
+	ScreenAgentBuilderPreview:    {Backward: ScreenAgentBuilderPrompt},
+	ScreenAgentBuilderInstalling: {Forward: ScreenAgentBuilderComplete},
+	ScreenAgentBuilderComplete:   {Backward: ScreenWelcome},
+	ScreenUninstallMode:          {Backward: ScreenWelcome},
+	ScreenUninstall:              {Backward: ScreenUninstallMode},
+	ScreenUninstallComponents:    {Backward: ScreenUninstall},
+	ScreenUninstallProfiles:      {Backward: ScreenUninstallComponents},
+	ScreenUninstallResult:        {Backward: ScreenWelcome},
 }
 
-// NextScreen returns the next screen in the linear flow.
-func NextScreen(current Screen) Screen {
-	if route, exists := linearRoutes[current]; exists {
-		return route.Forward
+func NextScreen(screen Screen) (Screen, bool) {
+	route, ok := linearRoutes[screen]
+	if !ok || route.Forward == ScreenUnknown {
+		return ScreenUnknown, false
 	}
-	return current
+
+	return route.Forward, true
 }
 
-// PreviousScreen returns the previous screen in the linear flow.
-func PreviousScreen(current Screen) Screen {
-	if route, exists := linearRoutes[current]; exists {
-		return route.Backward
+func PreviousScreen(screen Screen) (Screen, bool) {
+	route, ok := linearRoutes[screen]
+	if !ok || route.Backward == ScreenUnknown {
+		return ScreenUnknown, false
 	}
-	return current
-}
 
-// ScreenChangeMsg is sent to the event loop to change screens.
-type ScreenChangeMsg struct {
-	Next Screen
+	return route.Backward, true
 }

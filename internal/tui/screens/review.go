@@ -1,140 +1,105 @@
 package screens
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/planner"
-	"github.com/KevG1t/SpecAI/internal/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/planner"
+	"github.com/KevG1t/specai/internal/tui/styles"
 )
 
-// ReviewConfirmedMsg is emitted when the user confirms installation on the review screen.
-type ReviewConfirmedMsg struct{}
-
-// ReviewBackMsg is emitted when the user chooses to go back from the review screen.
-type ReviewBackMsg struct{}
-
-// ReviewModel is a standalone BubbleTea model for the review and confirm screen.
-type ReviewModel struct {
-	payload planner.ReviewPayload
-	cursor  int // 0=Install, 1=Back
+func ReviewOptions() []string {
+	return []string{"Install", "Back"}
 }
 
-// NewReviewModel constructs a ReviewModel with the given payload.
-func NewReviewModel(payload planner.ReviewPayload) ReviewModel {
-	return ReviewModel{payload: payload}
-}
-
-// Init returns nil — no async initialization needed.
-func (m ReviewModel) Init() tea.Cmd { return nil }
-
-// Update handles key navigation and confirmation.
-func (m ReviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	const maxCursor = 1
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "j", "down":
-			if m.cursor < maxCursor {
-				m.cursor++
-			}
-		case "k", "up":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "enter":
-			if m.cursor == 0 {
-				return m, func() tea.Msg { return ReviewConfirmedMsg{} }
-			}
-			return m, func() tea.Msg { return ReviewBackMsg{} }
-		case "esc":
-			return m, func() tea.Msg { return ReviewBackMsg{} }
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		}
-	}
-	return m, nil
-}
-
-// View renders the review summary and action selection.
-func (m ReviewModel) View() string {
+func RenderReview(payload planner.ReviewPayload, cursor int) string {
 	var b strings.Builder
 
-	b.WriteString(styles.TitleStyle.Render("Review Installation"))
+	b.WriteString(styles.TitleStyle.Render("Review and Confirm"))
 	b.WriteString("\n\n")
 
-	p := m.payload
-
-	// Agents
-	b.WriteString(styles.HeadingStyle.Render("Agents"))
-	b.WriteString("\n")
-	for _, agent := range p.Agents {
-		b.WriteString(fmt.Sprintf("  %s\n", string(agent)))
-	}
+	b.WriteString("  " + styles.HeadingStyle.Render("Agents") + "  " + styles.UnselectedStyle.Render(joinIDs(payload.Agents)) + "\n")
+	b.WriteString("  " + styles.HeadingStyle.Render("Persona") + "  " + styles.UnselectedStyle.Render(reviewPersonaLabel(payload.Persona)) + "\n")
+	b.WriteString("  " + styles.HeadingStyle.Render("Preset") + "  " + styles.UnselectedStyle.Render(reviewPresetLabel(payload.Preset)) + "\n")
 	b.WriteString("\n")
 
-	// Persona
-	b.WriteString(styles.HeadingStyle.Render("Persona"))
-	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", string(p.Persona)))
-
-	// Preset
-	b.WriteString(styles.HeadingStyle.Render("Preset"))
-	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", string(p.Preset)))
-
-	// Components
-	autoAdded := make(map[string]struct{}, len(p.AddedDependencies))
-	for _, dep := range p.AddedDependencies {
-		autoAdded[string(dep)] = struct{}{}
-	}
-
-	b.WriteString(styles.HeadingStyle.Render("Components"))
-	b.WriteString("\n")
-	for _, comp := range p.Components {
-		label := string(comp.ID)
-		if _, isAuto := autoAdded[string(comp.ID)]; isAuto {
-			b.WriteString(fmt.Sprintf("  %s %s\n", label, styles.SubtextStyle.Render("[auto-dependency]")))
-		} else {
-			b.WriteString(fmt.Sprintf("  %s\n", label))
+	if len(payload.Components) > 0 {
+		autoSet := make(map[model.ComponentID]struct{}, len(payload.AddedDependencies))
+		for _, dep := range payload.AddedDependencies {
+			autoSet[dep] = struct{}{}
 		}
-	}
-	b.WriteString("\n")
 
-	// Skills
-	if len(p.Skills) > 0 {
-		b.WriteString(styles.HeadingStyle.Render("Skills"))
+		b.WriteString(styles.HeadingStyle.Render("Components"))
 		b.WriteString("\n")
-		for _, skill := range p.Skills {
-			b.WriteString(fmt.Sprintf("  %s\n", string(skill)))
+		for _, comp := range payload.Components {
+			badge := styles.SubtextStyle.Render("selected")
+			if _, isAuto := autoSet[comp.ID]; isAuto {
+				badge = styles.WarningStyle.Render("auto-dependency")
+			}
+			b.WriteString("  " + styles.UnselectedStyle.Render(string(comp.ID)) + " " + badge + "\n")
 		}
+
+		// Issue #145: show individual skill names when the Skills component is selected.
+		if len(payload.Skills) > 0 {
+			b.WriteString(styles.HeadingStyle.Render("  Skills"))
+			b.WriteString("\n")
+			for _, skill := range payload.Skills {
+				b.WriteString("    " + styles.SubtextStyle.Render(string(skill)) + "\n")
+			}
+		}
+
+		// Issue #149: show Strict TDD status when SDD is in the plan.
+		if payload.HasSDD {
+			strictLabel := "Disabled"
+			if payload.StrictTDD {
+				strictLabel = "Enabled"
+			}
+			b.WriteString("  " + styles.HeadingStyle.Render("Strict TDD") + "  " + styles.UnselectedStyle.Render(strictLabel) + "\n")
+		}
+
 		b.WriteString("\n")
 	}
 
-	// SDD Mode
-	b.WriteString(styles.HeadingStyle.Render("SDD Mode"))
-	b.WriteString("\n")
-	if p.HasSDD {
-		b.WriteString("  enabled\n")
-		if p.SDDMode != "" {
-			b.WriteString(fmt.Sprintf("  SDD Mode: %s\n", string(p.SDDMode)))
-		}
-		b.WriteString("\n")
-	} else {
-		b.WriteString("  disabled\n\n")
+	if len(payload.UnsupportedAgents) > 0 {
+		b.WriteString(styles.WarningStyle.Render("Unsupported agents: " + joinIDs(payload.UnsupportedAgents)))
+		b.WriteString("\n\n")
 	}
 
-	// Strict TDD
-	b.WriteString(styles.HeadingStyle.Render("Strict TDD"))
+	b.WriteString(renderOptions(ReviewOptions(), cursor))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", boolStr(p.StrictTDD)))
-
-	// Actions
-	actions := []string{"Install", "Back"}
-	b.WriteString(renderOptions(actions, m.cursor))
-	b.WriteString("\n")
-	b.WriteString(styles.HelpStyle.Render("j/k: navigate • enter: select • esc: back"))
+	b.WriteString(styles.HelpStyle.Render("enter: install • esc: back"))
 
 	return b.String()
+}
+
+func joinIDs[T ~string](values []T) string {
+	if len(values) == 0 {
+		return "none"
+	}
+
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, string(value))
+	}
+
+	return strings.Join(parts, ", ")
+}
+
+func reviewPersonaLabel(persona model.PersonaID) string {
+	switch persona {
+	case model.PersonaCustom:
+		return "keep existing persona unmanaged"
+	case model.PersonaGentlemanNeutralArtifacts:
+		return "Gentleman conversation, neutral artifacts"
+	default:
+		return string(persona)
+	}
+}
+
+func reviewPresetLabel(preset model.PresetID) string {
+	if preset == model.PresetCustom {
+		return "choose components and skills manually"
+	}
+
+	return string(preset)
 }

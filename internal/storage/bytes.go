@@ -3,7 +3,7 @@ package storage
 import "fmt"
 
 // FormatBytes formats n bytes as a human-readable string using 1024-based units,
-// consistent with specai CLI output.
+// consistent with Engram CLI output.
 func FormatBytes(n int64) string {
 	const (
 		kib = 1024

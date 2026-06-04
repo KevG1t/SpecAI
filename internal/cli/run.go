@@ -8,28 +8,30 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/agents/kimi"
-	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/backup"
-	"github.com/KevG1t/SpecAI/internal/components/mcp"
-	"github.com/KevG1t/SpecAI/internal/components/opencodeplugin"
-	"github.com/KevG1t/SpecAI/internal/components/permissions"
-	"github.com/KevG1t/SpecAI/internal/components/persona"
-	"github.com/KevG1t/SpecAI/internal/components/sdd"
-	sddmemory "github.com/KevG1t/SpecAI/internal/components/sddmemory"
-	"github.com/KevG1t/SpecAI/internal/components/skills"
-	"github.com/KevG1t/SpecAI/internal/components/theme"
-	"github.com/KevG1t/SpecAI/internal/installcmd"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/pipeline"
-	"github.com/KevG1t/SpecAI/internal/planner"
-	"github.com/KevG1t/SpecAI/internal/state"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/verify"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/agents/kimi"
+	"github.com/KevG1t/specai/internal/assets"
+	"github.com/KevG1t/specai/internal/backup"
+	"github.com/KevG1t/specai/internal/components/engram"
+	"github.com/KevG1t/specai/internal/components/gga"
+	"github.com/KevG1t/specai/internal/components/mcp"
+	"github.com/KevG1t/specai/internal/components/opencodeplugin"
+	"github.com/KevG1t/specai/internal/components/permissions"
+	"github.com/KevG1t/specai/internal/components/persona"
+	"github.com/KevG1t/specai/internal/components/sdd"
+	"github.com/KevG1t/specai/internal/components/skills"
+	"github.com/KevG1t/specai/internal/components/theme"
+	"github.com/KevG1t/specai/internal/installcmd"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/pipeline"
+	"github.com/KevG1t/specai/internal/planner"
+	"github.com/KevG1t/specai/internal/state"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/verify"
 )
 
 type InstallResult struct {
@@ -51,13 +53,17 @@ var (
 	cmdLookPath         = exec.LookPath
 	streamCommandOutput = true
 
-	// sddmemoryDownloadFn is the function used to download the sdd-memory binary on non-brew platforms.
+	// ggaAvailableCheck is an optional override for ggaAvailable behavior.
+	// When set, it is called instead of the default filesystem check.
+	ggaAvailableCheck func(system.PlatformProfile) bool
+
+	// engramDownloadFn is the function used to download the engram binary on non-brew platforms.
 	// Package-level var for testability — tests can replace this to avoid real HTTP calls.
-	sddmemoryDownloadFn = sddmemory.DownloadLatestBinary
+	engramDownloadFn = engram.DownloadLatestBinary
 
 	// AppVersion is the specai version that will be written into backup manifests.
 	// It is set by app.go before any CLI operation so that every backup created during
-	// an install or sync records which version of specai made it.
+	// an install or sync records which version of gentle-ai made it.
 	// Default "dev" matches the ldflags default in app.Version.
 	AppVersion = "dev"
 )
@@ -176,16 +182,19 @@ func RunInstall(args []string, detection system.DetectionResult) (InstallResult,
 }
 
 func withPostInstallNotes(report verify.Report, resolved planner.ResolvedPlan) verify.Report {
+	if hasComponent(resolved.OrderedComponents, model.ComponentGGA) && report.Ready {
+		report.FinalNote = report.FinalNote + "\n\nGGA is now installed globally. To enable project hooks, run in each repo:\n- gga init\n- gga install"
+	}
 	report = withGoInstallPathNote(report, resolved)
 	return report
 }
 
-// withGoInstallPathNote appends a PATH guidance note when sdd-memory was installed
-// on a non-brew platform (Linux/Windows). Since sdd-memory is now installed via
+// withGoInstallPathNote appends a PATH guidance note when engram was installed
+// on a non-brew platform (Linux/Windows). Since engram is now installed via
 // direct binary download to /usr/local/bin or ~/.local/bin, this note helps
 // users who may need to add the install directory to their PATH.
 func withGoInstallPathNote(report verify.Report, resolved planner.ResolvedPlan) verify.Report {
-	if !hasComponent(resolved.OrderedComponents, model.ComponentSDDMemory) {
+	if !hasComponent(resolved.OrderedComponents, model.ComponentEngram) {
 		return report
 	}
 	if resolved.PlatformDecision.PackageManager == "brew" {
@@ -196,9 +205,9 @@ func withGoInstallPathNote(report verify.Report, resolved planner.ResolvedPlan) 
 		return report
 	}
 	report.FinalNote = report.FinalNote + fmt.Sprintf(
-		"\n\nThe sdd-memory binary was installed to %s.\nAdd it to your PATH: %s",
+		"\n\nThe engram binary was installed to %s via `go install`.\nAdd it to your PATH: %s",
 		binDir,
-		sddMemoryPathGuidance(os.Getenv("SHELL")),
+		engramPathGuidance(os.Getenv("SHELL")),
 	)
 	return report
 }
@@ -307,7 +316,7 @@ func (r *installRuntime) stagePlan() pipeline.StagePlan {
 	apply = append(apply, rollbackRestoreStep{id: "apply:rollback-restore", state: r.state})
 
 	// Before installing components, ensure modular agents have their system prompt hub.
-	// This ensures that SDD or SDDMemory can inject their modules even if Persona is skipped.
+	// This ensures that SDD or Engram can inject their modules even if Persona is skipped.
 	for _, agent := range r.resolved.Agents {
 		if agent == model.AgentKimi {
 			apply = append(apply, kimiSystemPromptHubStep{id: "agent:kimi-prompt-hub", homeDir: r.homeDir})
@@ -315,6 +324,7 @@ func (r *installRuntime) stagePlan() pipeline.StagePlan {
 	}
 
 	for _, agent := range r.resolved.Agents {
+
 		apply = append(apply, agentInstallStep{id: "agent:" + string(agent), agent: agent, homeDir: r.homeDir, profile: r.profile})
 	}
 
@@ -537,12 +547,12 @@ func (s componentApplyStep) Run() error {
 	adapters := resolveAdapters(s.agents)
 
 	switch s.component {
-	case model.ComponentSDDMemory:
-		if _, err := cmdLookPath("sdd-memory"); err != nil {
-			// SDDMemory not on PATH — install it.
+	case model.ComponentEngram:
+		if _, err := cmdLookPath("engram"); err != nil {
+			// Engram not on PATH — install it.
 			if s.profile.PackageManager == "brew" {
 				// macOS (or Linux with Homebrew): use brew tap + brew install.
-				commands, err := sddmemory.InstallCommand(s.profile)
+				commands, err := engram.InstallCommand(s.profile)
 				if err != nil {
 					return fmt.Errorf("resolve install command for component %q: %w", s.component, err)
 				}
@@ -551,13 +561,13 @@ func (s componentApplyStep) Run() error {
 				}
 			} else {
 				// Linux / Windows: download the pre-built binary from GitHub Releases.
-				// No Go required — sdd-memory ships pre-built binaries.
-				binaryPath, err := sddmemoryDownloadFn(s.profile)
+				// No Go required — engram ships pre-built binaries.
+				binaryPath, err := engramDownloadFn(s.profile)
 				if err != nil {
-					return fmt.Errorf("download sdd-memory binary: %w", err)
+					return fmt.Errorf("download engram binary: %w", err)
 				}
 				// Add the install directory to PATH so subsequent commands
-				// (sdd-memory setup, sddmemory.Inject → resolveSDDMemoryCommand) can find it.
+				// (engram setup, engram.Inject → resolveEngramCommand) can find it.
 				// On Windows this also persists the change to the user registry via PowerShell.
 				binDir := filepath.Dir(binaryPath)
 				if err := system.AddToUserPath(binDir); err != nil {
@@ -566,16 +576,16 @@ func (s componentApplyStep) Run() error {
 				}
 			}
 		}
-		setupMode := sddmemory.ParseSetupMode(os.Getenv(sddmemory.SetupModeEnvVar))
-		setupStrict := sddmemory.ParseSetupStrict(os.Getenv(sddmemory.SetupStrictEnvVar))
+		setupMode := engram.ParseSetupMode(os.Getenv(engram.SetupModeEnvVar))
+		setupStrict := engram.ParseSetupStrict(os.Getenv(engram.SetupStrictEnvVar))
 		attemptedSlugs := make(map[string]struct{}, len(adapters))
 		for _, adapter := range adapters {
-			if sddmemory.ShouldAttemptSetup(setupMode, adapter.Agent()) {
-				slug, _ := sddmemory.SetupAgentSlug(adapter.Agent())
+			if engram.ShouldAttemptSetup(setupMode, adapter.Agent()) {
+				slug, _ := engram.SetupAgentSlug(adapter.Agent())
 				if _, seen := attemptedSlugs[slug]; !seen {
-					if err := runCommand("sdd-memory", "setup", slug); err != nil {
+					if err := runCommand("engram", "setup", slug); err != nil {
 						if setupStrict {
-							return fmt.Errorf("sdd-memory setup for %q: %w", adapter.Agent(), err)
+							return fmt.Errorf("engram setup for %q: %w", adapter.Agent(), err)
 						}
 					}
 					attemptedSlugs[slug] = struct{}{}
@@ -583,13 +593,13 @@ func (s componentApplyStep) Run() error {
 			}
 			var err error
 			if adapter.Agent() == model.AgentOpenClaw {
-				_, err = sddmemory.InjectWithPromptDir(s.homeDir, s.workspaceDir, adapter)
+				_, err = engram.InjectWithPromptDir(s.homeDir, s.workspaceDir, adapter)
 			} else {
 				targetDir := componentInjectionDirScoped(s.homeDir, s.workspaceDir, s.scope, adapter)
-				_, err = sddmemory.Inject(targetDir, adapter)
+				_, err = engram.Inject(targetDir, adapter)
 			}
 			if err != nil {
-				return fmt.Errorf("inject sdd-memory for %q: %w", adapter.Agent(), err)
+				return fmt.Errorf("inject engram for %q: %w", adapter.Agent(), err)
 			}
 		}
 		return nil
@@ -642,6 +652,48 @@ func (s componentApplyStep) Run() error {
 			}
 		}
 		return nil
+	case model.ComponentGGA:
+		if !ggaAvailable(s.profile) {
+			// GGA not found on any known PATH — install it.
+			commands, err := gga.InstallCommand(s.profile)
+			if err != nil {
+				return fmt.Errorf("resolve install command for component %q: %w", s.component, err)
+			}
+			installErr := runCommandSequence(commands)
+			if installErr != nil {
+				if ggaAvailable(s.profile) {
+					// The GGA install script uses `set -e` and `read -p` for
+					// the "already installed" confirmation. Without a TTY
+					// (common in automated/re-run scenarios), `read` fails
+					// with exit code 1 and `set -e` kills the script before
+					// it can exit 0. If GGA is actually available after the
+					// script ran, the install succeeded functionally — treat
+					// as success but warn the user.
+					fmt.Fprintf(os.Stderr, "WARNING: gga install command reported an error but gga is available — continuing. Error was: %v\n", installErr)
+				} else {
+					return installErr
+				}
+			}
+		}
+		if err := gga.EnsureRuntimeAssets(s.homeDir); err != nil {
+			return fmt.Errorf("ensure gga runtime assets: %w", err)
+		}
+		if runtime.GOOS == "windows" {
+			if err := gga.EnsurePowerShellShim(s.homeDir); err != nil {
+				return fmt.Errorf("ensure gga powershell shim: %w", err)
+			}
+			// Add GGA bin dir to the user PATH persistently on Windows.
+			// GGA's install.sh drops the binary into ~/bin which is not on PATH by default.
+			ggaBinDir := filepath.Join(s.homeDir, "bin")
+			if err := system.AddToUserPath(ggaBinDir); err != nil {
+				// Non-fatal: warn but continue — GGA was installed successfully.
+				fmt.Fprintf(os.Stderr, "WARNING: could not add %s to PATH: %v\n", ggaBinDir, err)
+			}
+		}
+		if _, err := gga.Inject(s.homeDir, s.agents); err != nil {
+			return fmt.Errorf("inject gga config: %w", err)
+		}
+		return nil
 	case model.ComponentTheme:
 		for _, adapter := range adapters {
 			if _, err := theme.Inject(s.homeDir, adapter); err != nil {
@@ -656,31 +708,9 @@ func (s componentApplyStep) Run() error {
 			}
 		}
 		return nil
-	case model.ComponentOpenCodeArgentinaLogo:
-		if _, err := opencodeplugin.Install(s.homeDir, model.OpenCodePluginArgentinaLogo); err != nil {
-			return fmt.Errorf("install Argentina Logo plugin: %w", err)
-		}
-		return nil
-	case model.ComponentNotion:
-		for _, adapter := range adapters {
-			_, guidance, err := mcp.InjectNotion(s.homeDir, adapter)
-			if err != nil {
-				return fmt.Errorf("inject notion for %q: %w", adapter.Agent(), err)
-			}
-			if guidance != "" {
-				fmt.Fprintln(os.Stderr, guidance)
-			}
-		}
-		return nil
-	case model.ComponentJira:
-		for _, adapter := range adapters {
-			_, guidance, err := mcp.InjectJira(s.homeDir, adapter)
-			if err != nil {
-				return fmt.Errorf("inject jira for %q: %w", adapter.Agent(), err)
-			}
-			if guidance != "" {
-				fmt.Fprintln(os.Stderr, guidance)
-			}
+	case model.ComponentOpenCodeGentleLogo:
+		if _, err := opencodeplugin.Install(s.homeDir, model.OpenCodePluginGentleLogo); err != nil {
+			return fmt.Errorf("install OpenCode Gentle Logo plugin: %w", err)
 		}
 		return nil
 	default:
@@ -753,6 +783,48 @@ func ResolveInstallProfile(detection system.DetectionResult) system.PlatformProf
 		PackageManager: "brew",
 		Supported:      true,
 	}
+}
+
+// ggaAvailable reports whether the gga binary is reachable. gga is often
+// installed to ~/.local/bin (the default for install.sh on Linux and macOS)
+// or ~/bin (the default for install.sh on Windows), which may not be on PATH.
+// On macOS with Homebrew, gga may be in /opt/homebrew/bin or /usr/local/bin.
+// We check the filesystem directly to avoid spawning a subprocess and to work
+// regardless of whether the install directory has been added to PATH.
+func ggaAvailable(profile system.PlatformProfile) bool {
+	// Allow test override.
+	if ggaAvailableCheck != nil {
+		return ggaAvailableCheck(profile)
+	}
+	if _, err := cmdLookPath("gga"); err == nil {
+		return true
+	}
+	homeDir, err := osUserHomeDir()
+	if err != nil {
+		return false
+	}
+	if _, err := osStat(filepath.Join(homeDir, ".local", "bin", "gga")); err == nil {
+		return true
+	}
+	// Check well-known Homebrew prefixes for macOS (arm64 and x86).
+	// gga may be installed via brew but not yet in the shell PATH
+	// (e.g. new terminal session, Rosetta environment mismatch).
+	if profile.OS == "darwin" || profile.PackageManager == "brew" {
+		for _, brewBin := range []string{
+			"/opt/homebrew/bin/gga",
+			"/usr/local/bin/gga",
+		} {
+			if _, err := osStat(brewBin); err == nil {
+				return true
+			}
+		}
+	}
+	if profile.OS == "windows" {
+		if _, err := osStat(filepath.Join(homeDir, "bin", "gga")); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // runCommandSequence runs each command in the sequence one at a time, stopping on first error.
@@ -835,16 +907,21 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 	for _, adapter := range adapters {
 		targetDir := componentPathDirScoped(homeDir, workspaceDir, scope, adapter, component)
 		switch component {
-		case model.ComponentSDDMemory:
+		case model.ComponentEngram:
 			switch adapter.MCPStrategy() {
 			case model.StrategySeparateMCPFiles:
-				paths = append(paths, adapter.MCPConfigPath(targetDir, "sdd-memory"))
+				paths = append(paths, adapter.MCPConfigPath(targetDir, "engram"))
 			case model.StrategyMergeIntoSettings:
+				// MCP settings are always merged into the global config file, not the
+				// workspace-scoped directory. For OpenClaw, SettingsPath(targetDir)
+				// would yield <workspace>/.openclaw/openclaw.json, but engram injection
+				// writes to the canonical ~/.openclaw/openclaw.json (homeDir). Use
+				// homeDir here so the verification path matches the actual write target.
 				if p := adapter.SettingsPath(homeDir); p != "" {
 					paths = append(paths, p)
 				}
 			case model.StrategyMCPConfigFile:
-				if p := adapter.MCPConfigPath(targetDir, "sdd-memory"); p != "" {
+				if p := adapter.MCPConfigPath(targetDir, "engram"); p != "" {
 					paths = append(paths, p)
 				}
 				if adapter.Agent() == model.AgentAntigravity {
@@ -853,7 +930,7 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 					}
 				}
 			case model.StrategyTOMLFile:
-				if p := adapter.MCPConfigPath(targetDir, "sdd-memory"); p != "" {
+				if p := adapter.MCPConfigPath(targetDir, "engram"); p != "" {
 					paths = append(paths, p)
 				}
 			}
@@ -879,6 +956,11 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 					filepath.Join(homeDir, ".config", "opencode", "plugins", "background-agents.ts"),
 					filepath.Join(homeDir, ".config", "opencode", "plugins", "model-variants.ts"),
 				)
+				// Shared prompt files in ~/.config/opencode/prompts/sdd/ — back these up
+				// so a sync does not silently overwrite user-customized prompt content.
+				// These files are only written for multi-mode (SDDModeMulti), so we only
+				// include them in the path list when that mode is active. This prevents
+				// false-negative verification failures in single/empty mode syncs.
 				if selection.SDDMode == model.SDDModeMulti {
 					promptDir := sdd.SharedPromptDir(homeDir)
 					for _, phase := range sdd.SharedPromptPhases() {
@@ -891,7 +973,7 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 				if skillDir != "" {
 					paths = append(paths,
 						filepath.Join(skillDir, "_shared", "persistence-contract.md"),
-						filepath.Join(skillDir, "_shared", "sdd-memory-convention.md"),
+						filepath.Join(skillDir, "_shared", "engram-convention.md"),
 						filepath.Join(skillDir, "_shared", "openspec-convention.md"),
 						filepath.Join(skillDir, "_shared", "sdd-phase-common.md"),
 						filepath.Join(skillDir, "_shared", "skill-resolver.md"),
@@ -931,7 +1013,7 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 					paths = append(paths, p)
 				}
 			case model.StrategyTOMLFile:
-				// Codex uses TOML for SDDMemory but Context7 is not injected via TOML.
+				// Codex uses TOML for Engram but Context7 is not injected via TOML.
 				// No path to report — Context7 injection is skipped for TOML agents.
 			}
 		case model.ComponentPersona:
@@ -945,9 +1027,9 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 			if adapter.SupportsSystemPrompt() && adapter.SystemPromptStrategy() != model.StrategyJinjaModules {
 				paths = append(paths, adapter.SystemPromptFile(targetDir))
 			}
-			if isArgentinaConversationPersona(selection.Persona) {
+			if isGentlemanConversationPersona(selection.Persona) {
 				if adapter.SupportsOutputStyles() {
-					paths = append(paths, adapter.OutputStyleDir(targetDir)+"/argentina.md")
+					paths = append(paths, adapter.OutputStyleDir(targetDir)+"/gentleman.md")
 					if p := adapter.SettingsPath(targetDir); p != "" {
 						paths = append(paths, p)
 					}
@@ -957,17 +1039,20 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 			if p := adapter.SettingsPath(homeDir); p != "" {
 				paths = append(paths, p)
 			}
+		case model.ComponentGGA:
+			paths = append(paths, gga.ConfigPath(homeDir))
+			paths = append(paths, gga.AgentsTemplatePath(homeDir))
 		case model.ComponentTheme:
-			for _, adapter := range adapters {
-				if p := adapter.SettingsPath(homeDir); p != "" {
-					paths = append(paths, p)
-				}
+			if p := adapter.SettingsPath(homeDir); p != "" {
+				paths = append(paths, p)
 			}
 		case model.ComponentClaudeTheme:
-			paths = append(paths, filepath.Join(homeDir, ".claude", "themes", "specai.json"))
-		case model.ComponentOpenCodeArgentinaLogo:
+			if adapter.Agent() == model.AgentClaudeCode {
+				paths = append(paths, filepath.Join(homeDir, ".claude", "themes", "gentleman.json"))
+			}
+		case model.ComponentOpenCodeGentleLogo:
 			paths = append(paths,
-				filepath.Join(homeDir, ".config", "opencode", "tui-plugins", "argentina-logo.tsx"),
+				filepath.Join(homeDir, ".config", "opencode", "tui-plugins", "gentle-logo.tsx"),
 				filepath.Join(homeDir, ".config", "opencode", "tui.json"),
 			)
 		}
@@ -1045,7 +1130,7 @@ func componentPathDir(homeDir, workspaceDir string, adapter agents.Adapter, comp
 
 func componentPathDirScoped(homeDir, workspaceDir string, scope InstallScope, adapter agents.Adapter, component model.ComponentID) string {
 	switch component {
-	case model.ComponentSDDMemory, model.ComponentSDD, model.ComponentPersona, model.ComponentSkills:
+	case model.ComponentEngram, model.ComponentSDD, model.ComponentPersona, model.ComponentSkills:
 		return componentInjectionDirScoped(homeDir, workspaceDir, scope, adapter)
 	default:
 		return homeDir
@@ -1106,8 +1191,8 @@ func runPostApplyVerification(homeDir, workspaceDir string, scope InstallScope, 
 		})
 	}
 
-	if hasComponent(resolved.OrderedComponents, model.ComponentSDDMemory) {
-		checks = append(checks, sddMemoryHealthChecks()...)
+	if hasComponent(resolved.OrderedComponents, model.ComponentEngram) {
+		checks = append(checks, engramHealthChecks()...)
 	}
 	checks = append(checks, antigravityCollisionCheck(resolved.Agents)...)
 
@@ -1132,29 +1217,29 @@ func containsAgent(agents []model.AgentID, target model.AgentID) bool {
 	return false
 }
 
-func sddMemoryHealthChecks() []verify.Check {
+func engramHealthChecks() []verify.Check {
 	return []verify.Check{
 		{
-			ID:          "verify:sdd-memory:binary",
-			Description: "sdd-memory binary on PATH (restart shell if missing)",
+			ID:          "verify:engram:binary",
+			Description: "engram binary on PATH (restart shell if missing)",
 			Soft:        true,
 			Run: func(context.Context) error {
-				if err := sddmemory.VerifyInstalled(); err != nil {
-					return fmt.Errorf("%w\nIf sdd-memory was installed via `go install`, add it to PATH:\n  %s", err, sddMemoryPathGuidance(os.Getenv("SHELL")))
+				if err := engram.VerifyInstalled(); err != nil {
+					return fmt.Errorf("%w\nIf engram was installed via `go install`, add it to PATH:\n  %s", err, engramPathGuidance(os.Getenv("SHELL")))
 				}
 				return nil
 			},
 		},
 		{
-			ID:          "verify:sdd-memory:version",
-			Description: "sdd-memory version returns valid output",
+			ID:          "verify:engram:version",
+			Description: "engram version returns valid output",
 			Soft:        true,
 			Run: func(context.Context) error {
-				if err := sddmemory.VerifyInstalled(); err != nil {
+				if err := engram.VerifyInstalled(); err != nil {
 					// Binary not on PATH — skip version check gracefully.
 					return nil
 				}
-				_, err := sddmemory.VerifyVersion()
+				_, err := engram.VerifyVersion()
 				return err
 			},
 		},
@@ -1162,7 +1247,10 @@ func sddMemoryHealthChecks() []verify.Check {
 }
 
 // antigravityCollisionCheck returns a soft verify check that warns the user
-// when Antigravity and Gemini CLI are selected together.
+// when Antigravity and Gemini CLI are selected together. These agents
+// intentionally share ~/.gemini/GEMINI.md because Antigravity uses a
+// Gemini-compatible prompt surface; the last synced SDD orchestrator owns the
+// shared specai:sdd-orchestrator section.
 func antigravityCollisionCheck(agents []model.AgentID) []verify.Check {
 	hasAntigravitySurface := false
 	hasGemini := false
@@ -1193,7 +1281,7 @@ func antigravityCollisionCheck(agents []model.AgentID) []verify.Check {
 	}
 }
 
-func sddMemoryPathGuidance(shellPath string) string {
+func engramPathGuidance(shellPath string) string {
 	binDir := goInstallBinDir()
 	if strings.Contains(shellPath, "fish") {
 		return fmt.Sprintf("set -Ux fish_user_paths %s $fish_user_paths", binDir)
@@ -1275,7 +1363,7 @@ func claudeAliasesToStrings(m map[string]model.ClaudeModelAlias) map[string]stri
 	out := make(map[string]string, len(m))
 	for k, v := range m {
 		// Claude Code owns the main session/orchestrator model; do not persist it
-		// as a SpecAI model assignment.
+		// as a Gentle AI model assignment.
 		if k == "orchestrator" {
 			continue
 		}

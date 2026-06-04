@@ -3,8 +3,8 @@ package planner
 import (
 	"fmt"
 
-	"github.com/KevG1t/SpecAI/internal/catalog"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/catalog"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type dependencyResolver struct {

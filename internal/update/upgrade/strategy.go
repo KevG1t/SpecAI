@@ -9,17 +9,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/components/sddmemory"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/update"
+	"github.com/KevG1t/specai/internal/components/engram"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/update"
 )
 
-// sddmemoryDownloadFn is the function used to download the sdd-memory binary.
+// engramDownloadFn is the function used to download the engram binary.
 // Package-level var for testability — swapped in tests to avoid real network calls.
-var sddmemoryDownloadFn = sddmemory.DownloadLatestBinary
+var engramDownloadFn = engram.DownloadLatestBinary
 
 // execCommand is a package-level var declared in executor.go (same package).
 
@@ -46,7 +47,8 @@ const maxScriptSize = 1 * 1024 * 1024 // 1 MB
 //   - go-install method + apt/pacman/other → goInstallUpgrade
 //   - binary method + linux/darwin → binaryUpgrade
 //   - binary method + windows → manualFallback (Phase 1: self-replace deferred)
-//   - script method + linux/darwin → scriptUpgrade (curl | bash install.sh)
+//   - script method + linux/darwin + gga → ggaScriptUpgrade (git clone approach)
+//   - script method + linux/darwin + other → scriptUpgrade (curl | bash install.sh)
 //   - script method + windows → manualFallback
 //   - OpenCode plugin method → update materialized package in ~/.config/opencode when possible
 //   - unknown method → manualFallback with explicit message
@@ -61,12 +63,20 @@ func runStrategy(ctx context.Context, r update.UpdateResult, profile system.Plat
 	case update.InstallBinary:
 		return binaryUpgrade(ctx, r, profile)
 	case update.InstallScript:
+		// GGA's install.sh expects to run from within a cloned repo — it references
+		// $SCRIPT_DIR/bin/gga and $SCRIPT_DIR/lib/*.sh. The generic scriptUpgrade
+		// only downloads and runs the script in isolation (bash -c <content>), which
+		// breaks because those relative paths don't exist. Use the git clone approach
+		// (same as the initial install resolver) for GGA specifically.
+		if r.Tool.Name == "gga" {
+			return ggaScriptUpgrade(ctx, r)
+		}
 		return scriptUpgrade(ctx, r, profile)
 	case update.InstallOpenCodePlugin:
 		return opencodePluginUpgrade(ctx, r)
 	default:
 		return &ManualFallbackError{
-			Hint: fmt.Sprintf("upgrade %q: unsupported install method %q — please update manually. See: https://github.com/KevG1t/%s",
+			Hint: fmt.Sprintf("upgrade %q: unsupported install method %q — please update manually. See: https://github.com/Gentleman-Programming/%s",
 				r.Tool.Name, method, r.Tool.Repo),
 		}
 	}
@@ -281,10 +291,12 @@ func openCodePluginRegisteredPendingHint(pkg string) string {
 // network), the upgrade is still attempted using the existing cache — a stale
 // cache is better than no upgrade at all.
 func brewUpgrade(ctx context.Context, toolName string) error {
-	// Ensure the KevG1t homebrew tap is present before upgrading.
+	// Ensure the Gentleman-Programming homebrew tap is present before upgrading.
 	// Non-fatal: brew tap is a no-op when already present; if it fails for any other
-	// reason, the subsequent brew upgrade will surface the real error.
-	tapCmd := execCommand("brew", "tap", "KevG1t/homebrew-tap")
+	// reason, the subsequent brew upgrade will surface the real error. See issue #455:
+	// without this, a lost tap (untap, machine swap, brew cleanup) makes upgrades fail
+	// with "No available formula" for engram/gga/gentle-ai.
+	tapCmd := execCommand("brew", "tap", "Gentleman-Programming/homebrew-tap")
 	tapCmd.Stdin = nil
 	_ = tapCmd.Run()
 
@@ -320,24 +332,24 @@ func goInstallUpgrade(ctx context.Context, tool update.ToolInfo, latestVersion s
 
 // binaryUpgrade handles binary-release upgrades via GitHub Releases asset download.
 //
-// sdd-memory has its own cross-platform binary downloader (DownloadLatestBinary) that
+// engram has its own cross-platform binary downloader (DownloadLatestBinary) that
 // works on all platforms including Windows. For all other tools on Windows,
 // self-replace of a running binary is deferred (Phase 1) — a ManualFallbackError
 // is returned so the executor surfaces it as UpgradeSkipped with an actionable hint.
 func binaryUpgrade(ctx context.Context, r update.UpdateResult, profile system.PlatformProfile) error {
-	// sdd-memory: always use its dedicated binary downloader regardless of platform
+	// engram: always use its dedicated binary downloader regardless of platform
 	// (except brew, which is handled by effectiveMethod before we get here).
-	if r.Tool.Name == "sdd-memory" {
-		return sddmemoryBinaryUpgrade(profile)
+	if r.Tool.Name == "engram" {
+		return engramBinaryUpgrade(profile)
 	}
 
 	if profile.OS == "windows" {
-		// Phase 1: Windows binary self-replace is deferred for non-sdd-memory tools.
+		// Phase 1: Windows binary self-replace is deferred for non-engram tools.
 		// Return a ManualFallbackError so the executor surfaces this as UpgradeSkipped
 		// with an actionable hint — NOT as UpgradeFailed.
 		hint := r.UpdateHint
 		if hint == "" {
-			hint = fmt.Sprintf("Download manually from https://github.com/KevG1t/%s/releases", r.Tool.Repo)
+			hint = fmt.Sprintf("Download manually from https://github.com/Gentleman-Programming/%s/releases", r.Tool.Repo)
 		}
 		return &ManualFallbackError{
 			Hint: fmt.Sprintf("upgrade %q on Windows requires manual update: %s", r.Tool.Name, hint),
@@ -348,13 +360,13 @@ func binaryUpgrade(ctx context.Context, r update.UpdateResult, profile system.Pl
 	return downloadAndReplace(ctx, r, profile)
 }
 
-// sddmemoryBinaryUpgrade downloads the latest sdd-memory binary using its dedicated
+// engramBinaryUpgrade downloads the latest engram binary using its dedicated
 // cross-platform downloader and adds the install directory to PATH.
 // On Windows the PATH change is also persisted to the user registry via PowerShell.
-func sddmemoryBinaryUpgrade(profile system.PlatformProfile) error {
-	binaryPath, err := sddmemoryDownloadFn(profile)
+func engramBinaryUpgrade(profile system.PlatformProfile) error {
+	binaryPath, err := engramDownloadFn(profile)
 	if err != nil {
-		return fmt.Errorf("download sdd-memory binary: %w", err)
+		return fmt.Errorf("download engram binary: %w", err)
 	}
 	// Add install dir to PATH. On Windows this also persists via PowerShell (user registry).
 	binDir := filepath.Dir(binaryPath)
@@ -389,7 +401,7 @@ func installScriptURL(owner, repo, version string) (string, error) {
 }
 
 // scriptUpgrade downloads and executes the project's install.sh via curl | bash.
-// This is used for tools that distribute via shell scripts rather than
+// This is used for tools that distribute via shell scripts (e.g., GGA) rather than
 // pre-built release binary assets.
 //
 // The script is downloaded to a temp file, then executed with bash and stdin set to nil
@@ -443,6 +455,73 @@ func scriptUpgrade(ctx context.Context, r update.UpdateResult, profile system.Pl
 		// Provide a helpful hint if the script fails.
 		output := strings.TrimSpace(string(out))
 		return fmt.Errorf("install.sh failed for %q: %w\nOutput: %s", r.Tool.Name, err, output)
+	}
+
+	return nil
+}
+
+// ggaMkdirTemp is the function used to create a temporary directory for GGA git clone.
+// Package-level var for testability — swapped in tests to control the temp dir path.
+var ggaMkdirTemp = func() (string, error) {
+	return os.MkdirTemp("", "specai-gga-*")
+}
+
+// ggaScriptUpgrade upgrades GGA by cloning its repository and running install.sh
+// from within the cloned repo — the same approach used by the initial install resolver.
+//
+// This is required because GGA's install.sh references $SCRIPT_DIR/bin/gga and
+// $SCRIPT_DIR/lib/*.sh (relative to the cloned repo). The generic scriptUpgrade
+// downloads and runs the script in isolation via `bash -c <content>`, which fails
+// because those relative paths don't exist without the full repo context.
+//
+// On Windows, bash is not available — returns ManualFallbackError.
+func ggaScriptUpgrade(ctx context.Context, r update.UpdateResult) error {
+	return ggaScriptUpgradeForOS(ctx, r, detectOS())
+}
+
+// detectOS returns the current runtime OS name. Package-level var for testability.
+var detectOS = func() string {
+	return runtime.GOOS
+}
+
+// ggaScriptUpgradeForOS is the testable version of ggaScriptUpgrade that accepts
+// an explicit OS string so tests can simulate Windows without actually running on it.
+func ggaScriptUpgradeForOS(ctx context.Context, r update.UpdateResult, osName string) error {
+	if osName == "windows" {
+		hint := r.UpdateHint
+		if hint == "" {
+			hint = fmt.Sprintf("Download manually from https://github.com/%s/%s/releases", r.Tool.Owner, r.Tool.Repo)
+		}
+		return &ManualFallbackError{
+			Hint: fmt.Sprintf("upgrade %q on Windows requires manual update: %s", r.Tool.Name, hint),
+		}
+	}
+
+	// Use an unpredictable temp directory to avoid TOCTOU races on the fixed path.
+	tmpDir, err := ggaMkdirTemp()
+	if err != nil {
+		return fmt.Errorf("create temp dir for gga clone: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Clone the full repository at the target release tag so the install.sh
+	// executed here matches the version the user is upgrading TO, not whatever
+	// is on main at the moment of the upgrade. This prevents a race where a
+	// commit lands on main between the release and the user's upgrade run.
+	targetTag := "v" + r.LatestVersion
+	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", r.Tool.Owner, r.Tool.Repo)
+	cloneCmd := execCommand("git", "clone", "--depth=1", "--branch", targetTag, repoURL, tmpDir)
+	cloneCmd.Stdin = nil
+	if out, err := cloneCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git clone %s: %w (output: %s)", r.Tool.Repo, err, strings.TrimSpace(string(out)))
+	}
+
+	// Execute install.sh from within the cloned repo (non-interactive).
+	installScript := filepath.Join(tmpDir, "install.sh")
+	installCmd := execCommand("bash", installScript)
+	installCmd.Stdin = nil
+	if out, err := installCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("install.sh failed for %q: %w\nOutput: %s", r.Tool.Name, err, strings.TrimSpace(string(out)))
 	}
 
 	return nil

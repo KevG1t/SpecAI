@@ -1,8 +1,8 @@
 package planner
 
 import (
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 type Resolver interface {
@@ -37,10 +37,6 @@ type ReviewPayload struct {
 	// HasSDD is true when the SDD component is present in the resolved plan (Issue #149).
 	// Controls whether the Strict TDD row is shown in the review screen.
 	HasSDD bool
-
-	// SDDMode holds the SDD orchestration mode chosen by the user ("single" or "multi").
-	// Only meaningful when HasSDD is true.
-	SDDMode model.SDDModeID
 }
 
 type PlatformDecision struct {

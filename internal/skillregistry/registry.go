@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/KevG1t/specai/internal/components/filemerge"
 )
 
 const (
@@ -27,7 +29,6 @@ var (
 	frontmatterLine = regexp.MustCompile(`^(\w+):\s*(.*)$`)
 )
 
-// SkillEntry represents a single skill loaded from a SKILL.md file.
 type SkillEntry struct {
 	Name        string
 	Path        string
@@ -35,7 +36,6 @@ type SkillEntry struct {
 	Scope       string
 }
 
-// Result is returned by Regenerate to describe what happened.
 type Result struct {
 	Regenerated bool
 	SkillCount  int
@@ -48,21 +48,21 @@ type cacheFile struct {
 	Fingerprint string `json:"fingerprint"`
 }
 
-// UserSkillDirs returns the list of user-level skill directories to scan.
+// Keep these source roots in sync with the gentle-pi skill-registry extension.
 func UserSkillDirs(home string) []string {
 	return []string{
-		// Generic agent skills locations.
+		// Gentle AI/Pi and generic Agent Skills locations.
 		filepath.Join(home, ".pi", "agent", "skills"),
 		filepath.Join(home, ".config", "agents", "skills"),
 		filepath.Join(home, ".agents", "skills"),
 		filepath.Join(home, ".kimi", "skills"),
 
-		// Agent-specific global skill locations.
+		// Agent-specific global skill locations supported by Gentle AI adapters.
 		filepath.Join(home, ".config", "opencode", "skills"),
 		filepath.Join(home, ".config", "kilo", "skills"),
 		filepath.Join(home, ".claude", "skills"),
 		filepath.Join(home, ".gemini", "skills"),
-		filepath.Join(home, ".gemini", "antigravity-cli", "skills"),
+		filepath.Join(home, ".gemini", "antigravity", "skills"),
 		filepath.Join(home, ".cursor", "skills"),
 		filepath.Join(home, ".copilot", "skills"),
 		filepath.Join(home, ".codex", "skills"),
@@ -70,15 +70,12 @@ func UserSkillDirs(home string) []string {
 		filepath.Join(home, ".qwen", "skills"),
 		filepath.Join(home, ".kiro", "skills"),
 		filepath.Join(home, ".openclaw", "skills"),
-		filepath.Join(home, ".pi", "skills"),
-		filepath.Join(home, ".trae", "skills"),
 	}
 }
 
-// ProjectSkillDirs returns the list of project-level skill directories to scan.
 func ProjectSkillDirs(cwd string) []string {
 	return []string{
-		// Generic project skills first.
+		// Generic project skills first: repo-local intent beats user/global skills.
 		filepath.Join(cwd, "skills"),
 
 		// Agent-native workspace skill locations.
@@ -92,7 +89,7 @@ func ProjectSkillDirs(cwd string) []string {
 		filepath.Join(cwd, ".kiro", "skills"),
 		filepath.Join(cwd, ".openclaw", "skills"),
 
-		// Generic workspace locations.
+		// Gentle AI/Pi and generic Agent Skills workspace locations.
 		filepath.Join(cwd, ".pi", "skills"),
 		filepath.Join(cwd, ".agent", "skills"),
 		filepath.Join(cwd, ".agents", "skills"),
@@ -100,8 +97,6 @@ func ProjectSkillDirs(cwd string) []string {
 	}
 }
 
-// Regenerate scans all known skill directories, computes a fingerprint, and
-// regenerates .atl/skill-registry.md when the fingerprint has changed (or force=true).
 func Regenerate(cwd, home string, force bool) (Result, error) {
 	cwd = filepath.Clean(cwd)
 	home = filepath.Clean(home)
@@ -145,7 +140,7 @@ func Regenerate(cwd, home string, force bool) (Result, error) {
 		return Result{}, fmt.Errorf("create .atl directory: %w", err)
 	}
 	md := RenderRegistry(cwd, sources, entries)
-	if err := os.WriteFile(registryPath, []byte(md), 0o644); err != nil {
+	if _, err := filemerge.WriteFileAtomic(registryPath, []byte(md), 0o644); err != nil {
 		return Result{}, fmt.Errorf("write registry: %w", err)
 	}
 	cacheBytes, err := json.MarshalIndent(cacheFile{Fingerprint: fp}, "", "  ")
@@ -153,7 +148,7 @@ func Regenerate(cwd, home string, force bool) (Result, error) {
 		return Result{}, err
 	}
 	cacheBytes = append(cacheBytes, '\n')
-	if err := os.WriteFile(cachePath, cacheBytes, 0o644); err != nil {
+	if _, err := filemerge.WriteFileAtomic(cachePath, cacheBytes, 0o644); err != nil {
 		return Result{}, fmt.Errorf("write registry cache: %w", err)
 	}
 
@@ -164,7 +159,6 @@ func Regenerate(cwd, home string, force bool) (Result, error) {
 	return Result{Regenerated: true, SkillCount: len(entries), Reason: reason, Registry: registryPath, Cache: cachePath}, nil
 }
 
-// EnsureATLIgnored adds .atl/ to .gitignore if not already present.
 func EnsureATLIgnored(cwd string) error {
 	gitignorePath := filepath.Join(cwd, ".gitignore")
 	existingBytes, err := os.ReadFile(gitignorePath)
@@ -183,13 +177,12 @@ func EnsureATLIgnored(cwd string) error {
 		prefix = "\n"
 	}
 	header := ""
-	if !strings.Contains(existing, "# Local AI runtime state") {
+	if !strings.Contains(existing, "# Local AI runtime state") && !strings.Contains(existing, "# Local Pi runtime state") {
 		header = "# Local AI runtime state\n"
 	}
 	return os.WriteFile(gitignorePath, []byte(existing+prefix+header+atlIgnoreEntry+"\n"), 0o644)
 }
 
-// Fingerprint computes a deterministic hash of the given skill file list.
 func Fingerprint(files []string) string {
 	lines := make([]string, 0, len(files)+1)
 	lines = append(lines, fmt.Sprintf("schema:%d", RegistrySchema))
@@ -206,7 +199,6 @@ func Fingerprint(files []string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// LoadSkill parses a SKILL.md file and returns a SkillEntry.
 func LoadSkill(file string) (SkillEntry, bool) {
 	data, err := os.ReadFile(file)
 	if err != nil {
@@ -223,12 +215,11 @@ func LoadSkill(file string) (SkillEntry, bool) {
 	return SkillEntry{Name: name, Path: file, Description: desc}, true
 }
 
-// RenderRegistry generates the Markdown content for the skill registry file.
 func RenderRegistry(cwd string, sources []string, entries []SkillEntry) string {
 	projectName := filepath.Base(cwd)
 	var lines []string
 	lines = append(lines, "# Skill Registry — "+projectName, "")
-	lines = append(lines, "<!-- Auto-generated by specai skill-registry refresh. Run `specai skill-registry refresh --force` to regenerate. -->", "")
+	lines = append(lines, "<!-- Auto-generated by gentle-ai skill-registry refresh. Run `gentle-ai skill-registry refresh --force` to regenerate. -->", "")
 	lines = append(lines, "Last updated: "+time.Now().UTC().Format("2006-01-02"), "")
 	lines = append(lines, "## Sources scanned", "")
 	for _, src := range sources {

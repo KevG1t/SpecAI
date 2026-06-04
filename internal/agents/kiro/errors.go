@@ -3,9 +3,12 @@ package kiro
 import (
 	"fmt"
 
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
+// AgentNotInstallableError is returned when Kiro IDE cannot be installed automatically.
+// Kiro IDE is a desktop application (VS Code fork) that must be installed manually
+// or via package manager from https://kiro.dev/downloads.
 type AgentNotInstallableError struct {
 	Agent model.AgentID
 }

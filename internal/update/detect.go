@@ -26,11 +26,11 @@ var (
 var versionRegexp = regexp.MustCompile(`(\d+\.\d+(?:\.\d+)?)`)
 
 // devVersionRegexp matches common unversioned source-build output like
-// "sdd-memory dev" or "version: dev".
+// "engram dev" or "version: dev".
 var devVersionRegexp = regexp.MustCompile(`(?i)(?:^|\s)dev(?:$|\s)`)
 
 // detectInstalledVersion determines the installed version of a tool.
-// For tools with nil DetectCmd (specai), returns currentBuildVersion.
+// For tools with nil DetectCmd (gentle-ai), returns currentBuildVersion.
 // For other tools, checks LookPath then runs the detect command.
 func detectInstalledVersion(ctx context.Context, tool ToolInfo, currentBuildVersion string) string {
 	if strings.TrimSpace(tool.NpmPackage) != "" {
@@ -59,7 +59,7 @@ func detectInstalledVersion(ctx context.Context, tool ToolInfo, currentBuildVers
 		binary = fullPath
 	}
 
-	// Apply a bounded timeout so a hanging binary (e.g. sdd-memory stuck on DB
+	// Apply a bounded timeout so a hanging binary (e.g. engram stuck on DB
 	// lock) cannot block update/upgrade flows forever.
 	detectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -117,8 +117,8 @@ func findFallbackBinary(tool ToolInfo) string {
 // passed as argv[0] to CreateProcess — they must be launched via the
 // PowerShell host. For a .ps1 binary we therefore rewrite:
 //
-//	("C:\Users\...\tool.exe", ["--version"])
-//	→ ("C:\Users\...\tool.exe", ["--version"])
+//	("C:\Users\...\gga.ps1", ["--version"])
+//	→ ("powershell", ["-NoProfile", "-File", "C:\Users\...\gga.ps1", "--version"])
 //
 // For all other binaries (real PE executables on Windows, any file on
 // Linux/macOS), the arguments are returned unchanged.

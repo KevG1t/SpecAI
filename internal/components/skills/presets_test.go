@@ -1,85 +1,93 @@
-package skills_test
+package skills
 
 import (
-	"slices"
 	"testing"
 
-	"github.com/KevG1t/SpecAI/internal/components/skills"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
-func TestSkillsForPresetMinimal(t *testing.T) {
-	got := skills.SkillsForPreset(model.PresetMinimal)
-
-	// Must include P0 coding skills.
-	for _, id := range []model.SkillID{model.SkillTypeScript, model.SkillClaudeDevPlatform} {
-		if !slices.Contains(got, id) {
-			t.Errorf("PresetMinimal missing P0 coding skill %q", id)
-		}
+func TestSkillsForPresetMinimalReturnsSDDOnly(t *testing.T) {
+	skills := SkillsForPreset(model.PresetMinimal)
+	if len(skills) == 0 {
+		t.Fatalf("SkillsForPreset(minimal) returned empty")
 	}
 
-	// Must NOT include P1 coding skills.
-	for _, id := range []model.SkillID{
-		model.SkillReact19, model.SkillNextjs15, model.SkillTailwind4,
-		model.SkillZod4, model.SkillAiSdk5, model.SkillPlaywright, model.SkillPytest,
-	} {
-		if slices.Contains(got, id) {
-			t.Errorf("PresetMinimal should not contain P1 coding skill %q", id)
+	// Orchestration skills that are always bundled with SDD.
+	orchestrationSkills := map[model.SkillID]bool{
+		model.SkillJudgmentDay: true,
+	}
+
+	for _, skill := range skills {
+		isSDD := len(skill) >= 4 && skill[:3] == "sdd"
+		if !isSDD && !orchestrationSkills[skill] {
+			t.Fatalf("minimal preset should only contain SDD/orchestration skills, got %q", skill)
 		}
 	}
 }
 
-func TestSkillsForPresetFull(t *testing.T) {
-	got := skills.SkillsForPreset(model.PresetFull)
+func TestSkillsForPresetEcosystemIncludesFrameworks(t *testing.T) {
+	skills := SkillsForPreset(model.PresetEcosystemOnly)
 
-	allCoding := []model.SkillID{
-		model.SkillTypeScript, model.SkillClaudeDevPlatform,
-		model.SkillReact19, model.SkillNextjs15, model.SkillTailwind4,
-		model.SkillZod4, model.SkillAiSdk5, model.SkillPlaywright, model.SkillPytest,
-	}
-	for _, id := range allCoding {
-		if !slices.Contains(got, id) {
-			t.Errorf("PresetFull missing coding skill %q", id)
+	hasGoTesting := false
+	hasSkillCreator := false
+	hasSDDInit := false
+	for _, skill := range skills {
+		if skill == model.SkillGoTesting {
+			hasGoTesting = true
 		}
+		if skill == model.SkillCreator {
+			hasSkillCreator = true
+		}
+		if skill == model.SkillSDDInit {
+			hasSDDInit = true
+		}
+	}
+
+	if !hasGoTesting {
+		t.Fatalf("ecosystem preset should include go-testing")
+	}
+	if !hasSDDInit {
+		t.Fatalf("ecosystem preset should include sdd-init")
+	}
+	if !hasSkillCreator {
+		t.Fatalf("ecosystem preset should include skill-creator")
+	}
+}
+
+func TestSkillsForPresetFullIncludesAll(t *testing.T) {
+	skills := SkillsForPreset(model.PresetFullGentleman)
+	all := AllSkillIDs()
+
+	if len(skills) != len(all) {
+		t.Fatalf("full preset skills len = %d, all skills len = %d", len(skills), len(all))
 	}
 }
 
 func TestSkillsForPresetCustomReturnsNil(t *testing.T) {
-	if skills.SkillsForPreset(model.PresetCustom) != nil {
-		t.Error("PresetCustom should return nil (user picks manually)")
+	skills := SkillsForPreset(model.PresetCustom)
+	if skills != nil {
+		t.Fatalf("custom preset should return nil, got %v", skills)
 	}
 }
 
-func TestAllSkillIDsIncludesCodingSkills(t *testing.T) {
-	all := skills.AllSkillIDs()
-	for _, id := range []model.SkillID{
-		model.SkillTypeScript, model.SkillClaudeDevPlatform, model.SkillReact19,
-	} {
-		if !slices.Contains(all, id) {
-			t.Errorf("AllSkillIDs missing %q", id)
+func TestAllSkillIDsIncludesEveryKnownSkill(t *testing.T) {
+	all := AllSkillIDs()
+
+	required := []model.SkillID{
+		model.SkillSDDInit,
+		model.SkillGoTesting,
+		model.SkillCreator,
+		model.SkillJudgmentDay,
+	}
+
+	skillSet := make(map[model.SkillID]struct{}, len(all))
+	for _, skill := range all {
+		skillSet[skill] = struct{}{}
+	}
+
+	for _, req := range required {
+		if _, ok := skillSet[req]; !ok {
+			t.Fatalf("AllSkillIDs() missing %q", req)
 		}
-	}
-}
-
-func TestSkillsForPreset_UnknownPresetReturnsNil(t *testing.T) {
-	got := skills.SkillsForPreset(model.PresetID("unknown-preset"))
-	if got != nil {
-		t.Errorf("expected nil for unknown preset, got slice of len %d", len(got))
-	}
-}
-
-func TestSkillsForPreset_Independence(t *testing.T) {
-	first := skills.SkillsForPreset(model.PresetFull)
-	if len(first) == 0 {
-		t.Fatal("expected non-empty slice for PresetFull")
-	}
-	first[0] = model.SkillID("tampered")
-
-	second := skills.SkillsForPreset(model.PresetFull)
-	if len(second) == 0 {
-		t.Fatal("expected non-empty second slice")
-	}
-	if second[0] == model.SkillID("tampered") {
-		t.Error("second call returned a slice that shares backing array with first call")
 	}
 }

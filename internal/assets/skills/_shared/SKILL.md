@@ -5,7 +5,7 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "1.0"
 ---
 

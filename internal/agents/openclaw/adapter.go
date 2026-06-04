@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 var LookPathOverride = exec.LookPath
@@ -30,6 +30,8 @@ func NewAdapter() *Adapter {
 	}
 }
 
+// --- Identity ---
+
 func (a *Adapter) Agent() model.AgentID {
 	return model.AgentOpenClaw
 }
@@ -37,6 +39,8 @@ func (a *Adapter) Agent() model.AgentID {
 func (a *Adapter) Tier() model.SupportTier {
 	return model.TierFull
 }
+
+// --- Detection ---
 
 func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, string, bool, error) {
 	configPath := ConfigPath(homeDir)
@@ -55,6 +59,8 @@ func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, strin
 	return installed, binaryPath, configPath, stat.isDir, nil
 }
 
+// --- Installation ---
+
 func (a *Adapter) SupportsAutoInstall() bool {
 	return false
 }
@@ -62,6 +68,8 @@ func (a *Adapter) SupportsAutoInstall() bool {
 func (a *Adapter) InstallCommand(_ system.PlatformProfile) ([][]string, error) {
 	return nil, AgentNotInstallableError{Agent: a.Agent()}
 }
+
+// --- Config paths ---
 
 func (a *Adapter) GlobalConfigDir(homeDir string) string {
 	return ConfigPath(homeDir)
@@ -83,6 +91,8 @@ func (a *Adapter) SettingsPath(homeDir string) string {
 	return filepath.Join(ConfigPath(homeDir), "openclaw.json")
 }
 
+// --- Config strategies ---
+
 func (a *Adapter) SystemPromptStrategy() model.SystemPromptStrategy {
 	return model.StrategyMarkdownSections
 }
@@ -91,26 +101,60 @@ func (a *Adapter) MCPStrategy() model.MCPStrategy {
 	return model.StrategyMergeIntoSettings
 }
 
+// --- MCP ---
+
 func (a *Adapter) MCPConfigPath(homeDir string, _ string) string {
 	return filepath.Join(ConfigPath(homeDir), "openclaw.json")
 }
 
-func (a *Adapter) SupportsOutputStyles() bool     { return false }
-func (a *Adapter) OutputStyleDir(_ string) string { return "" }
-func (a *Adapter) SupportsSlashCommands() bool    { return false }
-func (a *Adapter) CommandsDir(_ string) string    { return "" }
-func (a *Adapter) SupportsSubAgents() bool        { return false }
-func (a *Adapter) SubAgentsDir(_ string) string   { return "" }
-func (a *Adapter) EmbeddedSubAgentsDir() string   { return "" }
-func (a *Adapter) SupportsSkills() bool           { return true }
-func (a *Adapter) SupportsSystemPrompt() bool     { return true }
-func (a *Adapter) SupportsMCP() bool              { return true }
+// --- Optional capabilities ---
+
+func (a *Adapter) SupportsOutputStyles() bool {
+	return false
+}
+
+func (a *Adapter) OutputStyleDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) SupportsSlashCommands() bool {
+	return false
+}
+
+func (a *Adapter) CommandsDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) SupportsSubAgents() bool {
+	return false
+}
+
+func (a *Adapter) SubAgentsDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) EmbeddedSubAgentsDir() string {
+	return ""
+}
+
+func (a *Adapter) SupportsSkills() bool {
+	return true
+}
+
+func (a *Adapter) SupportsSystemPrompt() bool {
+	return true
+}
+
+func (a *Adapter) SupportsMCP() bool {
+	return true
+}
 
 func defaultStat(path string) statResult {
 	info, err := os.Stat(path)
 	if err != nil {
 		return statResult{err: err}
 	}
+
 	return statResult{isDir: info.IsDir()}
 }
 
@@ -123,5 +167,5 @@ type AgentNotInstallableError struct {
 }
 
 func (e AgentNotInstallableError) Error() string {
-	return fmt.Sprintf("agent %q must be installed manually before SpecAI can configure it", e.Agent)
+	return fmt.Sprintf("agent %q must be installed manually before Gentle AI can configure it", e.Agent)
 }

@@ -13,7 +13,7 @@
  *
  * Adaptations:
  * - Inlined kdco-primitives (types, getProjectId, logWarn, withTimeout, TimeoutError)
- * - Exported as `BackgroundAgents` (matching the sdd-memory plugin convention)
+ * - Exported as `BackgroundAgents` (matching the Engram plugin convention)
  * - All imports resolved to available node_modules
  */
 
@@ -38,7 +38,7 @@ export type OpencodeClient = ReturnType<typeof createOpencodeClient>
 async function refreshSkillRegistry(directory: string, log: (level: "info" | "warn" | "error", message: string) => void): Promise<void> {
   await new Promise<void>((resolve) => {
     execFile(
-      "specai",
+      "gentle-ai",
       ["skill-registry", "refresh", "--quiet", "--no-gitignore", "--cwd", directory],
       { timeout: 10_000 },
       (error) => {

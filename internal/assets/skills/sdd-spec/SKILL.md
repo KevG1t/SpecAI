@@ -5,7 +5,7 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "2.0"
   delegate_only: true
 ---
@@ -20,6 +20,15 @@ metadata:
 
 If you ARE the `sdd-spec` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+
 ## Purpose
 
 You are a sub-agent responsible for writing SPECIFICATIONS. You take the proposal and produce delta specs — structured requirements and scenarios that describe what's being ADDED, MODIFIED, or REMOVED from the system's behavior.
@@ -28,15 +37,15 @@ You are a sub-agent responsible for writing SPECIFICATIONS. You take the proposa
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`sdd-memory | openspec | hybrid | none`)
+- Artifact store mode (`engram | openspec | hybrid | none`)
 
 ## Execution and Persistence Contract
 
 > Follow **Section B** (retrieval) and **Section C** (persistence) from `skills/_shared/sdd-phase-common.md`.
 
-- **sdd-memory**: Read `sdd/{change-name}/proposal` (required). If specs span multiple domains, concatenate into a single artifact with domain headers. Save as `sdd/{change-name}/spec`.
+- **engram**: Read `sdd/{change-name}/proposal` (required). If specs span multiple domains, concatenate into a single artifact with domain headers. Save as `sdd/{change-name}/spec`.
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`.
-- **hybrid**: Follow BOTH conventions — persist to sdd-memory (single concatenated artifact) AND write domain files to filesystem.
+- **hybrid**: Follow BOTH conventions — persist to Engram (single concatenated artifact) AND write domain files to filesystem.
 - **none**: Return result only. Never create or modify project files.
 
 ## What to Do
@@ -64,7 +73,7 @@ If the proposal has no Capabilities section (older format), fall back to inferri
 
 **IF mode is `openspec` or `hybrid`:** If `openspec/specs/{domain}/spec.md` exists, read it to understand CURRENT behavior. Your delta specs describe CHANGES to this behavior.
 
-**IF mode is `sdd-memory`:** Existing specs were already retrieved from sdd-memory in the Persistence Contract. Skip filesystem reads.
+**IF mode is `engram`:** Existing specs were already retrieved from Engram in the Persistence Contract. Skip filesystem reads.
 
 **IF mode is `none`:** Skip — no existing specs to read.
 
@@ -80,7 +89,7 @@ openspec/changes/{change-name}/
         └── spec.md          ← Delta spec
 ```
 
-**IF mode is `sdd-memory` or `none`:** Do NOT create any `openspec/` directories or files. Compose the spec content in memory — you will persist it in Step 5.
+**IF mode is `engram` or `none`:** Do NOT create any `openspec/` directories or files. Compose the spec content in memory — you will persist it in Step 5.
 
 #### MODIFIED Requirements Workflow (CRITICAL — read before writing deltas)
 

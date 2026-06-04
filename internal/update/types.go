@@ -28,23 +28,23 @@ const (
 	InstallBinary    InstallMethod = "binary"
 	// InstallScript downloads and executes the project's install.sh via pipe.
 	// Used for tools that distribute via shell scripts rather than pre-built binaries
-	// (e.g., tools that have no release binary assets).
+	// (e.g., GGA which has no release binary assets).
 	InstallScript InstallMethod = "script"
-	// InstallOpenCodePlugin is a manual upgrade method: SpecAI registers the
+	// InstallOpenCodePlugin is a manual upgrade method: Gentle AI registers the
 	// package in tui.json, and OpenCode owns package resolution on restart/reload.
 	InstallOpenCodePlugin InstallMethod = "opencode-plugin"
 )
 
 // ToolInfo describes a managed tool that can be checked for updates.
 type ToolInfo struct {
-	Name              string        // human-readable name (e.g., "specai")
+	Name              string        // human-readable name (e.g., "gentle-ai")
 	Owner             string        // GitHub repository owner
 	Repo              string        // GitHub repository name
 	DetectCmd         []string      // command to detect installed version; nil = use build var
 	VersionPrefix     string        // prefix to strip from version output (e.g., "v")
 	ReleaseTagPattern string        // optional regexp for selecting the correct GitHub release channel
 	InstallMethod     InstallMethod // how this tool is installed (used by upgrade executor)
-	GoImportPath      string        // for go-install tools (e.g. "github.com/.../cmd/sdd-memory")
+	GoImportPath      string        // for go-install tools (e.g. "github.com/.../cmd/engram")
 	NpmPackage        string        // for OpenCode community plugins installed in ~/.config/opencode/node_modules
 
 	// FallbackPaths returns a list of absolute paths to check when exec.LookPath

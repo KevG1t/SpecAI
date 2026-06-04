@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type InjectionResult struct {
@@ -16,7 +16,7 @@ type InjectionResult struct {
 	Files   []string
 }
 
-var themeOverlayJSON = []byte("{\n  \"theme\": \"specai-kanagawa\"\n}\n")
+var themeOverlayJSON = []byte("{\n  \"theme\": \"gentleman-kanagawa\"\n}\n")
 
 type claudeTheme struct {
 	Name      string            `json:"name"`
@@ -24,8 +24,8 @@ type claudeTheme struct {
 	Overrides map[string]string `json:"overrides"`
 }
 
-var specaiClaudeTheme = claudeTheme{
-	Name: "SpecAI",
+var gentlemanClaudeTheme = claudeTheme{
+	Name: "Gentleman",
 	Base: "dark",
 	Overrides: map[string]string{
 		"diffAdded":                 "#3F4A2D",
@@ -58,8 +58,8 @@ func InjectClaudeTheme(homeDir string, adapter agents.Adapter) (InjectionResult,
 		return InjectionResult{}, nil
 	}
 
-	themePath := filepath.Join(homeDir, ".claude", "themes", "specai.json")
-	content, err := json.MarshalIndent(specaiClaudeTheme, "", "  ")
+	themePath := filepath.Join(homeDir, ".claude", "themes", "gentleman.json")
+	content, err := json.MarshalIndent(gentlemanClaudeTheme, "", "  ")
 	if err != nil {
 		return InjectionResult{}, err
 	}

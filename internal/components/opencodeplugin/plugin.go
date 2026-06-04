@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type Definition struct {
@@ -38,25 +38,25 @@ var definitions = []Definition{
 		Description: "OpenCode sidebar/statusline for sub-agent activity",
 	},
 	{
-		ID:          model.OpenCodePluginSDDMemoryManage,
-		Name:        "SDD Memory Manager",
-		PackageName: "opencode-sdd-memory-manage",
-		RepoURL:     "https://github.com/j0k3r-dev-rgl/sdd-memory-plugin",
+		ID:          model.OpenCodePluginSDDEngramManage,
+		Name:        "SDD Engram Manager",
+		PackageName: "opencode-sdd-engram-manage",
+		RepoURL:     "https://github.com/j0k3r-dev-rgl/sdd-engram-plugin",
 		Owner:       "j0k3r-dev-rgl",
-		Repo:        "sdd-memory-plugin",
-		Description: "OpenCode TUI for SDD profiles and sdd-memory memories",
+		Repo:        "sdd-engram-plugin",
+		Description: "OpenCode TUI for SDD profiles and Engram memories",
 	},
 }
 
-const argentinaLogoPluginFile = "argentina-logo.tsx"
+const gentleLogoPluginFile = "gentle-logo.tsx"
 
-const argentinaLogoPluginSource = `// @ts-nocheck
+const gentleLogoPluginSource = `// @ts-nocheck
 /** @jsxImportSource @opentui/solid */
 import type { TuiPlugin, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createMemo } from "solid-js"
 
-const id = "argentina-logo"
+const id = "gentle-logo"
 
 const roseArt = [
   "             ⣠⣾⣷⣶⣦⣤⣤⣄⣠⣄⣀  ⢀⣀⣀",
@@ -79,7 +79,7 @@ const roseArt = [
   "               ⠐⠈",
 ]
 
-const compactArt = ["✦ SpecAI ✦"]
+const compactArt = ["✦ Gentle AI ✦"]
 
 const Logo = (props: { theme: TuiThemeCurrent }) => {
   const dim = useTerminalDimensions()
@@ -109,7 +109,7 @@ const tui: TuiPlugin = async (api) => {
   })
 }
 
-const plugin = { id: "argentina-logo", tui }
+const plugin = { id: "gentle-logo", tui }
 export default plugin
 `
 
@@ -129,8 +129,8 @@ func DefinitionFor(id model.OpenCodeCommunityPluginID) (Definition, bool) {
 }
 
 func Install(homeDir string, id model.OpenCodeCommunityPluginID) (Result, error) {
-	if id == model.OpenCodePluginArgentinaLogo {
-		return installArgentinaLogo(homeDir)
+	if id == model.OpenCodePluginGentleLogo {
+		return installGentleLogo(homeDir)
 	}
 
 	def, ok := DefinitionFor(id)
@@ -152,15 +152,15 @@ func Install(homeDir string, id model.OpenCodeCommunityPluginID) (Result, error)
 	return Result{Changed: written, Files: []string{tuiPath}}, nil
 }
 
-func installArgentinaLogo(homeDir string) (Result, error) {
+func installGentleLogo(homeDir string) (Result, error) {
 	opencodeDir := filepath.Join(homeDir, ".config", "opencode")
 	pluginDir := filepath.Join(opencodeDir, "tui-plugins")
-	pluginPath := filepath.Join(pluginDir, argentinaLogoPluginFile)
+	pluginPath := filepath.Join(pluginDir, gentleLogoPluginFile)
 	tuiPath := filepath.Join(opencodeDir, "tui.json")
 
-	pluginWrite, err := filemerge.WriteFileAtomic(pluginPath, []byte(argentinaLogoPluginSource), 0o644)
+	pluginWrite, err := filemerge.WriteFileAtomic(pluginPath, []byte(gentleLogoPluginSource), 0o644)
 	if err != nil {
-		return Result{}, fmt.Errorf("write Argentina Logo TUI plugin: %w", err)
+		return Result{}, fmt.Errorf("write Gentle Logo TUI plugin: %w", err)
 	}
 	tuiChanged, err := ensureTUIPlugin(tuiPath, pluginPath)
 	if err != nil {

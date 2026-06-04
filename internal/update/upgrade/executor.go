@@ -3,9 +3,9 @@
 // isolated from install, pipeline, planner, and config-sync code paths.
 //
 // Import boundary: this package MUST NOT import:
-//   - github.com/KevG1t/SpecAI/internal/pipeline
-//   - github.com/KevG1t/SpecAI/internal/planner
-//   - github.com/KevG1t/SpecAI/internal/cli
+//   - github.com/KevG1t/specai/internal/pipeline
+//   - github.com/KevG1t/specai/internal/planner
+//   - github.com/KevG1t/specai/internal/cli
 package upgrade
 
 import (
@@ -20,15 +20,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/backup"
-	"github.com/KevG1t/SpecAI/internal/components/sdd"
-	"github.com/KevG1t/SpecAI/internal/components/skills"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/state"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/update"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/assets"
+	"github.com/KevG1t/specai/internal/backup"
+	"github.com/KevG1t/specai/internal/components/gga"
+	"github.com/KevG1t/specai/internal/components/sdd"
+	"github.com/KevG1t/specai/internal/components/skills"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/state"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/update"
 )
 
 // Package-level vars for testability — same pattern as internal/update/detect.go.
@@ -43,7 +44,7 @@ var snapshotCreator = func(snapshotDir string, paths []string) (backup.Manifest,
 	return backup.NewSnapshotter().Create(snapshotDir, paths)
 }
 
-// AppVersion is the specai version written into backup manifests created by
+// AppVersion is the gentle-ai version written into backup manifests created by
 // the upgrade executor. Set by app.go before calling Execute so that upgrade
 // backups record the version that created them.
 // Default "dev" matches the ldflags default in app.Version.
@@ -114,11 +115,11 @@ var backupExcludeSubdirs = map[string]bool{
 	"tmp":                         true, // Antigravity temporary runtime artifacts
 }
 
-// configPathsForBackup returns the explicit SpecAI-managed file paths that
+// configPathsForBackup returns the explicit Gentle AI-managed file paths that
 // the backup snapshot must include before any upgrade execution.
 //
 // This is intentionally NOT a recursive backup of agent config directories.
-// Upgrade backups are rollback artifacts for files SpecAI may create or
+// Upgrade backups are rollback artifacts for files Gentle AI may create or
 // modify, not general-purpose backups of conversations, sessions, caches,
 // sockets, package installs, or other runtime state.
 //
@@ -126,7 +127,7 @@ var backupExcludeSubdirs = map[string]bool{
 // only those agents' config paths are backed up — this is the canonical source
 // of truth established at install time. Filesystem detection is used only as a
 // fallback for fresh installs (no state.json yet). This prevents snapshot bloat
-// from agent config dirs that the user never actually installed via specai
+// from agent config dirs that the user never actually installed via gentle-ai
 // (issue #354: snapshots could reach ~25 GiB from unmanaged config dirs).
 func configPathsForBackup(homeDir string, diagnostics ...io.Writer) []string {
 	dw := firstWriter(diagnostics...)
@@ -211,11 +212,11 @@ func managedAgentBackupPaths(homeDir string, adapter agents.Adapter, diagnostics
 	}
 
 	if adapter.SupportsMCP() {
-		add(adapter.MCPConfigPath(homeDir, "sdd-memory"), adapter.MCPConfigPath(homeDir, "context7"))
+		add(adapter.MCPConfigPath(homeDir, "engram"), adapter.MCPConfigPath(homeDir, "context7"))
 	}
 
 	if adapter.SupportsOutputStyles() {
-		add(filepath.Join(adapter.OutputStyleDir(homeDir), "argentina.md"))
+		add(filepath.Join(adapter.OutputStyleDir(homeDir), "gentleman.md"))
 	}
 
 	if adapter.SupportsSlashCommands() {
@@ -236,11 +237,11 @@ func managedAgentBackupPaths(homeDir string, adapter agents.Adapter, diagnostics
 
 	switch adapter.Agent() {
 	case model.AgentClaudeCode:
-		add(filepath.Join(homeDir, ".claude", "themes", "argentina.json"))
+		add(filepath.Join(homeDir, ".claude", "themes", "gentleman.json"))
 	case model.AgentOpenCode:
 		add(
 			filepath.Join(homeDir, ".config", "opencode", "plugins", "background-agents.ts"),
-			filepath.Join(homeDir, ".config", "opencode", "tui-plugins", "argentina-logo.tsx"),
+			filepath.Join(homeDir, ".config", "opencode", "tui-plugins", "gentle-logo.tsx"),
 			filepath.Join(homeDir, ".config", "opencode", "tui.json"),
 		)
 		for _, phase := range sdd.SharedPromptPhases() {
@@ -254,6 +255,10 @@ func managedAgentBackupPaths(homeDir string, adapter agents.Adapter, diagnostics
 func managedGlobalBackupPaths(homeDir string) []string {
 	return []string{
 		state.Path(homeDir),
+		gga.ConfigPath(homeDir),
+		gga.AgentsTemplatePath(homeDir),
+		gga.RuntimePRModePath(homeDir),
+		gga.RuntimePS1Path(homeDir),
 	}
 }
 
@@ -273,7 +278,7 @@ func managedSkillBackupPaths(homeDir string, adapter agents.Adapter, diagnostics
 
 	for _, relPath := range []string{
 		"_shared/persistence-contract.md",
-		"_shared/sdd-memory-convention.md",
+		"_shared/engram-convention.md",
 		"_shared/openspec-convention.md",
 		"_shared/sdd-phase-common.md",
 		"_shared/skill-resolver.md",
@@ -492,7 +497,7 @@ func ExecuteWithOptions(ctx context.Context, results []update.UpdateResult, prof
 			NewVersion: r.LatestVersion,
 			Method:     effectiveMethod(r.Tool, profile),
 			Status:     UpgradeSkipped,
-			ManualHint: fmt.Sprintf("source build — upgrade manually or install a release binary from https://github.com/KevG1t/%s/releases", r.Tool.Repo),
+			ManualHint: fmt.Sprintf("source build — upgrade manually or install a release binary from https://github.com/Gentleman-Programming/%s/releases", r.Tool.Repo),
 		})
 	}
 

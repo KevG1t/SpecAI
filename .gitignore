@@ -1,21 +1,37 @@
 # Binaries
+/gentle-ai
 *.exe
-*.exe~
 *.dll
 *.so
 *.dylib
-bin/
 
-# Test outputs
-coverage
-coverage.out
-c.out
+# Test binary
 *.test
 
-# IDE / OS
+# Output of go coverage
+*.out
+
+# IDE
 .idea/
 .vscode/
-.DS_Store
+*.swp
+*.swo
+*~
 
-# Misc
-*.log
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+cmd/gentle-ai/main
+dist/
+
+# Agent tooling metadata (generated per-user, not product code)
+.atl/
+.pi/
+
+# Engram local runtime state (project sync chunks are intentionally versioned)
+.engram/engram.db
+.engram/cloud.json
+.pi-lens/

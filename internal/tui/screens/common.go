@@ -1,60 +1,8 @@
 package screens
 
 import (
-	"github.com/KevG1t/SpecAI/internal/tui/styles"
+	"github.com/KevG1t/specai/internal/tui/styles"
 )
-
-type BackMsg struct{}
-
-type InstallState int
-
-const (
-	InstallStateConfirm InstallState = iota
-	InstallStateRunning
-	InstallStateResult
-)
-
-type StartPipelineMsg struct {
-	Action string
-}
-
-// FailedStep holds the step name and a truncated error message for display.
-type FailedStep struct {
-	StepName string
-	Err      string
-}
-
-// MissingDep holds a dependency name that was expected but not found.
-type MissingDep struct {
-	Name string
-}
-
-// ValidationWarning carries a non-fatal advisory shown before/after install.
-type ValidationWarning struct {
-	Message string
-}
-
-// CompletePayload carries post-install summary data used by the completion screen.
-type CompletePayload struct {
-	ConfiguredAgents     int
-	InstalledComponents  int
-	FailedSteps          []FailedStep
-	RollbackPerformed    bool
-	MissingDeps          []MissingDep
-	AuthGuidance         []string            // post-install auth instructions for MCP servers
-	ValidationWarnings   []ValidationWarning // pre/post pipeline advisories
-}
-
-type PipelineFinishedMsg struct {
-	Err     error
-	Payload *CompletePayload // nil means legacy behavior (no completion screen)
-}
-
-type ProgressMsg struct {
-	TaskName string
-	Status   string
-	Progress float64
-}
 
 func renderOptions(options []string, cursor int) string {
 	output := ""

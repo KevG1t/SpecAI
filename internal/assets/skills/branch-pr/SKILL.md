@@ -1,9 +1,9 @@
 ---
 name: branch-pr
-description: "Create SpecAI pull requests with issue-first checks. Trigger: creating, opening, or preparing PRs for review."
+description: "Create Gentle AI pull requests with issue-first checks. Trigger: creating, opening, or preparing PRs for review."
 license: Apache-2.0
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "2.0"
 ---
 

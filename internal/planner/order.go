@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 var ErrDependencyCycle = errors.New("dependency cycle detected")

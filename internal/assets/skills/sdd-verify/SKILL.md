@@ -6,7 +6,7 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "3.0"
   delegate_only: true
 ---
@@ -21,6 +21,14 @@ metadata:
 
 If you ARE the `sdd-verify` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+
 ## Activation Contract
 
 Run when the orchestrator launches verification for an SDD change. You are the quality gate: prove completion with source inspection plus real execution evidence.
@@ -32,7 +40,7 @@ Run when the orchestrator launches verification for an SDD change. You are the q
 - A spec scenario is compliant only when a covering test passed at runtime.
 - Compare specs first, design second, task completion third.
 - Do not fix issues; report them for the orchestrator/user.
-- Persist `verify-report` according to mode: sdd-memory, openspec file, hybrid both, or inline-only for `none`.
+- Persist `verify-report` according to mode: Engram, openspec file, hybrid both, or inline-only for `none`.
 - If Strict TDD is active, load `strict-tdd-verify.md` from this skill directory; if inactive, never load it.
 - Return the Section D envelope from `../_shared/sdd-phase-common.md`.
 
@@ -79,12 +87,21 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "3.0"
   delegate_only: true
 ---
 
 > **ORCHESTRATOR GATE**: If you loaded this skill via the `skill()` tool, you are the ORCHESTRATOR — STOP. Do NOT execute these instructions inline. Do NOT delegate, do NOT call task/delegate, do NOT launch sub-agents. Read this SKILL.md and follow it exactly.
+
+
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
 
 ## Purpose
 

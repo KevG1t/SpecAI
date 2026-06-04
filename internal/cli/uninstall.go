@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/catalog"
-	componentuninstall "github.com/KevG1t/SpecAI/internal/components/uninstall"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/catalog"
+	componentuninstall "github.com/KevG1t/specai/internal/components/uninstall"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type UninstallFlags struct {
@@ -67,7 +67,7 @@ func RunUninstallWithSelection(homeDir, workspaceDir string, agentIDs []model.Ag
 	return componentuninstall.PartialUninstall(homeDir, workspaceDir, AppVersion, agents, components)
 }
 
-func RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir string, agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, sddMemoryScope model.SDDMemoryUninstallScope) (componentuninstall.Result, error) {
+func RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir string, agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, engramScope model.EngramUninstallScope) (componentuninstall.Result, error) {
 	agents := make([]string, 0, len(agentIDs))
 	for _, agentID := range agentIDs {
 		agents = append(agents, string(agentID))
@@ -76,7 +76,7 @@ func RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir string, agentIDs
 	for _, componentID := range componentIDs {
 		components = append(components, string(componentID))
 	}
-	return componentuninstall.PartialUninstallWithProfileSelection(homeDir, workspaceDir, AppVersion, agents, components, profileNames, sddMemoryScope)
+	return componentuninstall.PartialUninstallWithProfileSelection(homeDir, workspaceDir, AppVersion, agents, components, profileNames, engramScope)
 }
 
 func RenderUninstallReport(result componentuninstall.Result) string {
@@ -135,9 +135,9 @@ func runUninstallWithInput(args []string, stdout io.Writer, stdin io.Reader) (co
 
 func promptUninstallConfirm(flags UninstallFlags, stdout io.Writer, stdin io.Reader) (bool, error) {
 	if flags.All {
-		_, _ = fmt.Fprintln(stdout, "This will remove specai managed configuration from all supported agents.")
+		_, _ = fmt.Fprintln(stdout, "This will remove gentle-ai managed configuration from all supported agents.")
 	} else {
-		_, _ = fmt.Fprintf(stdout, "This will remove specai managed configuration from: %s\n", strings.Join(agentLabelsFromStrings(flags.Agents), ", "))
+		_, _ = fmt.Fprintf(stdout, "This will remove gentle-ai managed configuration from: %s\n", strings.Join(agentLabelsFromStrings(flags.Agents), ", "))
 	}
 	if len(flags.Components) > 0 {
 		_, _ = fmt.Fprintf(stdout, "Components: %s\n", strings.Join(flags.Components, ", "))

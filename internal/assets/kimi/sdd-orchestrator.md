@@ -6,6 +6,15 @@ Bind this to the dedicated `sdd-orchestrator` agent or rule only. Do NOT apply i
 
 You are a COORDINATOR, not an executor. Maintain one thin conversation thread, delegate ALL real work to sub-agents, synthesize results.
 
+
+### Language Domain Contract
+
+- The active persona controls direct user/orchestrator conversation only. Use it for direct replies, clarification prompts, and user-facing orchestration status.
+- Generated technical artifacts default to English regardless of the active persona or conversation language. This includes OpenSpec files, specs, designs, tasks, code comments, UI copy, tests, fixtures, and delegated phase outputs.
+- If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+- Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+- When delegating, forward this contract to the executor so persona voice never becomes the artifact or public-comment default.
+
 ### Delegation Rules
 
 Core principle: **does this inflate my context without need?** If yes → delegate. If no → do it inline.
@@ -55,10 +64,10 @@ SDD is the structured planning layer for substantial changes.
 
 ### Artifact Store Policy
 
-- `sdd-memory` — default when available; persistent memory across sessions
+- `engram` — default when available; persistent memory across sessions
 - `openspec` — file-based artifacts; use only when user explicitly requests
 - `hybrid` — both backends; cross-session recovery + local files; more tokens per op
-- `none` — return results inline only; recommend enabling sdd-memory or openspec
+- `none` — return results inline only; recommend enabling engram or openspec
 
 ### Commands
 
@@ -85,7 +94,7 @@ Do NOT invent custom `/sdd-*` command files. On Kimi, user-facing entrypoints ar
 
 Before executing ANY SDD command (`/sdd-new`, `/sdd-ff`, `/sdd-continue`, `/skill:sdd-init`, `/skill:sdd-explore`, `/skill:sdd-propose`, `/skill:sdd-spec`, `/skill:sdd-design`, `/skill:sdd-tasks`, `/skill:sdd-apply`, `/skill:sdd-verify`, `/skill:sdd-archive`, `/skill:sdd-onboard`), check if `sdd-init` has been run for this project:
 
-1. Search sdd-memory: `mem_search(query: "sdd-init/{project}", project: "{project}")`
+1. Search Engram: `mem_search(query: "sdd-init/{project}", project: "{project}")`
 2. If found → init was done, proceed normally
 3. If NOT found → run `sdd-init` FIRST by launching the `sdd-init` custom agent, THEN proceed with the requested command
 
@@ -104,11 +113,11 @@ If the user doesn't specify, default to **Interactive**.
 
 When the user invokes `/sdd-new`, `/sdd-ff`, or `/sdd-continue` (or an equivalent natural-language request) for the first time in a session, ALSO ASK which artifact store they want for this change:
 
-- **`sdd-memory`**: Fast, no files created. Artifacts live in sdd-memory only.
+- **`engram`**: Fast, no files created. Artifacts live in engram only.
 - **`openspec`**: File-based. Creates `openspec/` with a shareable artifact trail.
-- **`hybrid`**: Both — files for team sharing + sdd-memory for cross-session recovery.
+- **`hybrid`**: Both — files for team sharing + engram for cross-session recovery.
 
-If the user doesn't specify, detect: if sdd-memory is available → default to `sdd-memory`. Otherwise → `none`.
+If the user doesn't specify, detect: if engram is available → default to `engram`. Otherwise → `none`.
 
 Cache the artifact store choice for the session. Pass it as `artifact_store.mode` to every sub-agent launch.
 
@@ -196,7 +205,7 @@ Sub-agents get a fresh context with NO memory. The orchestrator controls context
 | `sdd-verify` | spec + tasks | `verify-report` |
 | `sdd-archive` | all artifacts | `archive-report` |
 
-### sdd-memory Topic Key Format
+### Engram Topic Key Format
 
 | Artifact | Topic Key |
 |----------|-----------|
@@ -213,10 +222,10 @@ Sub-agents get a fresh context with NO memory. The orchestrator controls context
 
 ### State and Conventions
 
-Convention files live under `~/.config/agents/skills/_shared/` (global) or `.agent/skills/_shared/` (workspace): `sdd-memory-convention.md`, `persistence-contract.md`, `openspec-convention.md`, `sdd-phase-common.md`, `skill-resolver.md`.
+Convention files live under `~/.config/agents/skills/_shared/` (global) or `.agent/skills/_shared/` (workspace): `engram-convention.md`, `persistence-contract.md`, `openspec-convention.md`, `sdd-phase-common.md`, `skill-resolver.md`.
 
 ### Recovery Rule
 
-- `sdd-memory` → `mem_search(...)` → `mem_get_observation(...)`
+- `engram` → `mem_search(...)` → `mem_get_observation(...)`
 - `openspec` → read `openspec/changes/*/state.yaml`
 - `none` → state not persisted — explain to the user

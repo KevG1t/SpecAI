@@ -4,135 +4,73 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/KevG1t/specai/internal/tui/styles"
+	"github.com/KevG1t/specai/internal/update"
 )
 
-var mascotLines = []string{
-	`       ╭───────╮`,
-	`       │ ⚆   ⚆ │`,
-	`       │   ▱   │`,
-	`       ╰───┬───╯`,
-	`      ╭────┴────╮`,
-	`      │         │`,
-	`    ──│  SpecAI │──`,
-	`      │         │`,
-	`      ╰────┬────╯`,
-	`          / \`,
-	`         /   \`,
-}
-
-var gradientColors = []lipgloss.Color{
-	lipgloss.Color("51"),  // Cyan
-	lipgloss.Color("45"),  // Light Blue
-	lipgloss.Color("39"),  // Blue
-	lipgloss.Color("99"),  // Purple
-	lipgloss.Color("201"), // Magenta
-}
-
-// RenderMascot returns the ASCII mascot with a top-to-bottom gradient.
-func RenderMascot() string {
-	total := len(mascotLines)
-	if total == 0 {
-		return ""
+// WelcomeOptions returns the welcome menu options.
+// When showProfiles is true, an "OpenCode SDD Profiles" option is inserted
+// between "Configure models" and "Manage backups".
+// profileCount is used to show a badge with the current profile count.
+// When hasEngines is false, "Create your own Agent" is shown as disabled
+// (labelled "(no agents)") to signal that no supported AI engine is installed.
+func WelcomeOptions(updateResults []update.UpdateResult, updateCheckDone bool, showProfiles bool, profileCount int, hasEngines bool) []string {
+	upgradeLabel := "Upgrade tools"
+	if updateCheckDone && update.HasUpdates(updateResults) {
+		upgradeLabel = "Upgrade tools ★"
+	} else if updateCheckDone && !update.HasUpdates(updateResults) {
+		upgradeLabel = "Upgrade tools (up to date)"
 	}
 
-	bands := len(gradientColors)
+	agentLabel := "Create your own Agent"
+	if !hasEngines {
+		agentLabel = "Create your own Agent (no agents)"
+	}
+
+	opts := []string{
+		"Start installation",
+		upgradeLabel,
+		"Sync configs",
+		"Upgrade + Sync",
+		"Configure models",
+		agentLabel,
+		"OpenCode Community Plugins",
+	}
+
+	if showProfiles {
+		profilesLabel := "OpenCode SDD Profiles"
+		if profileCount > 0 {
+			profilesLabel = fmt.Sprintf("OpenCode SDD Profiles (%d)", profileCount)
+		}
+		opts = append(opts, profilesLabel)
+	}
+
+	opts = append(opts, "Manage backups")
+	opts = append(opts, "Managed uninstall")
+	opts = append(opts, "Quit")
+
+	return opts
+}
+
+func RenderWelcome(cursor int, version string, updateBanner string, updateResults []update.UpdateResult, updateCheckDone bool, showProfiles bool, profileCount int, hasEngines bool) string {
 	var b strings.Builder
 
-	for i, line := range mascotLines {
-		bandIdx := (i * bands) / total
-		if bandIdx >= bands {
-			bandIdx = bands - 1
-		}
-		style := lipgloss.NewStyle().Foreground(gradientColors[bandIdx])
-		b.WriteString(style.Render(line))
-		if i < total-1 {
-			b.WriteByte('\n')
-		}
-	}
-
-	return b.String()
-}
-
-// OptionSelectedMsg is sent when the user selects a menu item.
-type OptionSelectedMsg struct {
-	Option string
-}
-
-type WelcomeModel struct {
-	choices  []string
-	cursor   int
-	selected string
-}
-
-func NewWelcomeModel() WelcomeModel {
-	return WelcomeModel{
-		choices: []string{
-			"Install",
-			"Setup Local (Inyectar en este Repo)",
-			"Upgrade",
-			"Sync",
-			"Upgrade + Sync",
-			"Backup",
-			"Uninstall",
-			"Salir",
-		},
-	}
-}
-
-func (m WelcomeModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m WelcomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-		case "enter", " ":
-			m.selected = m.choices[m.cursor]
-			if m.selected == "Salir" {
-				return m, tea.Quit
-			}
-			return m, func() tea.Msg {
-				return OptionSelectedMsg{Option: m.selected}
-			}
-		}
-	}
-	return m, nil
-}
-
-var (
-	titleStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("62")).Bold(true).MarginBottom(1)
-	itemStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("229")).Background(lipgloss.Color("62")).Bold(true).Padding(0, 1)
-)
-
-func (m WelcomeModel) View() string {
-	var b strings.Builder
-	b.WriteString(RenderMascot())
+	b.WriteString(styles.RenderLogo())
 	b.WriteString("\n\n")
-	b.WriteString(titleStyle.Render("SpecAI - Bienvenido!"))
-	b.WriteString("\n\n")
+	b.WriteString(styles.SubtextStyle.Render(styles.Tagline(version)))
+	b.WriteString("\n")
 
-	for i, choice := range m.choices {
-		cursor := " " // no cursor
-		if m.cursor == i {
-			cursor = ">"
-			b.WriteString(fmt.Sprintf("%s %s\n", cursor, selectedItemStyle.Render(choice)))
-		} else {
-			b.WriteString(fmt.Sprintf("%s %s\n", cursor, itemStyle.Render(choice)))
-		}
+	if updateBanner != "" {
+		b.WriteString(styles.WarningStyle.Render(updateBanner))
+		b.WriteString("\n")
 	}
 
-	b.WriteString("\nUsa las flechas para moverte, Enter para seleccionar, q para salir.\n")
-	return b.String()
+	b.WriteString("\n")
+	b.WriteString(styles.HeadingStyle.Render("Menu"))
+	b.WriteString("\n\n")
+	b.WriteString(renderOptions(WelcomeOptions(updateResults, updateCheckDone, showProfiles, profileCount, hasEngines), cursor))
+	b.WriteString("\n")
+	b.WriteString(styles.HelpStyle.Render("j/k: navigate • enter: select • q: quit"))
+
+	return styles.FrameStyle.Render(b.String())
 }

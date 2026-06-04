@@ -171,7 +171,7 @@ func TestOldManifestRemainsReadable(t *testing.T) {
 
 // TestNewManifestOmitsEmptySourceFromJSON verifies that omitempty is respected:
 // when Source is not set, it should not appear in the serialized JSON, keeping
-// existing manifest files readable by older versions of SpecAI.
+// existing manifest files readable by older versions of gentle-ai.
 func TestNewManifestOmitsEmptySourceFromJSON(t *testing.T) {
 	m := Manifest{
 		ID:        "test",

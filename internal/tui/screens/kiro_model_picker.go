@@ -4,15 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/tui/styles"
 )
-
-// KiroModelsSelectedMsg is emitted when the user confirms Kiro model assignments.
-type KiroModelsSelectedMsg struct {
-	Assignments map[string]model.ClaudeModelAlias
-}
 
 // KiroModelPickerState reuses the same phase-assignment mechanics as Claude
 // aliases (opus|sonnet|haiku), but remains a separate UI flow and persisted map.
@@ -26,87 +20,16 @@ func NewKiroModelPickerState() KiroModelPickerState {
 	return KiroModelPickerState{
 		Preset:            ClaudePresetBalanced,
 		CustomAssignments: model.ClaudeModelPresetBalanced(),
+		InCustomMode:      false,
 	}
 }
 
-func NewKiroModelPickerStateFromAssignments(assignments map[string]model.ClaudeModelAlias) KiroModelPickerState {
-	if len(assignments) == 0 {
-		return NewKiroModelPickerState()
-	}
-	for preset, constructor := range claudePresetConstructors {
-		if claudeAssignmentsEqual(constructor(), assignments) {
-			return KiroModelPickerState{
-				Preset:            preset,
-				CustomAssignments: claudeCopyAssignments(assignments),
-			}
-		}
-	}
-	return KiroModelPickerState{
-		Preset:            ClaudePresetCustom,
-		CustomAssignments: claudeCopyAssignments(assignments),
-	}
-}
-
-// KiroModelPickerModel is a standalone BubbleTea model for Kiro model picker.
-type KiroModelPickerModel struct {
-	state  KiroModelPickerState
-	cursor int
-}
-
-func NewKiroModelPickerModel(existing map[string]model.ClaudeModelAlias) KiroModelPickerModel {
-	return KiroModelPickerModel{
-		state: NewKiroModelPickerStateFromAssignments(existing),
-	}
-}
-
-func (m KiroModelPickerModel) Init() tea.Cmd { return nil }
-
-func (m KiroModelPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		key := msg.String()
-		optCount := kiroPickerOptionCount(m.state)
-
-		switch key {
-		case "j", "down":
-			if m.cursor < optCount-1 {
-				m.cursor++
-			}
-		case "k", "up":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "esc":
-			if m.state.InCustomMode {
-				m.state.InCustomMode = false
-				m.cursor = 0
-				return m, nil
-			}
-			return m, func() tea.Msg { return BackMsg{} }
-		case "enter":
-			handled, assignments := HandleKiroModelPickerNav(key, &m.state, m.cursor)
-			if !handled {
-				return m, func() tea.Msg { return BackMsg{} }
-			}
-			if assignments != nil {
-				return m, func() tea.Msg { return KiroModelsSelectedMsg{Assignments: assignments} }
-			}
-			m.cursor = 0
-		}
-	}
-	return m, nil
-}
-
-func (m KiroModelPickerModel) View() string {
-	return RenderKiroModelPicker(m.state, m.cursor)
-}
-
-// HandleKiroModelPickerNav processes navigation for the Kiro model picker.
 func HandleKiroModelPickerNav(
 	key string,
 	state *KiroModelPickerState,
 	cursor int,
 ) (handled bool, assignments map[string]model.ClaudeModelAlias) {
+	// Reuse the same navigation engine by bridging through Claude state.
 	bridge := ClaudeModelPickerState{
 		Preset:            state.Preset,
 		CustomAssignments: state.CustomAssignments,
@@ -119,14 +42,13 @@ func HandleKiroModelPickerNav(
 	return handled, assignments
 }
 
-func kiroPickerOptionCount(state KiroModelPickerState) int {
+func KiroModelPickerOptionCount(state KiroModelPickerState) int {
 	if state.InCustomMode {
-		return len(claudePhases) + 2
+		return len(claudePhases) + 2 // phase rows + Confirm + Back
 	}
-	return len(claudePresetOrder) + 1
+	return len(claudePresetOrder) + 1 // presets + Back
 }
 
-// RenderKiroModelPicker renders the Kiro model picker screen.
 func RenderKiroModelPicker(state KiroModelPickerState, cursor int) string {
 	if state.InCustomMode {
 		return renderKiroCustomPhaseList(state, cursor)
@@ -172,7 +94,7 @@ func renderKiroCustomPhaseList(state KiroModelPickerState, cursor int) string {
 			alias = model.ClaudeModelSonnet
 		}
 
-		label := fmt.Sprintf("%-20s %s", claudePhaseLabels[phase], claudeAliasTag(alias))
+		label := fmt.Sprintf("%-20s %s", claudePhaseLabels[phase], aliasTag(alias))
 
 		if focused {
 			b.WriteString(styles.SelectedStyle.Render(styles.Cursor+label) + "\n")

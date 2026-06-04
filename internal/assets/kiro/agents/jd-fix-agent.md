@@ -3,7 +3,7 @@ name: jd-fix-agent
 description: >
   Surgical fix agent for judgment-day protocol. Applies only confirmed fixes.
 model: {{KIRO_MODEL}}
-tools: ["@builtin", "@sdd-memory"]
+tools: ["@builtin", "@engram"]
 includeMcpJson: true
 ---
 

@@ -4,15 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/tui/styles"
 )
-
-// ClaudeModelsSelectedMsg is emitted when the user confirms Claude model assignments.
-type ClaudeModelsSelectedMsg struct {
-	Assignments map[string]model.ClaudeModelAlias
-}
 
 // ClaudeModelPreset represents a named preset for Claude model assignments.
 type ClaudeModelPreset string
@@ -25,6 +19,7 @@ const (
 	ClaudePresetCustom      ClaudeModelPreset = "custom"
 )
 
+// claudePresetDescriptions describes each preset.
 var claudePresetDescriptions = map[ClaudeModelPreset]string{
 	ClaudePresetBalanced:    "Smart defaults: opus for architecture, sonnet for most phases, haiku for archiving",
 	ClaudePresetPerformance: "Maximum quality: opus for architecture, planning & verification phases",
@@ -33,6 +28,7 @@ var claudePresetDescriptions = map[ClaudeModelPreset]string{
 	ClaudePresetCustom:      "Pick the model alias for each SDD phase, JD agent, and general delegation entry individually",
 }
 
+// claudePresetOrder is the display order for presets.
 var claudePresetOrder = []ClaudeModelPreset{
 	ClaudePresetBalanced,
 	ClaudePresetPerformance,
@@ -41,6 +37,7 @@ var claudePresetOrder = []ClaudeModelPreset{
 	ClaudePresetCustom,
 }
 
+// claudePhases is the ordered list of model-assignment keys shown in custom mode.
 var claudePhases = []string{
 	"sdd-explore",
 	"sdd-propose",
@@ -57,6 +54,8 @@ var claudePhases = []string{
 	"default",
 }
 
+// claudePhaseLabels are the human-readable labels for each configurable
+// agent phase (SDD phases, JD agents, and the general delegation row).
 var claudePhaseLabels = map[string]string{
 	"sdd-explore":  "Explore",
 	"sdd-propose":  "Propose",
@@ -73,52 +72,63 @@ var claudePhaseLabels = map[string]string{
 	"default":      "General delegation",
 }
 
+// claudeAliasOrder defines the cycling order when pressing Enter on a phase row.
 var claudeAliasOrder = []model.ClaudeModelAlias{
 	model.ClaudeModelOpus,
 	model.ClaudeModelSonnet,
 	model.ClaudeModelHaiku,
 }
 
-// ClaudeModelPickerState holds navigation state for the picker screen.
+// ClaudeModelPickerState holds navigation state for the Claude model picker screen.
 type ClaudeModelPickerState struct {
-	Preset            ClaudeModelPreset
+	// Preset holds the currently selected preset (or custom).
+	Preset ClaudeModelPreset
+
+	// CustomAssignments holds per-phase aliases in custom mode.
+	// When a preset is selected, this mirrors the preset map.
 	CustomAssignments map[string]model.ClaudeModelAlias
-	InCustomMode      bool
+
+	// InCustomMode is true when the user has selected ClaudePresetCustom
+	// and is navigating the per-phase list.
+	InCustomMode bool
 }
 
+// NewClaudeModelPickerState returns the initial picker state: balanced preset selected.
 func NewClaudeModelPickerState() ClaudeModelPickerState {
 	return ClaudeModelPickerState{
 		Preset:            ClaudePresetBalanced,
 		CustomAssignments: model.ClaudeModelPresetBalanced(),
+		InCustomMode:      false,
 	}
 }
 
+// NewClaudeModelPickerStateFromAssignments returns the picker state initialized
+// from previously persisted Claude model assignments. If the assignments match
+// a known preset (Balanced/Performance/Economy), that preset is preselected.
+// Otherwise the picker opens in Custom mode preserving the user's exact assignments.
+// When assignments is empty or nil, it falls back to the balanced default.
 func NewClaudeModelPickerStateFromAssignments(assignments map[string]model.ClaudeModelAlias) ClaudeModelPickerState {
 	if len(assignments) == 0 {
 		return NewClaudeModelPickerState()
 	}
-	for preset, constructor := range claudePresetConstructors {
-		if claudeAssignmentsEqual(constructor(), assignments) {
+	for preset, constructor := range presetConstructors {
+		if assignmentsEqual(constructor(), assignments) {
 			return ClaudeModelPickerState{
 				Preset:            preset,
-				CustomAssignments: claudeCopyAssignments(assignments),
+				CustomAssignments: copyAssignments(assignments),
+				InCustomMode:      false,
 			}
 		}
 	}
+	// Doesn't match any built-in preset → custom.
 	return ClaudeModelPickerState{
 		Preset:            ClaudePresetCustom,
-		CustomAssignments: claudeCopyAssignments(assignments),
+		CustomAssignments: copyAssignments(assignments),
+		InCustomMode:      false,
 	}
 }
 
-var claudePresetConstructors = map[ClaudeModelPreset]func() map[string]model.ClaudeModelAlias{
-	ClaudePresetBalanced:    model.ClaudeModelPresetBalanced,
-	ClaudePresetPerformance: model.ClaudeModelPresetPerformance,
-	ClaudePresetEconomy:     model.ClaudeModelPresetEconomy,
-	ClaudePresetDiversity:   model.ClaudeModelPresetDiversity,
-}
-
-func claudeAssignmentsEqual(a, b map[string]model.ClaudeModelAlias) bool {
+func assignmentsEqual(a, b map[string]model.ClaudeModelAlias) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -130,7 +140,7 @@ func claudeAssignmentsEqual(a, b map[string]model.ClaudeModelAlias) bool {
 	return true
 }
 
-func claudeCopyAssignments(m map[string]model.ClaudeModelAlias) map[string]model.ClaudeModelAlias {
+func copyAssignments(m map[string]model.ClaudeModelAlias) map[string]model.ClaudeModelAlias {
 	out := make(map[string]model.ClaudeModelAlias, len(m))
 	for k, v := range m {
 		out[k] = v
@@ -138,75 +148,38 @@ func claudeCopyAssignments(m map[string]model.ClaudeModelAlias) map[string]model
 	return out
 }
 
-// ClaudeModelPickerModel is a standalone BubbleTea model for Claude model picker.
-type ClaudeModelPickerModel struct {
-	state  ClaudeModelPickerState
-	cursor int
-}
-
-func NewClaudeModelPickerModel(existing map[string]model.ClaudeModelAlias) ClaudeModelPickerModel {
-	return ClaudeModelPickerModel{
-		state: NewClaudeModelPickerStateFromAssignments(existing),
-	}
-}
-
-func (m ClaudeModelPickerModel) Init() tea.Cmd { return nil }
-
-func (m ClaudeModelPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		key := msg.String()
-		optCount := claudePickerOptionCount(m.state)
-
-		switch key {
-		case "j", "down":
-			if m.cursor < optCount-1 {
-				m.cursor++
-			}
-		case "k", "up":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "esc":
-			if m.state.InCustomMode {
-				m.state.InCustomMode = false
-				m.cursor = 0
-				return m, nil
-			}
-			return m, func() tea.Msg { return BackMsg{} }
-		case "enter":
-			handled, assignments := HandleClaudeModelPickerNav(key, &m.state, m.cursor)
-			if !handled {
-				// Back option
-				return m, func() tea.Msg { return BackMsg{} }
-			}
-			if assignments != nil {
-				return m, func() tea.Msg { return ClaudeModelsSelectedMsg{Assignments: assignments} }
-			}
-			// Entered custom mode or cycled alias — stay on screen
-			m.cursor = 0
-		}
-	}
-	return m, nil
-}
-
-func (m ClaudeModelPickerModel) View() string {
-	return RenderClaudeModelPicker(m.state, m.cursor)
+// presetConstructors maps preset IDs to their constructor functions.
+var presetConstructors = map[ClaudeModelPreset]func() map[string]model.ClaudeModelAlias{
+	ClaudePresetBalanced:    model.ClaudeModelPresetBalanced,
+	ClaudePresetPerformance: model.ClaudeModelPresetPerformance,
+	ClaudePresetEconomy:     model.ClaudeModelPresetEconomy,
+	ClaudePresetDiversity:   model.ClaudeModelPresetDiversity,
 }
 
 // HandleClaudeModelPickerNav processes a key press on the Claude model picker screen.
+//
+// In preset mode (InCustomMode == false):
+//   - Enter on a preset option → sets CustomAssignments and returns (true, assignments).
+//   - Enter on "custom" → enters custom mode, returns (true, nil) — screen stays open.
+//
+// In custom mode (InCustomMode == true):
+//   - Enter on a phase row → cycles the alias for that phase, returns (true, nil).
+//
+// Returns (true, assignments) when the user confirms a preset and the screen should advance.
+// Returns (true, nil) when handled but the screen should stay open.
+// Returns (false, nil) when the key was not handled by this function.
 func HandleClaudeModelPickerNav(
 	key string,
 	state *ClaudeModelPickerState,
 	cursor int,
 ) (handled bool, assignments map[string]model.ClaudeModelAlias) {
 	if !state.InCustomMode {
-		return claudeHandlePresetNav(key, state, cursor)
+		return handlePresetNav(key, state, cursor)
 	}
-	return claudeHandleCustomPhaseNav(key, state, cursor)
+	return handleCustomPhaseNav(key, state, cursor)
 }
 
-func claudeHandlePresetNav(
+func handlePresetNav(
 	key string,
 	state *ClaudeModelPickerState,
 	cursor int,
@@ -214,7 +187,9 @@ func claudeHandlePresetNav(
 	if key != "enter" {
 		return false, nil
 	}
+
 	if cursor >= len(claudePresetOrder) {
+		// Back option — caller handles screen transition.
 		return false, nil
 	}
 
@@ -222,6 +197,7 @@ func claudeHandlePresetNav(
 	state.Preset = selected
 
 	if selected == ClaudePresetCustom {
+		// Enter custom mode — keep existing CustomAssignments (or defaults).
 		state.InCustomMode = true
 		if state.CustomAssignments == nil {
 			state.CustomAssignments = model.ClaudeModelPresetBalanced()
@@ -229,38 +205,48 @@ func claudeHandlePresetNav(
 		return true, nil
 	}
 
-	constructor := claudePresetConstructors[selected]
+	// Named preset — build assignments and signal that the screen is done.
+	constructor := presetConstructors[selected]
 	assignments := constructor()
 	state.CustomAssignments = assignments
 	return true, assignments
 }
 
-func claudeHandleCustomPhaseNav(
+func handleCustomPhaseNav(
 	key string,
 	state *ClaudeModelPickerState,
 	cursor int,
 ) (bool, map[string]model.ClaudeModelAlias) {
 	switch key {
 	case "esc":
+		// Exit custom mode back to preset list.
 		state.InCustomMode = false
 		return true, nil
+
 	case "enter":
 		if cursor < len(claudePhases) {
+			// Cycle the alias for this phase.
 			phase := claudePhases[cursor]
 			current := state.CustomAssignments[phase]
-			state.CustomAssignments[phase] = claudeNextAlias(current)
+			state.CustomAssignments[phase] = nextAlias(current)
 			return true, nil
 		}
+
+		// "Confirm" row (cursor == len(claudePhases)) — done.
 		if cursor == len(claudePhases) {
 			return true, state.CustomAssignments
 		}
+
+		// "Back" row — exit custom mode.
 		state.InCustomMode = false
 		return true, nil
 	}
+
 	return false, nil
 }
 
-func claudeNextAlias(current model.ClaudeModelAlias) model.ClaudeModelAlias {
+// nextAlias cycles through opus → sonnet → haiku → opus.
+func nextAlias(current model.ClaudeModelAlias) model.ClaudeModelAlias {
 	for i, a := range claudeAliasOrder {
 		if a == current {
 			return claudeAliasOrder[(i+1)%len(claudeAliasOrder)]
@@ -269,22 +255,15 @@ func claudeNextAlias(current model.ClaudeModelAlias) model.ClaudeModelAlias {
 	return model.ClaudeModelSonnet
 }
 
-func claudePickerOptionCount(state ClaudeModelPickerState) int {
-	if state.InCustomMode {
-		return len(claudePhases) + 2 // phases + Confirm + Back
-	}
-	return len(claudePresetOrder) + 1 // presets + Back
-}
-
 // RenderClaudeModelPicker renders the Claude model picker screen.
 func RenderClaudeModelPicker(state ClaudeModelPickerState, cursor int) string {
 	if state.InCustomMode {
-		return renderClaudeCustomPhaseList(state, cursor)
+		return renderCustomPhaseList(state, cursor)
 	}
-	return renderClaudePresetList(state, cursor)
+	return renderPresetList(state, cursor)
 }
 
-func renderClaudePresetList(state ClaudeModelPickerState, cursor int) string {
+func renderPresetList(state ClaudeModelPickerState, cursor int) string {
 	var b strings.Builder
 
 	b.WriteString(styles.TitleStyle.Render("Claude Model Assignments"))
@@ -309,7 +288,7 @@ func renderClaudePresetList(state ClaudeModelPickerState, cursor int) string {
 	return b.String()
 }
 
-func renderClaudeCustomPhaseList(state ClaudeModelPickerState, cursor int) string {
+func renderCustomPhaseList(state ClaudeModelPickerState, cursor int) string {
 	var b strings.Builder
 
 	b.WriteString(styles.TitleStyle.Render("Custom Model Assignments"))
@@ -324,7 +303,7 @@ func renderClaudeCustomPhaseList(state ClaudeModelPickerState, cursor int) strin
 			alias = model.ClaudeModelSonnet
 		}
 
-		label := fmt.Sprintf("%-20s %s", claudePhaseLabels[phase], claudeAliasTag(alias))
+		label := fmt.Sprintf("%-20s %s", claudePhaseLabels[phase], aliasTag(alias))
 
 		if focused {
 			b.WriteString(styles.SelectedStyle.Render(styles.Cursor+label) + "\n")
@@ -334,6 +313,7 @@ func renderClaudeCustomPhaseList(state ClaudeModelPickerState, cursor int) strin
 	}
 
 	b.WriteString("\n")
+
 	actionCursor := cursor - len(claudePhases)
 	b.WriteString(renderOptions([]string{"Confirm", "← Back"}, actionCursor))
 	b.WriteString("\n")
@@ -342,7 +322,8 @@ func renderClaudeCustomPhaseList(state ClaudeModelPickerState, cursor int) strin
 	return b.String()
 }
 
-func claudeAliasTag(alias model.ClaudeModelAlias) string {
+// aliasTag returns a styled badge for the alias value.
+func aliasTag(alias model.ClaudeModelAlias) string {
 	switch alias {
 	case model.ClaudeModelOpus:
 		return styles.WarningStyle.Render("[opus]")
@@ -351,4 +332,13 @@ func claudeAliasTag(alias model.ClaudeModelAlias) string {
 	default:
 		return styles.SuccessStyle.Render("[sonnet]")
 	}
+}
+
+// ClaudeModelPickerOptionCount returns the number of navigable options for the screen.
+// Used by model.go's optionCount() method.
+func ClaudeModelPickerOptionCount(state ClaudeModelPickerState) int {
+	if state.InCustomMode {
+		return len(claudePhases) + 2 // phases + Confirm + Back
+	}
+	return len(claudePresetOrder) + 1 // presets + Back
 }

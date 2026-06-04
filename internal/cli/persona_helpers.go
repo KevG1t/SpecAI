@@ -1,7 +1,7 @@
 package cli
 
-import "github.com/KevG1t/SpecAI/internal/model"
+import "github.com/KevG1t/specai/internal/model"
 
-func isArgentinaConversationPersona(persona model.PersonaID) bool {
-	return persona == model.PersonaArgentina
+func isGentlemanConversationPersona(persona model.PersonaID) bool {
+	return persona == model.PersonaGentleman || persona == model.PersonaGentlemanNeutralArtifacts
 }

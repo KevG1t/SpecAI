@@ -1,6 +1,6 @@
 package catalog
 
-import "github.com/KevG1t/SpecAI/internal/model"
+import "github.com/KevG1t/specai/internal/model"
 
 type Agent struct {
 	ID         model.AgentID

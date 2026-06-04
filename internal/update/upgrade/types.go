@@ -3,7 +3,7 @@ package upgrade
 import (
 	"errors"
 
-	"github.com/KevG1t/SpecAI/internal/update"
+	"github.com/KevG1t/specai/internal/update"
 )
 
 // ToolUpgradeStatus describes the outcome of a single tool upgrade attempt.

@@ -1,3 +1,4 @@
+// Package pi provides Pi CLI agent integration.
 package pi
 
 import (
@@ -9,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/versions"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/versions"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 	piMCPAdapterDependency   = "pi-mcp-adapter"
 	piMCPAdapterVersion      = "2.6.0"
 	piMCPAdapterVersionRange = "^2.6.0"
-	piSDDMemoryMCPConfigFile = "mcp.json"
+	piEngramMCPConfigFile    = "mcp.json"
 	piSettingsFile           = "settings.json"
 	piNPMDirectory           = "npm"
 	piNPMPackageFile         = "package.json"
@@ -32,11 +33,13 @@ type statResult struct {
 	err   error
 }
 
+// Adapter implements agents.Adapter for Pi.
 type Adapter struct {
 	lookPath func(string) (string, error)
 	statPath func(string) statResult
 }
 
+// NewAdapter creates a Pi adapter instance.
 func NewAdapter() *Adapter {
 	return &Adapter{
 		lookPath: exec.LookPath,
@@ -68,8 +71,10 @@ func (a *Adapter) SupportsAutoInstall() bool { return true }
 
 func (a *Adapter) InstallCommand(system.PlatformProfile) ([][]string, error) {
 	return [][]string{
+		{"pi", "install", "npm:gentle-pi"},
+		{"pi", "install", "npm:gentle-engram"},
 		{"pi", "install", "npm:pi-mcp-adapter"},
-		a.sddMemoryInitCommand(),
+		a.engramInitCommand(),
 		{"pi", "install", "npm:pi-subagents"},
 		{"pi", "install", "npm:pi-intercom"},
 		{"pi", "install", "npm:@juicesharp/rpiv-ask-user-question"},
@@ -80,11 +85,11 @@ func (a *Adapter) InstallCommand(system.PlatformProfile) ([][]string, error) {
 	}, nil
 }
 
-func (a *Adapter) sddMemoryInitCommand() []string {
+func (a *Adapter) engramInitCommand() []string {
 	if _, err := a.lookPath("pnpm"); err == nil {
-		return []string{"pnpm", "dlx", "specai-sdd-memory@" + versions.SpecAISDDMemory, "pi-sdd-memory", "init"}
+		return []string{"pnpm", "dlx", "gentle-engram@" + versions.GentleEngram, "pi-engram", "init"}
 	}
-	return []string{"npm", "exec", "--yes", "--package", "specai-sdd-memory@" + versions.SpecAISDDMemory, "--", "pi-sdd-memory", "init"}
+	return []string{"npm", "exec", "--yes", "--package", "gentle-engram@" + versions.GentleEngram, "--", "pi-engram", "init"}
 }
 
 func (a *Adapter) GlobalConfigDir(homeDir string) string { return ConfigPath(homeDir) }
@@ -106,7 +111,7 @@ func (a *Adapter) SystemPromptStrategy() model.SystemPromptStrategy {
 func (a *Adapter) MCPStrategy() model.MCPStrategy { return model.StrategyMCPConfigFile }
 
 func (a *Adapter) MCPConfigPath(homeDir string, _ string) string {
-	return filepath.Join(AgentConfigPath(homeDir), piSDDMemoryMCPConfigFile)
+	return filepath.Join(AgentConfigPath(homeDir), piEngramMCPConfigFile)
 }
 
 func (a *Adapter) SupportsOutputStyles() bool { return false }
@@ -129,14 +134,20 @@ func (a *Adapter) SupportsSystemPrompt() bool { return false }
 
 func (a *Adapter) SupportsMCP() bool { return true }
 
+// ConfigPath returns Pi's global config directory path.
 func ConfigPath(homeDir string) string { return filepath.Join(homeDir, ".pi") }
 
+// AgentConfigPath returns Pi's current agent-owned config directory path.
 func AgentConfigPath(homeDir string) string { return filepath.Join(ConfigPath(homeDir), "agent") }
 
-// ProvisionSDDMemoryMCP declares pi-mcp-adapter in Pi's settings.json and
-// package.json. Invoked by ComponentSDDMemory; keeps Pi config shape
-// encapsulated here without teaching the generic injector about Pi internals.
-func (a *Adapter) ProvisionSDDMemoryMCP(homeDir string) (bool, []string, error) {
+// ProvisionEngramMCP declares pi-mcp-adapter in Pi's settings.json and
+// package.json. It is invoked by ComponentEngram; keeping it here lets Pi
+// own the exact config shape without teaching the generic Engram injector
+// about Pi internals.
+//
+// mcp.json is NOT written here. pi-engram init (invoked by InstallCommand)
+// is the sole writer of that file and owns its schema.
+func (a *Adapter) ProvisionEngramMCP(homeDir string) (bool, []string, error) {
 	paths := []string{
 		a.SettingsPath(homeDir),
 		filepath.Join(ConfigPath(homeDir), piNPMDirectory, piNPMPackageFile),

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/components/filemerge"
 )
 
 type jsonPath []string
@@ -135,7 +135,7 @@ func jsonIsEmptyObject(raw []byte) bool {
 
 func cleanCodexTOML(content string) (string, bool) {
 	normalized := strings.ReplaceAll(content, "\r\n", "\n")
-	updated := removeTOMLTable(normalized, "mcp_servers.sdd-memory")
+	updated := removeTOMLTable(normalized, "mcp_servers.engram")
 	updated = removeTopLevelTOMLKeys(updated, "model_instructions_file", "experimental_compact_prompt_file")
 	updated = strings.TrimSpace(updated)
 	if updated != "" {

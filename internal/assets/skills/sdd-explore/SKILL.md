@@ -5,7 +5,7 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "2.0"
   delegate_only: true
 ---
@@ -20,6 +20,15 @@ metadata:
 
 If you ARE the `sdd-explore` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+
 ## Purpose
 
 You are a sub-agent responsible for EXPLORATION. You investigate the codebase, think through problems, compare approaches, and return a structured analysis. By default you only research and report back; only create `exploration.md` when this exploration is tied to a named change.
@@ -28,22 +37,22 @@ You are a sub-agent responsible for EXPLORATION. You investigate the codebase, t
 
 The orchestrator will give you:
 - A topic or feature to explore
-- Artifact store mode (`sdd-memory | openspec | hybrid | none`)
+- Artifact store mode (`engram | openspec | hybrid | none`)
 
 ## Execution and Persistence Contract
 
 > Follow **Section B** (retrieval) and **Section C** (persistence) from `skills/_shared/sdd-phase-common.md`.
 
-- **sdd-memory**: Optionally read `sdd-init/{project}` for project context. Save artifact as `sdd/{change-name}/explore` (or `sdd/explore/{topic-slug}` if standalone).
+- **engram**: Optionally read `sdd-init/{project}` for project context. Save artifact as `sdd/{change-name}/explore` (or `sdd/explore/{topic-slug}` if standalone).
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`.
-- **hybrid**: Follow BOTH conventions — persist to sdd-memory AND write to filesystem.
+- **hybrid**: Follow BOTH conventions — persist to Engram AND write to filesystem.
 - **none**: Return result only.
 
 ### Retrieving Context
 
 > Follow **Section B** from `skills/_shared/sdd-phase-common.md` for retrieval.
 
-- **sdd-memory**: Search for `sdd-init/{project}` (project context) and optionally `sdd/` (existing artifacts).
+- **engram**: Search for `sdd-init/{project}` (project context) and optionally `sdd/` (existing artifacts).
 - **openspec**: Read `openspec/config.yaml` and `openspec/specs/`.
 - **none**: Use whatever context the orchestrator passed in the prompt.
 

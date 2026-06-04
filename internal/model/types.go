@@ -20,7 +20,7 @@ const (
 	AgentTrae          AgentID = "trae-ide"
 )
 
-// SupportTier indicates how fully an agent supports the SpecAI ecosystem.
+// SupportTier indicates how fully an agent supports the Gentleman AI ecosystem.
 // All current agents receive the full SDD orchestrator, skill files, MCP config,
 // and system prompt injection. The tier is kept as metadata for display purposes.
 type SupportTier string
@@ -34,17 +34,16 @@ const (
 type ComponentID string
 
 const (
-	ComponentSDDMemory          ComponentID = "sdd-memory"
+	ComponentEngram             ComponentID = "engram"
 	ComponentSDD                ComponentID = "sdd"
 	ComponentSkills             ComponentID = "skills"
 	ComponentContext7           ComponentID = "context7"
 	ComponentPersona            ComponentID = "persona"
 	ComponentPermission         ComponentID = "permissions"
+	ComponentGGA                ComponentID = "gga"
 	ComponentTheme              ComponentID = "theme"
 	ComponentClaudeTheme        ComponentID = "claude-theme"
-	ComponentOpenCodeArgentinaLogo ComponentID = "opencode-argentina-logo"
-	ComponentNotion                ComponentID = "notion"
-	ComponentJira                  ComponentID = "jira"
+	ComponentOpenCodeGentleLogo ComponentID = "opencode-gentle-logo"
 )
 
 type UninstallMode string
@@ -56,11 +55,11 @@ const (
 	UninstallModeCleanInstall UninstallMode = "clean-install"
 )
 
-type SDDMemoryUninstallScope string
+type EngramUninstallScope string
 
 const (
-	SDDMemoryUninstallScopeGlobal  SDDMemoryUninstallScope = "global"
-	SDDMemoryUninstallScopeProject SDDMemoryUninstallScope = "project"
+	EngramUninstallScopeGlobal  EngramUninstallScope = "global"
+	EngramUninstallScopeProject EngramUninstallScope = "project"
 )
 
 type SkillID string
@@ -76,16 +75,7 @@ const (
 	SkillSDDTasks        SkillID = "sdd-tasks"
 	SkillSDDArchive      SkillID = "sdd-archive"
 	SkillSDDOnboard      SkillID = "sdd-onboard"
-	SkillGoTesting          SkillID = "go-testing"
-	SkillTypeScript          SkillID = "typescript"
-	SkillClaudeDevPlatform   SkillID = "claude-developer-platform"
-	SkillReact19             SkillID = "react-19"
-	SkillNextjs15            SkillID = "nextjs-15"
-	SkillTailwind4           SkillID = "tailwind-4"
-	SkillZod4                SkillID = "zod-4"
-	SkillAiSdk5              SkillID = "ai-sdk-5"
-	SkillPlaywright          SkillID = "playwright"
-	SkillPytest              SkillID = "pytest"
+	SkillGoTesting       SkillID = "go-testing"
 	SkillCreator         SkillID = "skill-creator"
 	SkillImprover        SkillID = "skill-improver"
 	SkillJudgmentDay     SkillID = "judgment-day"
@@ -101,10 +91,10 @@ const (
 type PersonaID string
 
 const (
-	PersonaArgentina PersonaID = "argentina"
-	PersonaNicaragua PersonaID = "nicaragua"
-	PersonaNeutral   PersonaID = "neutral"
-	PersonaCustom    PersonaID = "custom"
+	PersonaGentleman                 PersonaID = "gentleman"
+	PersonaGentlemanNeutralArtifacts PersonaID = "gentleman-neutral-artifacts"
+	PersonaNeutral                   PersonaID = "neutral"
+	PersonaCustom                    PersonaID = "custom"
 )
 
 // SystemPromptStrategy defines how an agent's system prompt file is managed.
@@ -146,7 +136,7 @@ const (
 type PresetID string
 
 const (
-	PresetFull PresetID = "full"
+	PresetFullGentleman PresetID = "full-gentleman"
 	PresetEcosystemOnly PresetID = "ecosystem-only"
 	PresetMinimal       PresetID = "minimal"
 	PresetCustom        PresetID = "custom"
@@ -177,8 +167,8 @@ type OpenCodeCommunityPluginID string
 
 const (
 	OpenCodePluginSubAgentStatusline OpenCodeCommunityPluginID = "sub-agent-statusline"
-	OpenCodePluginSDDMemoryManage    OpenCodeCommunityPluginID = "sdd-memory-plugin"
-	OpenCodePluginArgentinaLogo OpenCodeCommunityPluginID = "argentina-logo"
+	OpenCodePluginSDDEngramManage    OpenCodeCommunityPluginID = "sdd-engram-plugin"
+	OpenCodePluginGentleLogo         OpenCodeCommunityPluginID = "gentle-logo"
 )
 
 // Profile represents a named SDD orchestrator configuration with model assignments.

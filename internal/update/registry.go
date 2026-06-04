@@ -31,16 +31,51 @@ var Tools = []ToolInfo{
 		DetectCmd:         []string{"sdd-memory", "version"},
 		VersionPrefix:     "v",
 		ReleaseTagPattern: `^v[0-9]+\.[0-9]+\.[0-9]+$`,
-		InstallMethod:     InstallBinary,
+		// sdd-memory: brew on macOS/Linux-brew, binary download elsewhere.
+		InstallMethod: InstallBinary,
+		// FallbackPaths covers the Windows stale-PATH scenario (and Linux ~/.local/bin
+		// when not yet in PATH): AddToUserPath updates the registry/profile but the
+		// current process does not see the change until a new shell session starts.
 		FallbackPaths: func(homeDir, localAppData string) []string {
 			var paths []string
+			// Windows: %LOCALAPPDATA%\sdd-memory\bin\sdd-memory.exe
 			if localAppData != "" {
 				paths = append(paths, filepath.Join(localAppData, "sdd-memory", "bin", "sdd-memory.exe"))
 			} else if homeDir != "" {
+				// LOCALAPPDATA is not set (e.g. restricted environment or CI on Windows).
+				// Derive the standard path from homeDir for parity with the installer.
 				paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "sdd-memory", "bin", "sdd-memory.exe"))
 			}
+			// Linux/macOS: ~/.local/bin/sdd-memory (when /usr/local/bin is not writable,
+			// the binary installer places it here, which may not be in PATH yet).
 			if homeDir != "" {
 				paths = append(paths, filepath.Join(homeDir, ".local", "bin", "sdd-memory"))
+			}
+			return paths
+		},
+	},
+	{
+		Name:          "gga",
+		Owner:         "Gentleman-Programming",
+		Repo:          "gentleman-guardian-angel",
+		DetectCmd:     []string{"gga", "--version"},
+		VersionPrefix: "v",
+		// gga: brew on macOS, install.sh script on Linux/Windows.
+		// GGA does not publish pre-built release binary assets — only source archives.
+		// Using InstallScript runs curl | bash via the project's install.sh.
+		InstallMethod: InstallScript,
+		// FallbackPaths covers the Windows stale-PATH scenario: gga installs a
+		// PowerShell shim to ~/bin/gga.ps1, and the bash script to ~/.local/bin/gga.
+		// Both locations may not be in PATH immediately after install.
+		FallbackPaths: func(homeDir, localAppData string) []string {
+			var paths []string
+			if homeDir != "" {
+				// Windows: ~/bin/gga.ps1 (PowerShell shim, callable as "gga" in PS)
+				paths = append(paths, filepath.Join(homeDir, "bin", "gga.ps1"))
+				// Linux/macOS: ~/.local/bin/gga
+				paths = append(paths, filepath.Join(homeDir, ".local", "bin", "gga"))
+				// Linux/macOS: ~/bin/gga
+				paths = append(paths, filepath.Join(homeDir, "bin", "gga"))
 			}
 			return paths
 		},

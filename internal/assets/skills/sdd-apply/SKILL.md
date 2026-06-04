@@ -6,7 +6,7 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "3.0"
   delegate_only: true
 ---
@@ -21,6 +21,15 @@ metadata:
 
 If you ARE the `sdd-apply` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+
 ## Purpose
 
 You are a sub-agent responsible for IMPLEMENTATION. You receive specific tasks from `tasks.md` and implement them by writing actual code. You follow the specs and design strictly.
@@ -30,16 +39,16 @@ You are a sub-agent responsible for IMPLEMENTATION. You receive specific tasks f
 From the orchestrator:
 - Change name
 - The specific task(s) to implement (e.g., "Phase 1, tasks 1.1-1.3")
-- Artifact store mode (`sdd-memory | openspec | hybrid | none`)
+- Artifact store mode (`engram | openspec | hybrid | none`)
 - Delivery strategy and resolved workload decision (`ask-on-risk | auto-chain | single-pr | exception-ok`, plus PR slice or `size:exception` when applicable)
 
 ## Execution and Persistence Contract
 
 > Follow **Section B** (retrieval) and **Section C** (persistence) from `skills/_shared/sdd-phase-common.md`.
 
-- **sdd-memory**: Read `sdd/{change-name}/proposal`, `sdd/{change-name}/spec`, `sdd/{change-name}/design`, `sdd/{change-name}/tasks` (all required — keep tasks ID for updates). Mark tasks complete via `mem_update(id: {tasks-observation-id}, content: "...")`. Save progress as `sdd/{change-name}/apply-progress`.
+- **engram**: Read `sdd/{change-name}/proposal`, `sdd/{change-name}/spec`, `sdd/{change-name}/design`, `sdd/{change-name}/tasks` (all required — keep tasks ID for updates). Mark tasks complete via `mem_update(id: {tasks-observation-id}, content: "...")`. Save progress as `sdd/{change-name}/apply-progress`.
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`. Update `tasks.md` with `[x]` marks.
-- **hybrid**: Follow BOTH conventions — persist progress to sdd-memory (`mem_update` for tasks) AND update `tasks.md` with `[x]` marks on filesystem.
+- **hybrid**: Follow BOTH conventions — persist progress to Engram (`mem_update` for tasks) AND update `tasks.md` with `[x]` marks on filesystem.
 - **none**: Return progress only. Do not update project artifacts.
 
 ## What to Do
@@ -95,7 +104,7 @@ Read the cached testing capabilities to determine implementation mode:
 
 ```
 Read testing capabilities from:
-├── sdd-memory: mem_search("sdd/{project}/testing-capabilities") → mem_get_observation(id)
+├── engram: mem_search("sdd/{project}/testing-capabilities") → mem_get_observation(id)
 ├── openspec: openspec/config.yaml → strict_tdd + testing section
 └── Fallback: check project files directly (package.json, go.mod, etc.)
 
@@ -157,7 +166,7 @@ Follow **Section C** from `skills/_shared/sdd-phase-common.md`.
 - artifact: `apply-progress`
 - topic_key: `sdd/{change-name}/apply-progress`
 - type: `architecture`
-- Also update the tasks artifact with `[x]` marks via `mem_update` (sdd-memory) or file edit (openspec/hybrid).
+- Also update the tasks artifact with `[x]` marks via `mem_update` (engram) or file edit (openspec/hybrid).
 
 #### Merge Protocol
 
@@ -237,7 +246,7 @@ disable-model-invocation: true
 user-invocable: false
 license: MIT
 metadata:
-  author: kevg1t
+  author: gentleman-programming
   version: "3.0"
   delegate_only: true
 ---
@@ -264,7 +273,7 @@ You are an IMPLEMENTER sub-agent. You receive specific tasks and implement them 
 4. Read only files explicitly referenced by the task (max 3 files)
 5. Implement code changes — minimal, localized edits
 6. Persist progress:
-   - `sdd-memory`: `mem_save` or `mem_update` for `sdd/{change-name}/apply-progress`
+   - `engram`: `mem_save` or `mem_update` for `sdd/{change-name}/apply-progress`
    - `openspec`: mark tasks.md checkboxes
    - `hybrid`: both
 7. Return short summary: files changed list, completed tasks, blocked items.
