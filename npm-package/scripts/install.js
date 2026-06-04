@@ -4,140 +4,73 @@
 /**
  * Postinstall script for spec-ai.
  *
- * Downloads the correct platform binary from the latest GitHub Release into
- * the dist/ directory. Sets the executable bit on Unix platforms.
- * Uses only Node.js built-in modules — no external npm dependencies.
+ * The platform binary ships INSIDE the npm tarball under dist/ — it is
+ * extracted by the GitHub Actions release workflow before `npm publish` runs.
+ * This script does NOT download anything at install time.
+ *
+ * What it does:
+ *   1. Detect the current platform via detect-platform.js.
+ *   2. Locate the matching binary already present in dist/.
+ *   3. On POSIX, chmod 0o755 that binary so it is executable.
+ *
+ * On any failure (unsupported platform, missing binary, chmod error) the
+ * script prints a WARNING to stderr and exits 0. Postinstall must be
+ * non-fatal — bin/spec-ai.js already has a PATH fallback.
+ *
+ * Uses only Node.js built-in modules.
  */
 
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 const { detectPlatform } = require('./detect-platform');
 
-const REPO_OWNER = 'KevG1t';
-const REPO_NAME = 'SpecAI';
 const DIST_DIR = path.join(__dirname, '..', 'dist');
-
-/**
- * Follows HTTP redirects and returns the final response.
- * Handles GitHub's redirect chain (API → CDN).
- *
- * @param {string} url
- * @returns {Promise<import('http').IncomingMessage>}
- */
-function getFollowingRedirects(url) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      headers: {
-        'User-Agent': 'spec-ai-npm-installer',
-        Accept: 'application/octet-stream',
-      },
-    };
-
-    const request = https.get(url, options, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) {
-        const location = res.headers.location;
-        if (!location) {
-          reject(new Error(`Redirect received without Location header from ${url}`));
-          return;
-        }
-        // Drain the redirect response body before following.
-        res.resume();
-        resolve(getFollowingRedirects(location));
-        return;
-      }
-      resolve(res);
-    });
-
-    request.on('error', reject);
-  });
-}
-
-/**
- * Downloads a binary from a URL and writes it to outputPath.
- *
- * @param {string} url
- * @param {string} outputPath
- * @returns {Promise<void>}
- */
-function downloadBinary(url, outputPath) {
-  return new Promise((resolve, reject) => {
-    getFollowingRedirects(url)
-      .then((res) => {
-        if (res.statusCode !== 200) {
-          res.resume();
-          reject(new Error(`Download failed: HTTP ${res.statusCode} for ${url}`));
-          return;
-        }
-
-        const file = fs.createWriteStream(outputPath);
-        res.pipe(file);
-
-        file.on('finish', () => {
-          file.close();
-          resolve();
-        });
-
-        file.on('error', (err) => {
-          fs.unlink(outputPath, () => {});
-          reject(err);
-        });
-
-        res.on('error', (err) => {
-          fs.unlink(outputPath, () => {});
-          reject(err);
-        });
-      })
-      .catch(reject);
-  });
-}
 
 /**
  * Main postinstall entry point.
  */
-async function install() {
+function install() {
+  // 1. Detect platform.
   let platformKey;
   try {
     platformKey = detectPlatform();
   } catch (err) {
-    console.error(`spec-ai: skipping binary download — ${err.message}`);
+    process.stderr.write(
+      `spec-ai WARNING: unsupported platform — ${err.message}\n` +
+      'The CLI will fall back to the system PATH binary named "specai".\n'
+    );
     process.exit(0);
   }
 
+  // 2. Locate the bundled binary in dist/.
   const isWindows = platformKey.startsWith('windows');
   const binaryName = isWindows ? `specai-${platformKey}.exe` : `specai-${platformKey}`;
-  const binaryUrl =
-    `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/${binaryName}`;
-  const outputPath = path.join(DIST_DIR, binaryName);
+  const binaryPath = path.join(DIST_DIR, binaryName);
 
-  // Ensure the dist directory exists.
-  if (!fs.existsSync(DIST_DIR)) {
-    fs.mkdirSync(DIST_DIR, { recursive: true });
-  }
-
-  console.log(`spec-ai: downloading ${binaryName} from GitHub Releases...`);
-
-  try {
-    await downloadBinary(binaryUrl, outputPath);
-  } catch (err) {
-    console.error(`spec-ai: download failed — ${err.message}`);
-    console.error(
-      'You can install manually: ' +
-      `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`
+  if (!fs.existsSync(binaryPath)) {
+    process.stderr.write(
+      `spec-ai WARNING: expected bundled binary not found at ${binaryPath}\n` +
+      'This usually means the package was installed from a source checkout rather\n' +
+      'than the published npm tarball. The CLI will fall back to the system PATH\n' +
+      'binary named "specai".\n'
     );
-    process.exit(1);
+    process.exit(0);
   }
 
-  // Set executable bit on Unix platforms.
+  // 3. On POSIX, set the executable bit.
   if (!isWindows) {
     try {
-      fs.chmodSync(outputPath, 0o755);
+      fs.chmodSync(binaryPath, 0o755);
     } catch (err) {
-      console.warn(`spec-ai: could not set executable bit on ${outputPath}: ${err.message}`);
+      process.stderr.write(
+        `spec-ai WARNING: could not set executable bit on ${binaryPath}: ${err.message}\n` +
+        'The CLI may not be executable. Try: chmod 755 ' + binaryPath + '\n'
+      );
+      process.exit(0);
     }
   }
 
-  console.log(`spec-ai: installed to ${outputPath}`);
+  console.log(`spec-ai: binary ready at ${binaryPath}`);
 }
 
 install();
