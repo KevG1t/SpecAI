@@ -15,42 +15,6 @@ import (
 	"github.com/KevG1t/specai/internal/update"
 )
 
-// --- TestRunStrategy_BrewUpgrade ---
-
-func TestRunStrategy_BrewUpgrade(t *testing.T) {
-	origExecCommand := execCommand
-	t.Cleanup(func() { execCommand = origExecCommand })
-
-	var gotName string
-	var gotArgs []string
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		gotName = name
-		gotArgs = args
-		return mockCmd("echo", "Upgraded sdd-memory")
-	}
-
-	r := update.UpdateResult{
-		Tool: update.ToolInfo{
-			Name:          "sdd-memory",
-			InstallMethod: update.InstallBrew,
-		},
-		LatestVersion: "0.4.0",
-	}
-	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew"}
-
-	err := runStrategy(context.Background(), r, profile)
-	if err != nil {
-		t.Fatalf("runStrategy brew: unexpected error: %v", err)
-	}
-
-	if gotName != "brew" {
-		t.Errorf("exec name = %q, want %q", gotName, "brew")
-	}
-	if len(gotArgs) < 2 || gotArgs[0] != "upgrade" || gotArgs[1] != "sdd-memory" {
-		t.Errorf("exec args = %v, want [upgrade sdd-memory]", gotArgs)
-	}
-}
-
 // --- TestRunStrategy_GoInstallUpgrade ---
 
 func TestRunStrategy_GoInstallUpgrade(t *testing.T) {
@@ -128,31 +92,6 @@ func TestRunStrategy_UnsupportedMethodManualFallback(t *testing.T) {
 	}
 }
 
-// --- TestRunStrategy_BrewUpgradeFailure ---
-
-func TestRunStrategy_BrewUpgradeFailure(t *testing.T) {
-	origExecCommand := execCommand
-	t.Cleanup(func() { execCommand = origExecCommand })
-
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		return mockCmd("false") // always fails
-	}
-
-	r := update.UpdateResult{
-		Tool: update.ToolInfo{
-			Name:          "sdd-memory",
-			InstallMethod: update.InstallBrew,
-		},
-		LatestVersion: "0.4.0",
-	}
-	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew"}
-
-	err := runStrategy(context.Background(), r, profile)
-	if err == nil {
-		t.Errorf("expected error when brew upgrade fails, got nil")
-	}
-}
-
 // --- TestRunStrategy_GoInstallFailure ---
 
 func TestRunStrategy_GoInstallFailure(t *testing.T) {
@@ -225,24 +164,6 @@ func TestEffectiveMethod(t *testing.T) {
 		want    update.InstallMethod
 	}{
 		{
-			name:    "brew profile overrides go-install",
-			tool:    update.ToolInfo{Name: "sdd-memory", InstallMethod: update.InstallGoInstall},
-			profile: system.PlatformProfile{PackageManager: "brew"},
-			want:    update.InstallBrew,
-		},
-		{
-			name:    "brew profile overrides binary",
-			tool:    update.ToolInfo{Name: "script-tool", InstallMethod: update.InstallBinary},
-			profile: system.PlatformProfile{PackageManager: "brew"},
-			want:    update.InstallBrew,
-		},
-		{
-			name:    "brew profile overrides script",
-			tool:    update.ToolInfo{Name: "script-tool", InstallMethod: update.InstallScript},
-			profile: system.PlatformProfile{PackageManager: "brew"},
-			want:    update.InstallBrew,
-		},
-		{
 			name:    "apt profile respects declared method (go-install)",
 			tool:    update.ToolInfo{Name: "sdd-memory", InstallMethod: update.InstallGoInstall},
 			profile: system.PlatformProfile{PackageManager: "apt"},
@@ -261,26 +182,20 @@ func TestEffectiveMethod(t *testing.T) {
 			want:    update.InstallScript,
 		},
 		{
-			name:    "brew profile does not override OpenCode plugin method",
+			name:    "OpenCode plugin method is never overridden",
 			tool:    update.ToolInfo{Name: "opencode-subagent-statusline", InstallMethod: update.InstallOpenCodePlugin, NpmPackage: "opencode-subagent-statusline"},
-			profile: system.PlatformProfile{PackageManager: "brew"},
+			profile: system.PlatformProfile{PackageManager: "apt"},
 			want:    update.InstallOpenCodePlugin,
 		},
-		// Auto-detect order: brew → go-install → binary (issue #246).
+		// Auto-detect order: go-install (when Go + GoImportPath available) → binary.
 		{
-			name:    "auto-detect: brew available → brew wins regardless of GoImportPath",
-			tool:    update.ToolInfo{Name: "mytool", InstallMethod: update.InstallBinary, GoImportPath: "github.com/example/mytool/cmd/mytool"},
-			profile: system.PlatformProfile{PackageManager: "brew", GoAvailable: true},
-			want:    update.InstallBrew,
-		},
-		{
-			name:    "auto-detect: brew missing + go available + GoImportPath set → go-install",
+			name:    "auto-detect: go available + GoImportPath set → go-install",
 			tool:    update.ToolInfo{Name: "mytool", InstallMethod: update.InstallBinary, GoImportPath: "github.com/example/mytool/cmd/mytool"},
 			profile: system.PlatformProfile{PackageManager: "apt", GoAvailable: true},
 			want:    update.InstallGoInstall,
 		},
 		{
-			name:    "auto-detect: brew missing + go missing + GoImportPath set → binary fallback",
+			name:    "auto-detect: go missing + GoImportPath set → binary fallback",
 			tool:    update.ToolInfo{Name: "mytool", InstallMethod: update.InstallBinary, GoImportPath: "github.com/example/mytool/cmd/mytool"},
 			profile: system.PlatformProfile{PackageManager: "apt", GoAvailable: false},
 			want:    update.InstallBinary,
@@ -623,124 +538,6 @@ func containsAny(s string, subs ...string) bool {
 	return false
 }
 
-// --- TestBrewUpgrade_RunsUpdateBeforeUpgrade ---
-
-// TestBrewUpgrade_RunsUpdateBeforeUpgrade verifies that brewUpgrade calls
-// `brew update` BEFORE `brew upgrade <toolName>`, and that the order is correct.
-func TestBrewUpgrade_RunsUpdateBeforeUpgrade(t *testing.T) {
-	origExecCommand := execCommand
-	t.Cleanup(func() { execCommand = origExecCommand })
-
-	var callOrder []string
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "brew" && len(args) > 0 {
-			callOrder = append(callOrder, args[0]) // "update" or "upgrade"
-		}
-		return mockCmd("echo", "ok")
-	}
-
-	err := brewUpgrade(context.Background(), "specai")
-	if err != nil {
-		t.Fatalf("brewUpgrade: unexpected error: %v", err)
-	}
-
-	// Must have called brew tap, brew update AND brew upgrade — in that order.
-	if len(callOrder) < 3 {
-		t.Fatalf("expected 3 brew calls (tap, update, upgrade), got %d: %v", len(callOrder), callOrder)
-	}
-	if callOrder[1] != "update" {
-		t.Errorf("second brew call = %q, want %q", callOrder[1], "update")
-	}
-	if callOrder[2] != "upgrade" {
-		t.Errorf("third brew call = %q, want %q", callOrder[2], "upgrade")
-	}
-}
-
-// --- TestBrewUpgrade_UpdateFailureIsNonFatal ---
-
-// TestBrewUpgrade_UpdateFailureIsNonFatal verifies that when `brew update` fails
-// but `brew upgrade` succeeds, the overall result is success (non-fatal update failure).
-func TestBrewUpgrade_UpdateFailureIsNonFatal(t *testing.T) {
-	origExecCommand := execCommand
-	t.Cleanup(func() { execCommand = origExecCommand })
-
-	var callArgs []string
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "brew" && len(args) > 0 {
-			callArgs = append(callArgs, args[0])
-			if args[0] == "update" {
-				// brew update fails (e.g. no network).
-				return mockCmd("false")
-			}
-		}
-		// brew upgrade succeeds.
-		return mockCmd("echo", "Upgraded specai")
-	}
-
-	err := brewUpgrade(context.Background(), "specai")
-	// brew update failed but brew upgrade succeeded → overall success.
-	if err != nil {
-		t.Errorf("expected success when brew update fails but brew upgrade succeeds, got: %v", err)
-	}
-
-	// Both brew update and brew upgrade must have been called (after the tap).
-	if len(callArgs) < 3 {
-		t.Fatalf("expected 3 brew calls, got %d: %v", len(callArgs), callArgs)
-	}
-	if callArgs[1] != "update" {
-		t.Errorf("second brew call = %q, want %q", callArgs[1], "update")
-	}
-	if callArgs[2] != "upgrade" {
-		t.Errorf("third brew call = %q, want %q", callArgs[2], "upgrade")
-	}
-}
-
-// --- TestBrewUpgrade_TapsBeforeUpdateAndUpgrade ---
-
-// TestBrewUpgrade_TapsBeforeUpdateAndUpgrade verifies that brewUpgrade calls
-// `brew tap KevG1t/homebrew-tap` BEFORE `brew update` and
-// `brew upgrade <toolName>`. This makes the upgrade idempotent when a user
-// has lost the tap (untap, machine swap, brew cleanup). See issue #455.
-func TestBrewUpgrade_TapsBeforeUpdateAndUpgrade(t *testing.T) {
-	origExecCommand := execCommand
-	t.Cleanup(func() { execCommand = origExecCommand })
-
-	type call struct {
-		subcommand string
-		arg        string
-	}
-	var calls []call
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		if name == "brew" && len(args) > 0 {
-			c := call{subcommand: args[0]}
-			if len(args) > 1 {
-				c.arg = args[1]
-			}
-			calls = append(calls, c)
-		}
-		return mockCmd("echo", "ok")
-	}
-
-	if err := brewUpgrade(context.Background(), "sdd-memory"); err != nil {
-		t.Fatalf("brewUpgrade: unexpected error: %v", err)
-	}
-
-	if len(calls) < 3 {
-		t.Fatalf("expected 3 brew calls (tap, update, upgrade), got %d: %+v", len(calls), calls)
-	}
-	if calls[0].subcommand != "tap" {
-		t.Errorf("first brew call subcommand = %q, want %q", calls[0].subcommand, "tap")
-	}
-	if calls[0].arg != "KevG1t/homebrew-tap" {
-		t.Errorf("first brew call arg = %q, want %q", calls[0].arg, "KevG1t/homebrew-tap")
-	}
-	if calls[1].subcommand != "update" {
-		t.Errorf("second brew call = %q, want %q", calls[1].subcommand, "update")
-	}
-	if calls[2].subcommand != "upgrade" {
-		t.Errorf("third brew call = %q, want %q", calls[2].subcommand, "upgrade")
-	}
-}
 
 // --- verify exec.Cmd.Run() failure is correctly wrapped ---
 func TestRunStrategy_ExecErrorWrapped(t *testing.T) {
@@ -754,11 +551,12 @@ func TestRunStrategy_ExecErrorWrapped(t *testing.T) {
 	r := update.UpdateResult{
 		Tool: update.ToolInfo{
 			Name:          "sdd-memory",
-			InstallMethod: update.InstallBrew,
+			InstallMethod: update.InstallGoInstall,
+			GoImportPath:  "github.com/KevG1t/sdd-memory/cmd/sdd-memory",
 		},
 		LatestVersion: "0.4.0",
 	}
-	profile := system.PlatformProfile{OS: "darwin", PackageManager: "brew"}
+	profile := system.PlatformProfile{OS: "darwin", PackageManager: "apt"}
 
 	err := runStrategy(context.Background(), r, profile)
 	if err == nil {

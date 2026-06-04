@@ -42,7 +42,6 @@ const maxScriptSize = 1 * 1024 * 1024 // 1 MB
 // for the given platform profile.
 //
 // Strategy routing:
-//   - brew profile → brewUpgrade (regardless of tool's declared method)
 //   - go-install method + apt/pacman/other → goInstallUpgrade
 //   - binary method + linux/darwin → binaryUpgrade
 //   - binary method + windows → manualFallback (Phase 1: self-replace deferred)
@@ -54,8 +53,6 @@ func runStrategy(ctx context.Context, r update.UpdateResult, profile system.Plat
 	method := effectiveMethod(r.Tool, profile)
 
 	switch method {
-	case update.InstallBrew:
-		return brewUpgrade(ctx, r.Tool.Name)
 	case update.InstallGoInstall:
 		return goInstallUpgrade(ctx, r.Tool, r.LatestVersion)
 	case update.InstallBinary:
@@ -272,36 +269,6 @@ func openCodePluginManualHint(r update.UpdateResult) string {
 
 func openCodePluginRegisteredPendingHint(pkg string) string {
 	return fmt.Sprintf("OpenCode plugin %s is registered in ~/.config/opencode/tui.json but is not materialized in node_modules yet. Restart or reload OpenCode to materialize it; if it remains pending, check OpenCode logs for package or peer dependency errors before retrying upgrade.", pkg)
-}
-
-// brewUpgrade runs `brew update` (non-fatal) then `brew upgrade <toolName>`.
-//
-// brew update refreshes the local formula cache so that Homebrew is aware of
-// new versions published since the user last ran it. If update fails (e.g. no
-// network), the upgrade is still attempted using the existing cache — a stale
-// cache is better than no upgrade at all.
-func brewUpgrade(ctx context.Context, toolName string) error {
-	// Ensure the KevG1t homebrew tap is present before upgrading.
-	// Non-fatal: brew tap is a no-op when already present; if it fails for any other
-	// reason, the subsequent brew upgrade will surface the real error. See issue #455:
-	// without this, a lost tap (untap, machine swap, brew cleanup) makes upgrades fail
-	// with "No available formula" for sdd-memory/specai.
-	tapCmd := execCommand("brew", "tap", "KevG1t/homebrew-tap")
-	tapCmd.Stdin = nil
-	_ = tapCmd.Run()
-
-	// Update Homebrew formula cache before upgrading.
-	// Non-fatal: if update fails (e.g. no network), attempt upgrade with existing cache.
-	updateCmd := execCommand("brew", "update")
-	updateCmd.Stdin = nil
-	_ = updateCmd.Run() // ignore error intentionally
-
-	upgradeCmd := execCommand("brew", "upgrade", toolName)
-	upgradeCmd.Stdin = nil
-	if out, err := upgradeCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("brew upgrade %s: %w (output: %s)", toolName, err, string(out))
-	}
-	return nil
 }
 
 // goInstallUpgrade runs `go install <importPath>@v<version>`.

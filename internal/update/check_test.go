@@ -780,7 +780,7 @@ func TestUpdateHint(t *testing.T) {
 			name:    "specai macOS",
 			tool:    ToolInfo{Name: "specai"},
 			profile: system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			want:    "brew upgrade specai",
+			want:    "npm install -g spec-ai",
 		},
 		{
 			name:    "specai linux",
@@ -795,10 +795,10 @@ func TestUpdateHint(t *testing.T) {
 			want:    "irm https://raw.githubusercontent.com/KevG1t/SpecAI/main/scripts/install.ps1 | iex",
 		},
 		{
-			name:    "sdd-memory macOS brew",
+			name:    "sdd-memory macOS",
 			tool:    ToolInfo{Name: "sdd-memory"},
 			profile: system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			want:    "brew upgrade sdd-memory",
+			want:    "specai upgrade (downloads pre-built binary)",
 		},
 		{
 			name:    "sdd-memory linux",

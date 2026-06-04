@@ -23,7 +23,6 @@ const (
 type InstallMethod string
 
 const (
-	InstallBrew      InstallMethod = "brew"
 	InstallGoInstall InstallMethod = "go-install"
 	InstallBinary    InstallMethod = "binary"
 	// InstallScript downloads and executes the project's install.sh via pipe.

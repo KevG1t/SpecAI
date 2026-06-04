@@ -575,19 +575,15 @@ func executeOne(ctx context.Context, r update.UpdateResult, profile system.Platf
 }
 
 // effectiveMethod resolves the actual upgrade strategy for a tool on a given platform.
-// Priority order matches the documented install hierarchy: brew → go-install → binary.
+// Priority order: go-install (when Go is available and GoImportPath is set) → binary.
 //
 //  1. OpenCode plugins are always handled by their own method — never overridden.
-//  2. Brew-managed platforms always use brew regardless of the tool's declared method.
-//  3. When Go is available on PATH and the tool has a GoImportPath, go-install is
+//  2. When Go is available on PATH and the tool has a GoImportPath, go-install is
 //     preferred over a direct binary download.
-//  4. Otherwise the tool's declared InstallMethod is used as-is.
+//  3. Otherwise the tool's declared InstallMethod is used as-is.
 func effectiveMethod(tool update.ToolInfo, profile system.PlatformProfile) update.InstallMethod {
 	if tool.InstallMethod == update.InstallOpenCodePlugin {
 		return update.InstallOpenCodePlugin
-	}
-	if profile.PackageManager == "brew" {
-		return update.InstallBrew
 	}
 	if profile.GoAvailable && tool.GoImportPath != "" {
 		return update.InstallGoInstall
