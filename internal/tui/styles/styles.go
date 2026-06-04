@@ -2,21 +2,21 @@ package styles
 
 import "github.com/charmbracelet/lipgloss"
 
-// Rose Pine color palette.
+// Gemini CLI color palette.
 var (
-	ColorBase     = lipgloss.Color("#191724")
-	ColorSurface  = lipgloss.Color("#1f1d2e")
-	ColorOverlay  = lipgloss.Color("#6e6a86")
-	ColorText     = lipgloss.Color("#e0def4")
-	ColorSubtext  = lipgloss.Color("#908caa")
-	ColorLavender = lipgloss.Color("#c4a7e7")
-	ColorGreen    = lipgloss.Color("#9ccfd8")
-	ColorPeach    = lipgloss.Color("#f6c177")
-	ColorRed      = lipgloss.Color("#eb6f92")
-	ColorBlue     = lipgloss.Color("#31748f")
-	ColorMauve    = lipgloss.Color("#ebbcba")
-	ColorYellow   = lipgloss.Color("#f1ca93")
-	ColorTeal     = lipgloss.Color("#9ccfd8")
+	ColorBase     = lipgloss.Color("#0D0D0D")
+	ColorSurface  = lipgloss.Color("#161616")
+	ColorOverlay  = lipgloss.Color("#4B4B4B")
+	ColorText     = lipgloss.Color("#E8EAED")
+	ColorSubtext  = lipgloss.Color("#9AA0A6")
+	ColorLavender = lipgloss.Color("#8AB4F8")
+	ColorGreen    = lipgloss.Color("#34A853")
+	ColorPeach    = lipgloss.Color("#FBBC04")
+	ColorRed      = lipgloss.Color("#EA4335")
+	ColorBlue     = lipgloss.Color("#4796E4")
+	ColorMauve    = lipgloss.Color("#EC4899")
+	ColorYellow   = lipgloss.Color("#FBBC04")
+	ColorTeal     = lipgloss.Color("#8B5CF6")
 )
 
 // Cursor is the prefix used for the currently focused item.
