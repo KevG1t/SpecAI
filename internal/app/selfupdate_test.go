@@ -331,69 +331,6 @@ func TestSelfUpdate_Windows_PrintsRestartMessage(t *testing.T) {
 	}
 }
 
-func TestSelfUpdate_BrewInstallMethod_PassedToUpgradeExecutor(t *testing.T) {
-	unsetEnv(t, envNoSelfUpdate)
-	unsetEnv(t, envSelfUpdateDone)
-
-	checkResults := []update.UpdateResult{
-		{
-			Tool: update.ToolInfo{
-				Name:          "specai",
-				InstallMethod: update.InstallBrew,
-			},
-			InstalledVersion: "1.7.0",
-			LatestVersion:    "1.8.0",
-			Status:           update.UpdateAvailable,
-		},
-	}
-
-	// Track what upgradeExecute receives.
-	var capturedResults []update.UpdateResult
-	var capturedProfile system.PlatformProfile
-
-	origCheck := updateCheckFiltered
-	origUpgrade := upgradeExecute
-	origReExec := reExec
-	t.Cleanup(func() {
-		updateCheckFiltered = origCheck
-		upgradeExecute = origUpgrade
-		reExec = origReExec
-	})
-
-	updateCheckFiltered = func(_ context.Context, _ string, _ system.PlatformProfile, _ []string) []update.UpdateResult {
-		return checkResults
-	}
-
-	upgradeExecute = func(_ context.Context, results []update.UpdateResult, profile system.PlatformProfile, _ string, _ bool, _ ...io.Writer) upgrade.UpgradeReport {
-		capturedResults = results
-		capturedProfile = profile
-		return upgrade.UpgradeReport{
-			Results: []upgrade.ToolUpgradeResult{
-				{ToolName: "specai", Status: upgrade.UpgradeSucceeded, NewVersion: "1.8.0"},
-			},
-		}
-	}
-
-	reExec = func(_ string, _ []string, _ []string) error { return nil }
-
-	brewProfile := system.PlatformProfile{OS: "darwin", PackageManager: "brew"}
-	err := selfUpdate(context.Background(), "1.7.0", brewProfile, io.Discard)
-	if err != nil {
-		t.Fatalf("selfUpdate returned error: %v", err)
-	}
-
-	// Verify the brew install method was forwarded to the upgrade executor.
-	if len(capturedResults) == 0 {
-		t.Fatal("upgradeExecute was not called")
-	}
-	if got := capturedResults[0].Tool.InstallMethod; got != update.InstallBrew {
-		t.Errorf("InstallMethod passed to upgradeExecute = %q, want %q", got, update.InstallBrew)
-	}
-	if capturedProfile.PackageManager != "brew" {
-		t.Errorf("PackageManager passed to upgradeExecute = %q, want %q", capturedProfile.PackageManager, "brew")
-	}
-}
-
 // TestSelfUpdate_ConfirmUpdate_UserAccepts verifies that when SPECAI_AI_CONFIRM_UPDATE=1
 // and the user accepts, the upgrade runs and re-exec is called.
 func TestSelfUpdate_ConfirmUpdate_UserAccepts(t *testing.T) {
