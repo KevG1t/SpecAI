@@ -7,12 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/assets"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/model"
 )
 
+// IsSDDSkill reports whether a skill ID belongs to the SDD orchestrator suite.
+// SDD skills are installed by the SDD component; the skills component skips
+// them to prevent duplicate writes when both components are selected.
 func IsSDDSkill(id model.SkillID) bool {
 	return strings.HasPrefix(string(id), "sdd-")
 }
@@ -23,6 +26,8 @@ type InjectionResult struct {
 	Skipped []model.SkillID
 }
 
+// InjectWithCapability writes skill files like Inject, but for SDD skills
+// it extracts only the section matching the given capability.
 func InjectWithCapability(homeDir string, adapter agents.Adapter, skillIDs []model.SkillID, capability string) (InjectionResult, error) {
 	if !adapter.SupportsSkills() {
 		return InjectionResult{Skipped: skillIDs}, nil
@@ -38,6 +43,8 @@ func InjectWithCapability(homeDir string, adapter agents.Adapter, skillIDs []mod
 	changed := false
 
 	for _, id := range skillIDs {
+		// SDD skills are written by the SDD component — skip to avoid conflicts
+		// unless a capability was specified (model-section extraction requested).
 		if IsSDDSkill(id) && capability == "" {
 			continue
 		}
@@ -76,6 +83,7 @@ func InjectWithCapability(homeDir string, adapter agents.Adapter, skillIDs []mod
 			}
 			path := filepath.Join(destDir, relPath)
 
+			// Extract model section if capability is set (non-empty).
 			if capability != "" {
 				content = extractModelSection(content, capability)
 			}
@@ -97,10 +105,23 @@ func InjectWithCapability(homeDir string, adapter agents.Adapter, skillIDs []mod
 	return InjectionResult{Changed: changed, Files: paths, Skipped: skipped}, nil
 }
 
+// Inject writes the embedded SKILL.md files for each requested skill
+// to the correct directory for the given agent adapter.
+//
+// The skills directory is determined by adapter.SkillsDir(), removing
+// the need for any agent-specific switch statements.
+//
+// SDD skills (those whose IDs begin with "sdd-") are intentionally skipped
+// here because the SDD component installs them as part of its own injection.
+// This prevents a write conflict when both components are selected together.
+//
+// Individual skill failures (e.g., missing embedded asset) are logged
+// and skipped rather than aborting the entire operation.
 func Inject(homeDir string, adapter agents.Adapter, skillIDs []model.SkillID) (InjectionResult, error) {
 	return InjectWithCapability(homeDir, adapter, skillIDs, "")
 }
 
+// SkillPathForAgent returns the filesystem path where a skill file would be written.
 func SkillPathForAgent(homeDir string, adapter agents.Adapter, id model.SkillID) string {
 	skillDir := adapter.SkillsDir(homeDir)
 	if skillDir == "" {
@@ -109,13 +130,17 @@ func SkillPathForAgent(homeDir string, adapter agents.Adapter, id model.SkillID)
 	return filepath.Join(skillDir, string(id), "SKILL.md")
 }
 
+// extractModelSection extracts the section matching the given capability
+// ("capable" or "small") from content containing <!-- section:model-capable -->
+// and <!-- section:model-small --> markers. If no matching section is found,
+// the full content is returned.
 func extractModelSection(content, capability string) string {
 	openMarker := "<!-- section:model-" + capability + " -->"
 	closeMarker := "<!-- /section:model-" + capability + " -->"
 	start := strings.Index(content, openMarker)
 	end := strings.Index(content, closeMarker)
 	if start == -1 || end == -1 || end <= start {
-		return content
+		return content // fallback: return full content
 	}
 	afterOpen := start + len(openMarker)
 	return strings.TrimLeft(content[afterOpen:end], " \t\r\n")

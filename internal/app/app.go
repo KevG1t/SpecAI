@@ -9,26 +9,40 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/backup"
-	"github.com/KevG1t/SpecAI/internal/cli"
-	"github.com/KevG1t/SpecAI/internal/skillregistry"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/tui"
-	"github.com/KevG1t/SpecAI/internal/update"
-	"github.com/KevG1t/SpecAI/internal/update/upgrade"
-	"github.com/KevG1t/SpecAI/internal/verify"
+	"github.com/KevG1t/specai/internal/backup"
+	"github.com/KevG1t/specai/internal/cli"
+	componentuninstall "github.com/KevG1t/specai/internal/components/uninstall"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/pipeline"
+	"github.com/KevG1t/specai/internal/planner"
+	"github.com/KevG1t/specai/internal/skillregistry"
+	"github.com/KevG1t/specai/internal/state"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/tui"
+	"github.com/KevG1t/specai/internal/update"
+	"github.com/KevG1t/specai/internal/update/upgrade"
+	"github.com/KevG1t/specai/internal/verify"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Version is set from main via ldflags at build time.
 var Version = "dev"
 
 var (
-	updateCheckAll      = update.CheckAll
-	updateCheckFiltered = update.CheckFiltered
-	upgradeExecute      = upgrade.Execute
-	selfUpdateFn        = selfUpdate
+	updateCheckAll           = update.CheckAll
+	updateCheckFiltered      = update.CheckFiltered
+	upgradeExecute           = upgrade.Execute
+	selfUpdateFn             = selfUpdate
 	ensureCurrentOSSupported = system.EnsureCurrentOSSupported
 	detectSystem             = system.Detect
+	runTUI = func(m tea.Model, opts ...tea.ProgramOption) (tea.Model, error) {
+		p := tea.NewProgram(m, opts...)
+		if tuiM, ok := m.(tui.Model); ok {
+			tuiM.SendFn = p.Send
+			m = tuiM
+		}
+		return p.Run()
+	}
 )
 
 func Run() error {
@@ -86,7 +100,7 @@ func RunArgs(args []string, stdout io.Writer) error {
 	// Self-update: check for a newer specai release and apply it before
 	// CLI/TUI dispatch. Errors are non-fatal — logged and swallowed.
 	// Skip auto-upgrade on TUI entry (len(args) == 0) to avoid silently
-	// replacing the binary while the user expects a clean TUI launch.
+	// replacing the binary while the user expects a clean TUI launch (#696).
 	isTUIFlow := len(args) == 0
 	if !isTUIFlow && !isExplicitUpdateFlow(args) {
 		if err := selfUpdateFn(context.Background(), Version, resolveProfile(), stdout); err != nil {
@@ -95,9 +109,36 @@ func RunArgs(args []string, stdout io.Writer) error {
 	}
 
 	if len(args) == 0 {
-		// Launch the interactive TUI.
-		tui.SetVersion(Version)
-		return tui.Start()
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolve user home directory: %w", err)
+		}
+
+		// Load persisted state so the TUI pre-selects the agents the user
+		// previously chose instead of re-selecting every detected config dir.
+		// A missing or unreadable state file is not an error — NewModel falls
+		// back to filesystem detection for first-time installs.
+		installedState, _ := state.Read(homeDir)
+		m := tui.NewModel(result, Version, installedState)
+		m.ExecuteFn = tuiExecute
+		m.RestoreFn = tuiRestore
+		m.DeleteBackupFn = func(manifest backup.Manifest) error {
+			return backup.DeleteBackup(manifest)
+		}
+		m.RenameBackupFn = func(manifest backup.Manifest, newDesc string) error {
+			return backup.RenameBackup(manifest, newDesc)
+		}
+		m.TogglePinFn = func(manifest backup.Manifest) error {
+			return backup.TogglePin(manifest)
+		}
+		m.ListBackupsFn = ListBackups
+		m.Backups = ListBackups()
+		m.UpgradeFn = tuiUpgrade(resolveProfile(), homeDir)
+		m.SyncFn = tuiSync(homeDir)
+		m.UninstallFn = tuiUninstall(homeDir)
+		m.UninstallWithProfilesFn = tuiUninstallWithProfiles(homeDir)
+		_, err = runTUI(m, tea.WithAltScreen())
+		return err
 	}
 
 	switch args[0] {
@@ -144,12 +185,6 @@ func RunArgs(args []string, stdout io.Writer) error {
 		return cli.RunRestore(args[1:], stdout)
 	case "doctor":
 		return cli.RunDoctor(context.Background(), stdout)
-	case "backup":
-		return cli.RunBackup(args[1:], stdout)
-	case "repair":
-		return cli.RunRepair(args[1:], stdout)
-	case "status":
-		return cli.RunStatus(args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown command %q — run 'specai help' for available commands", args[0])
 	}
@@ -213,41 +248,19 @@ func runSkillRegistry(args []string, stdout io.Writer) error {
 }
 
 func runUpdate(ctx context.Context, currentVersion string, profile system.PlatformProfile, stdout io.Writer) error {
-	return runUpdateWithArgs(ctx, os.Args[2:], currentVersion, profile, stdout)
-}
-
-// runUpdateWithArgs parses --skills and --sdd-memory flags and limits the update scope accordingly.
-func runUpdateWithArgs(ctx context.Context, args []string, currentVersion string, profile system.PlatformProfile, stdout io.Writer) error {
-	var skillsOnly bool
-	var sddMemoryOnly bool
-
-	for _, arg := range args {
-		switch arg {
-		case "--skills":
-			skillsOnly = true
-		case "--sdd-memory":
-			sddMemoryOnly = true
-		}
-	}
-
-	if skillsOnly {
-		results := updateCheckFiltered(ctx, currentVersion, profile, []string{"skills"})
-		_, _ = fmt.Fprint(stdout, update.RenderCLI(results))
-		return updateCheckError(results)
-	}
-
-	if sddMemoryOnly {
-		results := updateCheckFiltered(ctx, currentVersion, profile, []string{"sdd-memory"})
-		_, _ = fmt.Fprint(stdout, update.RenderCLI(results))
-		return updateCheckError(results)
-	}
-
 	results := updateCheckAll(ctx, currentVersion, profile)
 	_, _ = fmt.Fprint(stdout, update.RenderCLI(results))
 	return updateCheckError(results)
 }
 
 // runUpgrade handles the `specai upgrade [--dry-run] [tool...]` command.
+//
+// This command:
+//   - Checks for available updates for managed tools (specai, sdd-memory)
+//   - Snapshots agent config paths before execution (config preservation by design)
+//   - Executes binary-only upgrades; does NOT invoke install or sync pipelines
+//   - Skips specai itself when running as a dev build (version="dev")
+//   - Falls back to manual guidance for unsafe platforms (Windows binary self-replace)
 func runUpgrade(ctx context.Context, args []string, detection system.DetectionResult, stdout io.Writer) error {
 	dryRun := false
 	noBackup := false
@@ -282,6 +295,9 @@ func runUpgrade(ctx context.Context, args []string, detection system.DetectionRe
 	}
 
 	// Execute upgrades (no-op if nothing is UpdateAvailable).
+	// Use ExecuteWithOptions directly so CLI-only flags (e.g. --no-backup) can
+	// be wired through without expanding the upgradeExecute test seam used by
+	// the TUI dispatcher (see tuiUpgrade below).
 	report := upgrade.ExecuteWithOptions(ctx, checkResults, profile, homeDir, dryRun, upgrade.ExecuteOptions{
 		Progress:          stdout,
 		BackupDiagnostics: stdout,
@@ -308,6 +324,264 @@ func updateCheckError(results []update.UpdateResult) error {
 	}
 
 	return fmt.Errorf("update check failed for: %s", strings.Join(failed, ", "))
+}
+
+// tuiExecute creates a real install runtime and runs the pipeline with progress reporting.
+func tuiExecute(
+	selection model.Selection,
+	resolved planner.ResolvedPlan,
+	detection system.DetectionResult,
+	onProgress pipeline.ProgressFunc,
+) pipeline.ExecutionResult {
+	restoreCommandOutput := cli.SetCommandOutputStreaming(false)
+	defer restoreCommandOutput()
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return pipeline.ExecutionResult{Err: fmt.Errorf("resolve user home directory: %w", err)}
+	}
+
+	profile := cli.ResolveInstallProfile(detection)
+	resolved.PlatformDecision = planner.PlatformDecisionFromProfile(profile)
+
+	stagePlan, err := cli.BuildRealStagePlan(homeDir, cli.ScopeGlobal, selection, resolved, profile)
+	if err != nil {
+		return pipeline.ExecutionResult{Err: fmt.Errorf("build stage plan: %w", err)}
+	}
+
+	orchestrator := pipeline.NewOrchestrator(
+		pipeline.DefaultRollbackPolicy(),
+		pipeline.WithFailurePolicy(pipeline.ContinueOnError),
+		pipeline.WithProgressFunc(onProgress),
+	)
+
+	execResult := orchestrator.Execute(stagePlan)
+	if execResult.Err == nil {
+		// Persist the user's agent selection and model assignments so that future
+		// `sync` runs target only the installed agents and preserve model choices.
+		agentIDs := make([]string, 0, len(selection.Agents))
+		for _, a := range selection.Agents {
+			agentIDs = append(agentIDs, string(a))
+		}
+		// Non-fatal: a state write failure must not break an otherwise successful install.
+		_ = state.Write(homeDir, state.InstallState{
+			InstalledAgents:        agentIDs,
+			ClaudeModelAssignments: claudeAliasesToStrings(selection.ClaudeModelAssignments),
+			ModelAssignments:       modelAssignmentsToState(selection.ModelAssignments),
+			Persona:                string(selection.Persona),
+		})
+	}
+
+	return execResult
+}
+
+// tuiRestore restores a backup from its manifest.
+func tuiRestore(manifest backup.Manifest) error {
+	return backup.RestoreService{}.Restore(manifest)
+}
+
+// tuiUpgrade returns a tui.UpgradeFunc that wraps upgrade.Execute.
+// The profile and homeDir are captured from the call site so the closure
+// is self-contained and requires no extra parameters at call time.
+func tuiUpgrade(profile system.PlatformProfile, homeDir string) tui.UpgradeFunc {
+	return func(ctx context.Context, results []update.UpdateResult) upgrade.UpgradeReport {
+		return upgradeExecute(ctx, results, profile, homeDir, false)
+	}
+}
+
+// tuiSync returns a tui.SyncFunc that performs a full managed-asset sync.
+// It mirrors the RunSync CLI path: discovers installed agents from persisted
+// state (or filesystem fallback), builds the default sync selection, and
+// delegates to RunSyncWithSelection.
+//
+// When overrides is non-nil, model assignments are merged into the selection
+// so that the "Configure Models" TUI flow persists its choices to disk.
+func tuiSync(homeDir string) tui.SyncFunc {
+	return func(overrides *model.SyncOverrides) ([]string, error) {
+		agentIDs := syncAgentIDs(homeDir, overrides)
+		selection := cli.BuildSyncSelection(cli.SyncFlags{}, agentIDs)
+
+		// Load persisted model assignments so a plain sync (no overrides)
+		// preserves the user's previous choices instead of falling back
+		// to the "balanced" preset.
+		loadPersistedAssignments(homeDir, &selection)
+
+		applyOverrides(&selection, overrides)
+
+		result, err := cli.RunSyncWithSelection(homeDir, selection)
+		if err != nil {
+			return nil, err
+		}
+
+		// Persist model assignments that were actually used (from overrides
+		// or loaded from state) so the next sync preserves them too.
+		persistAssignments(homeDir, selection)
+
+		return result.ChangedFiles, nil
+	}
+}
+
+// tuiUninstall returns a tui.UninstallFunc that mirrors the CLI uninstall path
+// for selected agents/components, but without interactive flag parsing.
+func tuiUninstall(homeDir string) tui.UninstallFunc {
+	return func(agentIDs []model.AgentID, componentIDs []model.ComponentID) (componentuninstall.Result, error) {
+		workspaceDir, err := os.Getwd()
+		if err != nil {
+			return componentuninstall.Result{}, fmt.Errorf("resolve workspace directory: %w", err)
+		}
+		return cli.RunUninstallWithSelection(homeDir, workspaceDir, agentIDs, componentIDs)
+	}
+}
+
+func tuiUninstallWithProfiles(homeDir string) tui.UninstallWithProfilesFunc {
+	return func(agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, sddMemoryScope model.SddMemoryUninstallScope) (componentuninstall.Result, error) {
+		workspaceDir, err := os.Getwd()
+		if err != nil {
+			return componentuninstall.Result{}, fmt.Errorf("resolve workspace directory: %w", err)
+		}
+		return cli.RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir, agentIDs, componentIDs, profileNames, sddMemoryScope)
+	}
+}
+
+func syncAgentIDs(homeDir string, overrides *model.SyncOverrides) []model.AgentID {
+	if overrides == nil || len(overrides.TargetAgents) == 0 {
+		return cli.DiscoverAgents(homeDir)
+	}
+
+	seen := make(map[model.AgentID]bool, len(overrides.TargetAgents))
+	ids := make([]model.AgentID, 0, len(overrides.TargetAgents))
+	for _, id := range overrides.TargetAgents {
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// applyOverrides merges non-nil fields from overrides into selection.
+// A nil overrides pointer is a no-op.
+func applyOverrides(selection *model.Selection, overrides *model.SyncOverrides) {
+	if overrides == nil {
+		return
+	}
+	if overrides.ModelAssignments != nil {
+		selection.ModelAssignments = overrides.ModelAssignments
+	}
+	if overrides.ClaudeModelAssignments != nil {
+		selection.ClaudeModelAssignments = overrides.ClaudeModelAssignments
+	}
+	if overrides.KiroModelAssignments != nil {
+		selection.KiroModelAssignments = overrides.KiroModelAssignments
+	}
+	if overrides.SDDMode != "" {
+		selection.SDDMode = overrides.SDDMode
+	}
+	if overrides.StrictTDD != nil {
+		selection.StrictTDD = *overrides.StrictTDD
+	}
+	if len(overrides.Profiles) > 0 {
+		selection.Profiles = overrides.Profiles
+		// Profiles are an OpenCode multi-mode feature — if profiles are being
+		// created/synced, SDDModeMulti is required so that WriteSharedPromptFiles
+		// runs and the {file:...} prompt references resolve correctly.
+		if selection.SDDMode == "" {
+			selection.SDDMode = model.SDDModeMulti
+		}
+	}
+}
+
+// loadPersistedAssignments reads previously-saved model assignments from
+// state.json and populates the selection when the corresponding maps are empty.
+// This ensures a plain `sync` (no TUI overrides, no CLI flags) preserves the
+// user's last-known model choices.
+func loadPersistedAssignments(homeDir string, selection *model.Selection) {
+	s, err := state.Read(homeDir)
+	if err != nil {
+		return
+	}
+	if len(selection.ClaudeModelAssignments) == 0 && len(s.ClaudeModelAssignments) > 0 {
+		m := make(map[string]model.ClaudeModelAlias, len(s.ClaudeModelAssignments))
+		for k, v := range s.ClaudeModelAssignments {
+			// Claude Code controls the main session/orchestrator model itself.
+			// Keep persisted assignments scoped to Agent tool calls only.
+			if k == "orchestrator" {
+				continue
+			}
+			m[k] = model.ClaudeModelAlias(v)
+		}
+		selection.ClaudeModelAssignments = m
+	}
+	if len(selection.KiroModelAssignments) == 0 && len(s.KiroModelAssignments) > 0 {
+		m := make(map[string]model.ClaudeModelAlias, len(s.KiroModelAssignments))
+		for k, v := range s.KiroModelAssignments {
+			m[k] = model.ClaudeModelAlias(v)
+		}
+		selection.KiroModelAssignments = m
+	}
+	if len(selection.ModelAssignments) == 0 && len(s.ModelAssignments) > 0 {
+		m := make(map[string]model.ModelAssignment, len(s.ModelAssignments))
+		for k, v := range s.ModelAssignments {
+			m[k] = model.ModelAssignment{ProviderID: v.ProviderID, ModelID: v.ModelID, Effort: v.Effort}
+		}
+		selection.ModelAssignments = m
+	}
+}
+
+// persistAssignments writes the model assignments from selection back to
+// state.json using a read-merge-write pattern so that other fields
+// (InstalledAgents) are not lost.
+func persistAssignments(homeDir string, selection model.Selection) {
+	if len(selection.ClaudeModelAssignments) == 0 && len(selection.KiroModelAssignments) == 0 && len(selection.ModelAssignments) == 0 {
+		return
+	}
+	current, err := state.Read(homeDir)
+	if err != nil {
+		// State file may not exist yet (e.g. pre-state users).
+		current = state.InstallState{}
+	}
+	if len(selection.ClaudeModelAssignments) > 0 {
+		current.ClaudeModelAssignments = claudeAliasesToStrings(selection.ClaudeModelAssignments)
+	}
+	if len(selection.KiroModelAssignments) > 0 {
+		current.KiroModelAssignments = claudeAliasesToStrings(selection.KiroModelAssignments)
+	}
+	if len(selection.ModelAssignments) > 0 {
+		current.ModelAssignments = modelAssignmentsToState(selection.ModelAssignments)
+	}
+	_ = state.Write(homeDir, current)
+}
+
+// claudeAliasesToStrings converts a typed ClaudeModelAlias map to plain strings
+// for JSON serialisation in state.json.
+func claudeAliasesToStrings(m map[string]model.ClaudeModelAlias) map[string]string {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		// Claude Code owns the main session/orchestrator model; do not persist it
+		// as a SpecAI model assignment.
+		if k == "orchestrator" {
+			continue
+		}
+		out[k] = string(v)
+	}
+	return out
+}
+
+// modelAssignmentsToState converts model.ModelAssignment maps to the
+// state-serialisable form.
+func modelAssignmentsToState(m map[string]model.ModelAssignment) map[string]state.ModelAssignmentState {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]state.ModelAssignmentState, len(m))
+	for k, v := range m {
+		out[k] = state.ModelAssignmentState{ProviderID: v.ProviderID, ModelID: v.ModelID, Effort: v.Effort}
+	}
+	return out
 }
 
 // ListBackups returns all backup manifests from the backup directory.

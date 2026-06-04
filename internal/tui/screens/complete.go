@@ -4,86 +4,147 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/tui/styles"
+	"github.com/KevG1t/specai/internal/tui/styles"
 )
 
-// RenderComplete produces the post-install completion screen content as a string.
-// It is a pure render function — no Bubbletea model needed for the static layout.
+const maxErrorLines = 15
+
+type FailedStep struct {
+	ID    string
+	Error string
+}
+
+type MissingDep struct {
+	Name        string
+	InstallHint string
+}
+
+// UpdateInfo holds version update information for a single tool.
+type UpdateInfo struct {
+	Name             string
+	InstalledVersion string
+	LatestVersion    string
+	UpdateHint       string
+}
+
+type CompletePayload struct {
+	ConfiguredAgents    int
+	InstalledComponents int
+	FailedSteps         []FailedStep
+	RollbackPerformed   bool
+	MissingDeps         []MissingDep
+	AvailableUpdates    []UpdateInfo
+}
+
 func RenderComplete(data CompletePayload) string {
+	if len(data.FailedSteps) > 0 {
+		return renderCompleteFailed(data)
+	}
+	return renderCompleteSuccess(data)
+}
+
+func renderCompleteSuccess(data CompletePayload) string {
 	var b strings.Builder
 
-	b.WriteString(styles.TitleStyle.Render("Install Complete"))
+	b.WriteString(styles.SuccessStyle.Render("Done! Your AI agents are ready."))
 	b.WriteString("\n\n")
 
-	// Summary section.
-	b.WriteString(styles.HeadingStyle.Render("Summary"))
+	b.WriteString("  " + styles.HeadingStyle.Render("Configured agents") + "  " + styles.SuccessStyle.Render(fmt.Sprintf("%d", data.ConfiguredAgents)) + "\n")
+	b.WriteString("  " + styles.HeadingStyle.Render("Installed components") + "  " + styles.SuccessStyle.Render(fmt.Sprintf("%d", data.InstalledComponents)) + "\n")
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  Configured agents:    %d\n", data.ConfiguredAgents))
-	b.WriteString(fmt.Sprintf("  Installed components: %d\n", data.InstalledComponents))
 
-	if data.RollbackPerformed {
-		b.WriteString("\n")
-		b.WriteString(styles.WarningStyle.Render("  Rollback was performed due to errors."))
-		b.WriteString("\n")
-	}
+	renderMissingDeps(&b, data.MissingDeps)
+	renderAvailableUpdates(&b, data.AvailableUpdates)
 
-	// Failed steps section.
-	if len(data.FailedSteps) > 0 {
-		b.WriteString("\n")
-		b.WriteString(styles.ErrorStyle.Render("Errors"))
-		b.WriteString("\n")
-		for _, fs := range data.FailedSteps {
-			errDetail := fs.Err
-			if len(errDetail) > 120 {
-				errDetail = errDetail[:120] + "..."
-			}
-			b.WriteString(fmt.Sprintf("  %s %s\n", styles.ErrorStyle.Render("✗"), fs.StepName))
-			b.WriteString(fmt.Sprintf("    %s\n", styles.SubtextStyle.Render(errDetail)))
-		}
-	}
-
-	// Missing dependencies section.
-	if len(data.MissingDeps) > 0 {
-		b.WriteString("\n")
-		b.WriteString(styles.WarningStyle.Render("Missing dependencies"))
-		b.WriteString("\n")
-		for _, dep := range data.MissingDeps {
-			b.WriteString(fmt.Sprintf("  - %s\n", dep.Name))
-		}
-	}
-
-	// Auth guidance section.
-	if len(data.AuthGuidance) > 0 {
-		b.WriteString("\n")
-		b.WriteString(styles.HeadingStyle.Render("Auth setup required"))
-		b.WriteString("\n")
-		for _, g := range data.AuthGuidance {
-			for _, line := range strings.Split(g, "\n") {
-				b.WriteString(fmt.Sprintf("  %s\n", line))
-			}
-		}
-	}
-
-	// Pipeline warnings section.
-	if len(data.ValidationWarnings) > 0 {
-		b.WriteString("\n")
-		b.WriteString(styles.WarningStyle.Render("Warnings"))
-		b.WriteString("\n")
-		for _, w := range data.ValidationWarnings {
-			b.WriteString(fmt.Sprintf("  - %s\n", w.Message))
-		}
-	}
-
-	// Next steps section — always visible.
-	b.WriteString("\n")
 	b.WriteString(styles.HeadingStyle.Render("Next steps"))
 	b.WriteString("\n")
-	b.WriteString("  1. Open your IDE and start a new conversation.\n")
-	b.WriteString("  2. Use /sdd-init to initialize SDD in your project.\n")
-	b.WriteString("  3. Use /sdd-new <change> to start a new change.\n")
+	b.WriteString(styles.UnselectedStyle.Render("  1. Set your API keys"))
 	b.WriteString("\n")
-	b.WriteString(styles.HelpStyle.Render("Run `specai --help` for all available commands."))
+	b.WriteString(styles.UnselectedStyle.Render("  2. Run your selected agent"))
 	b.WriteString("\n")
+	b.WriteString(styles.UnselectedStyle.Render("  3. Try /sdd-new my-feature"))
+	b.WriteString("\n\n")
+
+
+
+	b.WriteString(styles.HelpStyle.Render("Press Enter to exit."))
+
+	return b.String()
+}
+
+func renderMissingDeps(b *strings.Builder, deps []MissingDep) {
+	if len(deps) == 0 {
+		return
+	}
+
+	b.WriteString(styles.WarningStyle.Render(fmt.Sprintf("Missing %d dependency(ies):", len(deps))))
+	b.WriteString("\n")
+	for _, dep := range deps {
+		b.WriteString("  " + styles.WarningStyle.Render(dep.Name) + "  " + styles.SubtextStyle.Render(dep.InstallHint))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+}
+
+func renderAvailableUpdates(b *strings.Builder, updates []UpdateInfo) {
+	if len(updates) == 0 {
+		return
+	}
+
+	b.WriteString(styles.HeadingStyle.Render("Available Updates"))
+	b.WriteString("\n")
+	for _, u := range updates {
+		line := fmt.Sprintf("  %s %s -> %s", u.Name, u.InstalledVersion, u.LatestVersion)
+		b.WriteString(styles.WarningStyle.Render(line))
+		if u.UpdateHint != "" {
+			b.WriteString("  " + styles.SubtextStyle.Render(u.UpdateHint))
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+}
+
+func renderCompleteFailed(data CompletePayload) string {
+	var b strings.Builder
+
+	b.WriteString(styles.ErrorStyle.Render("Installation completed with errors."))
+	b.WriteString("\n\n")
+
+	b.WriteString(styles.HeadingStyle.Render("Failed steps"))
+	b.WriteString("\n")
+	for _, step := range data.FailedSteps {
+		b.WriteString("  " + styles.ErrorStyle.Render("✗ "+step.ID))
+		b.WriteString("\n")
+		lines := strings.Split(step.Error, "\n")
+		if len(lines) > maxErrorLines {
+			lines = lines[:maxErrorLines]
+			lines = append(lines, "... (truncated)")
+		}
+		for _, line := range lines {
+			b.WriteString("    " + styles.SubtextStyle.Render(line))
+			b.WriteString("\n")
+		}
+	}
+	b.WriteString("\n")
+
+	if data.RollbackPerformed {
+		b.WriteString(styles.WarningStyle.Render("Rollback was performed — previous configuration restored."))
+		b.WriteString("\n\n")
+	}
+
+	renderMissingDeps(&b, data.MissingDeps)
+	renderAvailableUpdates(&b, data.AvailableUpdates)
+
+	b.WriteString(styles.HeadingStyle.Render("What to do"))
+	b.WriteString("\n")
+	b.WriteString(styles.UnselectedStyle.Render("  1. Check the error messages above"))
+	b.WriteString("\n")
+	b.WriteString(styles.UnselectedStyle.Render("  2. Fix the underlying issue (missing deps, permissions, etc.)"))
+	b.WriteString("\n")
+	b.WriteString(styles.UnselectedStyle.Render("  3. Run specai again to retry"))
+	b.WriteString("\n\n")
+
+	b.WriteString(styles.HelpStyle.Render("Press Enter to exit."))
 
 	return b.String()
 }

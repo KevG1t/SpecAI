@@ -34,17 +34,14 @@ const (
 type ComponentID string
 
 const (
-	ComponentSDDMemory          ComponentID = "sdd-memory"
-	ComponentSDD                ComponentID = "sdd"
-	ComponentSkills             ComponentID = "skills"
-	ComponentContext7           ComponentID = "context7"
-	ComponentPersona            ComponentID = "persona"
-	ComponentPermission         ComponentID = "permissions"
-	ComponentTheme              ComponentID = "theme"
-	ComponentClaudeTheme        ComponentID = "claude-theme"
-	ComponentOpenCodeArgentinaLogo ComponentID = "opencode-argentina-logo"
-	ComponentNotion                ComponentID = "notion"
-	ComponentJira                  ComponentID = "jira"
+	ComponentSddMemory   ComponentID = "sdd-memory"
+	ComponentSDD         ComponentID = "sdd"
+	ComponentSkills      ComponentID = "skills"
+	ComponentContext7    ComponentID = "context7"
+	ComponentPersona     ComponentID = "persona"
+	ComponentPermission  ComponentID = "permissions"
+	ComponentTheme       ComponentID = "theme"
+	ComponentClaudeTheme ComponentID = "claude-theme"
 )
 
 type UninstallMode string
@@ -56,11 +53,11 @@ const (
 	UninstallModeCleanInstall UninstallMode = "clean-install"
 )
 
-type SDDMemoryUninstallScope string
+type SddMemoryUninstallScope string
 
 const (
-	SDDMemoryUninstallScopeGlobal  SDDMemoryUninstallScope = "global"
-	SDDMemoryUninstallScopeProject SDDMemoryUninstallScope = "project"
+	SddMemoryUninstallScopeGlobal  SddMemoryUninstallScope = "global"
+	SddMemoryUninstallScopeProject SddMemoryUninstallScope = "project"
 )
 
 type SkillID string
@@ -76,16 +73,7 @@ const (
 	SkillSDDTasks        SkillID = "sdd-tasks"
 	SkillSDDArchive      SkillID = "sdd-archive"
 	SkillSDDOnboard      SkillID = "sdd-onboard"
-	SkillGoTesting          SkillID = "go-testing"
-	SkillTypeScript          SkillID = "typescript"
-	SkillClaudeDevPlatform   SkillID = "claude-developer-platform"
-	SkillReact19             SkillID = "react-19"
-	SkillNextjs15            SkillID = "nextjs-15"
-	SkillTailwind4           SkillID = "tailwind-4"
-	SkillZod4                SkillID = "zod-4"
-	SkillAiSdk5              SkillID = "ai-sdk-5"
-	SkillPlaywright          SkillID = "playwright"
-	SkillPytest              SkillID = "pytest"
+	SkillGoTesting       SkillID = "go-testing"
 	SkillCreator         SkillID = "skill-creator"
 	SkillImprover        SkillID = "skill-improver"
 	SkillJudgmentDay     SkillID = "judgment-day"
@@ -101,11 +89,29 @@ const (
 type PersonaID string
 
 const (
-	PersonaArgentina PersonaID = "argentina"
-	PersonaNicaragua PersonaID = "nicaragua"
-	PersonaNeutral   PersonaID = "neutral"
-	PersonaCustom    PersonaID = "custom"
+	PersonaModism                 PersonaID = "modism"
+	PersonaModismNeutralArtifacts PersonaID = "modism-neutral-artifacts"
+	PersonaNeutral                PersonaID = "neutral"
+	PersonaCustom                 PersonaID = "custom"
 )
+
+// PersonaDef describes a persona entry in the registry.
+// The Personas slice is the canonical ordered source of truth.
+// PersonaCustom MUST remain last — it is the "no injection" sentinel.
+type PersonaDef struct {
+	ID          PersonaID
+	DisplayName string
+	Description string
+}
+
+// Personas is the ordered registry of available personas.
+// Append here to add a new persona — no other code changes required.
+var Personas = []PersonaDef{
+	{PersonaModism, "modism", "Teaching-first guidance with direct senior-architect tone"},
+	{PersonaModismNeutralArtifacts, "modism-neutral-artifacts", "Modism conversation with English technical artifacts"},
+	{PersonaNeutral, "neutral", "Managed neutral persona with the same guidance and less regional tone"},
+	{PersonaCustom, "custom", "Keep your existing persona; SpecAI does not inject a persona"},
+}
 
 // SystemPromptStrategy defines how an agent's system prompt file is managed.
 type SystemPromptStrategy int
@@ -146,7 +152,7 @@ const (
 type PresetID string
 
 const (
-	PresetFull PresetID = "full"
+	PresetFullModism    PresetID = "full-modism"
 	PresetEcosystemOnly PresetID = "ecosystem-only"
 	PresetMinimal       PresetID = "minimal"
 	PresetCustom        PresetID = "custom"
@@ -174,12 +180,6 @@ const (
 )
 
 type OpenCodeCommunityPluginID string
-
-const (
-	OpenCodePluginSubAgentStatusline OpenCodeCommunityPluginID = "sub-agent-statusline"
-	OpenCodePluginSDDMemoryManage    OpenCodeCommunityPluginID = "sdd-memory-plugin"
-	OpenCodePluginArgentinaLogo OpenCodeCommunityPluginID = "argentina-logo"
-)
 
 // Profile represents a named SDD orchestrator configuration with model assignments.
 // The default profile (Name="" or Name="default") maps to the base sdd-orchestrator.

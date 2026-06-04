@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 const (
@@ -47,7 +47,7 @@ func DownloadLatestBinary(profile system.PlatformProfile) (string, error) {
 	ctx := context.Background()
 
 	// 1. Fetch the latest version tag from GitHub API.
-	version, err := fetchLatestSDDMemoryVersion()
+	version, err := fetchLatestSddMemoryVersion()
 	if err != nil {
 		return "", fmt.Errorf("fetch latest sdd-memory version: %w", err)
 	}
@@ -72,7 +72,7 @@ func DownloadLatestBinary(profile system.PlatformProfile) (string, error) {
 	}
 	outPath := filepath.Join(installDir, binaryName)
 
-	tmpDir, err := os.MkdirTemp("", "specai-sdd-memory-*")
+	tmpDir, err := os.MkdirTemp("", "specai-sddmemory-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp dir: %w", err)
 	}
@@ -110,11 +110,11 @@ func DownloadLatestBinary(profile system.PlatformProfile) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("read zip archive: %w", err)
 		}
-		if err := sddMemoryExtractZipBinary(data, binaryName, outPath); err != nil {
+		if err := extractZipBinary(data, binaryName, outPath); err != nil {
 			return "", fmt.Errorf("extract sdd-memory zip: %w", err)
 		}
 	} else {
-		if err := sddMemoryExtractBinaryFromTarGz(f, sddMemoryName, outPath); err != nil {
+		if err := extractBinaryFromTarGz(f, sddMemoryName, outPath); err != nil {
 			return "", fmt.Errorf("extract sdd-memory tar.gz: %w", err)
 		}
 	}
@@ -122,17 +122,21 @@ func DownloadLatestBinary(profile system.PlatformProfile) (string, error) {
 	return outPath, nil
 }
 
-// fetchLatestSDDMemoryVersion queries the GitHub Releases API for the latest sdd-memory
+// fetchLatestSddMemoryVersion queries the GitHub Releases API for the latest sdd-memory
 // release and returns the version string (without leading "v").
-func fetchLatestSDDMemoryVersion() (string, error) {
-	token := sddMemoryGitHubToken()
-	version, status, err := fetchLatestSDDMemoryVersionRequest(token)
+func fetchLatestSddMemoryVersion() (string, error) {
+	token := githubToken()
+	version, status, err := fetchLatestSddMemoryVersionRequest(token)
 	if err == nil {
 		return version, nil
 	}
 
+	// GitHub Actions injects a repository-scoped GITHUB_TOKEN into CI. When that
+	// token is forwarded into our Linux E2E containers, the public sdd-memory releases
+	// endpoint can respond 401/403 for a different repository. Retry anonymously
+	// before failing because the release metadata is public.
 	if token != "" && (status == http.StatusUnauthorized || status == http.StatusForbidden) {
-		version, _, retryErr := fetchLatestSDDMemoryVersionRequest("")
+		version, _, retryErr := fetchLatestSddMemoryVersionRequest("")
 		if retryErr == nil {
 			return version, nil
 		}
@@ -141,9 +145,9 @@ func fetchLatestSDDMemoryVersion() (string, error) {
 	return "", err
 }
 
-func fetchLatestSDDMemoryVersionRequest(token string) (string, int, error) {
-	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest",
-		sddMemoryOwner, sddMemoryRepo)
+func fetchLatestSddMemoryVersionRequest(token string) (string, int, error) {
+	apiURL := fmt.Sprintf("%s/repos/%s/%s/releases/latest",
+		sddMemoryAPIBaseURL(), sddMemoryOwner, sddMemoryRepo)
 
 	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -165,7 +169,8 @@ func fetchLatestSDDMemoryVersionRequest(token string) (string, int, error) {
 	}
 
 	var release struct {
-		TagName string `json:"tag_name"`
+		TagName string             `json:"tag_name"`
+		Assets  *[]json.RawMessage `json:"assets"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
 		return "", resp.StatusCode, fmt.Errorf("decode release JSON: %w", err)
@@ -176,11 +181,95 @@ func fetchLatestSDDMemoryVersionRequest(token string) (string, int, error) {
 		return "", resp.StatusCode, fmt.Errorf("empty tag_name in GitHub release response")
 	}
 
+	// Older tests and non-GitHub-compatible mocks may omit assets entirely; in
+	// that case keep the historical latest-release behavior. GitHub returns an
+	// explicit assets array, so skip releases that do not publish core sdd-memory
+	// binaries (for example pi-v* sdd-memory-kevg1t package releases, which are
+	// separate from core sdd-memory binary releases).
+	if release.Assets != nil && !hasSddMemoryBinaryAsset(*release.Assets) {
+		fallbackVersion, fallbackStatus, err := fetchLatestSddMemoryVersionWithAssets(token)
+		if err == nil {
+			return fallbackVersion, resp.StatusCode, nil
+		}
+		if token != "" && (fallbackStatus == http.StatusUnauthorized || fallbackStatus == http.StatusForbidden) {
+			fallbackVersion, _, retryErr := fetchLatestSddMemoryVersionWithAssets("")
+			if retryErr == nil {
+				return fallbackVersion, resp.StatusCode, nil
+			}
+		}
+		return "", resp.StatusCode, err
+	}
+
 	return version, resp.StatusCode, nil
 }
 
-// sddMemoryGitHubToken returns a GitHub API token from the environment, if available.
-func sddMemoryGitHubToken() string {
+func hasSddMemoryBinaryAsset(assets []json.RawMessage) bool {
+	for _, raw := range assets {
+		var asset struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(raw, &asset); err == nil && strings.HasPrefix(asset.Name, sddMemoryRepo+"_") {
+			return true
+		}
+	}
+	return false
+}
+
+func fetchLatestSddMemoryVersionWithAssets(token string) (string, int, error) {
+	apiURL := fmt.Sprintf("%s/repos/%s/%s/releases?per_page=20",
+		sddMemoryAPIBaseURL(), sddMemoryOwner, sddMemoryRepo)
+
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
+	if err != nil {
+		return "", 0, fmt.Errorf("build releases request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := sddMemoryHTTPClient.Do(req)
+	if err != nil {
+		return "", 0, fmt.Errorf("call GitHub releases API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", resp.StatusCode, fmt.Errorf("GitHub releases API returned HTTP %d", resp.StatusCode)
+	}
+
+	var releases []struct {
+		TagName    string `json:"tag_name"`
+		Draft      bool   `json:"draft"`
+		Prerelease bool   `json:"prerelease"`
+		Assets     []struct {
+			Name string `json:"name"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+		return "", resp.StatusCode, fmt.Errorf("decode releases JSON: %w", err)
+	}
+
+	for _, release := range releases {
+		if release.Draft || release.Prerelease || len(release.Assets) == 0 {
+			continue
+		}
+		for _, asset := range release.Assets {
+			if strings.HasPrefix(asset.Name, sddMemoryRepo+"_") {
+				version := strings.TrimPrefix(release.TagName, "v")
+				if version != "" {
+					return version, resp.StatusCode, nil
+				}
+			}
+		}
+	}
+
+	return "", resp.StatusCode, fmt.Errorf("no sdd-memory release with downloadable binary assets found")
+}
+
+// githubToken returns a GitHub API token from the environment, if available.
+// Checks GITHUB_TOKEN first, then GH_TOKEN (used by the gh CLI).
+func githubToken() string {
 	if t := os.Getenv("GITHUB_TOKEN"); t != "" {
 		return t
 	}
@@ -188,7 +277,9 @@ func sddMemoryGitHubToken() string {
 }
 
 // normalizeArch maps Go's runtime.GOARCH to the architecture names used in
-// sdd-memory release assets.
+// sdd-memory release assets. sdd-memory only publishes amd64 and arm64 binaries.
+// If the current process runs as 386 (32-bit Go on a 64-bit system), we
+// map to amd64 since sdd-memory doesn't publish 386 builds.
 func normalizeArch(goarch string) string {
 	switch goarch {
 	case "386":
@@ -200,8 +291,21 @@ func normalizeArch(goarch string) string {
 	}
 }
 
+// sddMemoryAPIBaseURL returns the GitHub API base URL for fetching release info.
+// In tests, the mock server handles both API and download under the same URL,
+// so we derive the API base from sddMemoryGitHubBaseURL.
+func sddMemoryAPIBaseURL() string {
+	base := sddMemoryGitHubBaseURL
+	if strings.Contains(base, "127.0.0.1") || strings.Contains(base, "localhost") {
+		return base
+	}
+	return "https://api.github.com"
+}
+
 // sddMemoryArchiveName returns the GoReleaser archive filename for the given
 // version/os/arch combination.
+//
+// Convention: sdd-memory_{version}_{os}_{arch}.tar.gz (or .zip on Windows)
 func sddMemoryArchiveName(version, goos, goarch string) string {
 	ext := ".tar.gz"
 	if goos == "windows" {
@@ -258,6 +362,7 @@ func sddMemoryDownloadToFile(ctx context.Context, url string, outPath string) (h
 }
 
 // sddMemoryFetchChecksums downloads checksums.txt from url and returns its content.
+// Returns an error if the file cannot be fetched or the server returns non-200.
 func sddMemoryFetchChecksums(ctx context.Context, url string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -280,7 +385,9 @@ func sddMemoryFetchChecksums(ctx context.Context, url string) (string, error) {
 }
 
 // sddMemoryExpectedChecksumFor parses checksums.txt content and returns the SHA256
-// hex digest for filename.
+// hex digest for filename. Returns an error if the filename is not listed.
+//
+// GoReleaser produces BSD-style checksums.txt: "<digest>  <filename>" per line.
 func sddMemoryExpectedChecksumFor(content, filename string) (string, error) {
 	for _, line := range strings.Split(content, "\n") {
 		fields := strings.Fields(line)
@@ -291,9 +398,9 @@ func sddMemoryExpectedChecksumFor(content, filename string) (string, error) {
 	return "", fmt.Errorf("%q not listed in checksums.txt", filename)
 }
 
-// sddMemoryExtractZipBinary extracts the binary named binaryName from the zip data
+// extractZipBinary extracts the binary named binaryName from the zip data
 // and writes it to outPath.
-func sddMemoryExtractZipBinary(data []byte, binaryName, outPath string) error {
+func extractZipBinary(data []byte, binaryName, outPath string) error {
 	zr, err := zip.NewReader(&byteReaderAt{data: data}, int64(len(data)))
 	if err != nil {
 		return fmt.Errorf("open zip: %w", err)
@@ -306,14 +413,17 @@ func sddMemoryExtractZipBinary(data []byte, binaryName, outPath string) error {
 				return fmt.Errorf("open zip entry %q: %w", f.Name, err)
 			}
 			defer rc.Close()
-			return sddMemoryWriteExecutable(rc, outPath)
+			return writeExecutable(rc, outPath)
 		}
 	}
 
 	return fmt.Errorf("binary %q not found in zip archive", binaryName)
 }
 
-// sddMemoryInstallDir returns the directory where the sdd-memory binary should be installed.
+// sddMemoryInstallDir returns the directory where the sdd-memory binary should be installed
+// for the given OS.
+//   - Linux/macOS: /usr/local/bin (fallback: ~/.local/bin if not writable)
+//   - Windows: %LOCALAPPDATA%\sdd-memory\bin
 func sddMemoryInstallDir(goos string) string {
 	if goos == "windows" {
 		localAppData := os.Getenv("LOCALAPPDATA")
@@ -353,9 +463,30 @@ func isWritableDir(dir string) bool {
 	return true
 }
 
-// sddMemoryExtractBinaryFromTarGz reads a .tar.gz stream and extracts the first file
+// downloadAndExtractTarGz downloads the asset at url, extracts the binary named binaryName,
+// and writes it to outPath with executable permissions.
+func downloadAndExtractTarGz(url, binaryName, outPath string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+
+	resp, err := sddMemoryHTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
+	}
+
+	return extractBinaryFromTarGz(resp.Body, binaryName, outPath)
+}
+
+// extractBinaryFromTarGz reads a .tar.gz stream and extracts the first file
 // whose base name matches binaryName, writing it to outPath.
-func sddMemoryExtractBinaryFromTarGz(r io.Reader, binaryName, outPath string) error {
+func extractBinaryFromTarGz(r io.Reader, binaryName, outPath string) error {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("open gzip: %w", err)
@@ -375,26 +506,94 @@ func sddMemoryExtractBinaryFromTarGz(r io.Reader, binaryName, outPath string) er
 
 		if filepath.Base(hdr.Name) == binaryName &&
 			(hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA) {
-			return sddMemoryWriteExecutable(tr, outPath)
+			return writeExecutable(tr, outPath)
 		}
 	}
 
 	return fmt.Errorf("binary %q not found in archive", binaryName)
 }
 
-// sddMemoryWriteExecutable writes the content from r to outPath with executable permissions.
-func sddMemoryWriteExecutable(r io.Reader, outPath string) error {
+// downloadAndExtractZip downloads the asset at url, extracts the binary named binaryName
+// from the .zip archive, and writes it to outPath.
+func downloadAndExtractZip(url, binaryName, outPath string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+
+	resp, err := sddMemoryHTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
+	}
+
+	// zip.NewReader requires io.ReaderAt + size; read the entire body first.
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read response body: %w", err)
+	}
+
+	zr, err := zip.NewReader(&byteReaderAt{data: data}, int64(len(data)))
+	if err != nil {
+		return fmt.Errorf("open zip: %w", err)
+	}
+
+	for _, f := range zr.File {
+		if filepath.Base(f.Name) == binaryName && !f.FileInfo().IsDir() {
+			rc, err := f.Open()
+			if err != nil {
+				return fmt.Errorf("open zip entry %q: %w", f.Name, err)
+			}
+			defer rc.Close()
+			return writeExecutable(rc, outPath)
+		}
+	}
+
+	return fmt.Errorf("binary %q not found in zip archive", binaryName)
+}
+
+// byteReaderAt implements io.ReaderAt over a byte slice.
+type byteReaderAt struct {
+	data []byte
+}
+
+func (b *byteReaderAt) ReadAt(p []byte, off int64) (int, error) {
+	if off < 0 || int(off) >= len(b.data) {
+		return 0, io.EOF
+	}
+	n := copy(p, b.data[off:])
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+// writeExecutable writes the content from r to outPath with executable permissions.
+// writeExecutable writes a binary to outPath using an atomic rename to avoid
+// ETXTBSY ("text file busy") errors on Linux when the target binary is
+// currently running (e.g. sdd-memory as an MCP server). The rename trick works
+// because os.Rename replaces the directory entry — the running process keeps
+// its open file descriptor to the old inode, while new executions pick up
+// the new binary.
+func writeExecutable(r io.Reader, outPath string) error {
 	dir := filepath.Dir(outPath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create parent dir: %w", err)
 	}
 
+	// Write to a temp file in the same directory so Rename is always
+	// same-filesystem (atomic on POSIX).
 	tmp, err := os.CreateTemp(dir, ".sdd-memory-upgrade-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}
 	tmpPath := tmp.Name()
 
+	// Clean up on any failure path.
 	defer func() {
 		if tmpPath != "" {
 			os.Remove(tmpPath)
@@ -417,22 +616,7 @@ func sddMemoryWriteExecutable(r io.Reader, outPath string) error {
 		return fmt.Errorf("rename %s -> %s: %w", tmpPath, outPath, err)
 	}
 
+	// Rename succeeded — disarm the deferred cleanup.
 	tmpPath = ""
 	return nil
-}
-
-// byteReaderAt implements io.ReaderAt over a byte slice.
-type byteReaderAt struct {
-	data []byte
-}
-
-func (b *byteReaderAt) ReadAt(p []byte, off int64) (int, error) {
-	if off < 0 || int(off) >= len(b.data) {
-		return 0, io.EOF
-	}
-	n := copy(p, b.data[off:])
-	if n < len(p) {
-		return n, io.EOF
-	}
-	return n, nil
 }

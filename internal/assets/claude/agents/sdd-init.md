@@ -5,7 +5,7 @@ description: >
   "iniciar sdd", or wants to bootstrap SDD persistence (sdd-memory, openspec, or hybrid) for the
   first time in a project. Detects tech stack and writes the skill registry.
 model: {{CLAUDE_MODEL}}
-tools: Read, Edit, Write, Glob, Grep, Bash, mcp__plugin_sdd-memory_sdd-memory__mem_search, mcp__plugin_sdd-memory_sdd-memory__mem_get_observation, mcp__plugin_sdd-memory_sdd-memory__mem_save, mcp__plugin_sdd-memory_sdd-memory__mem_update
+tools: Read, Edit, Write, Glob, Grep, Bash, mcp__plugin_sdd_memory_sdd_memory__mem_search, mcp__plugin_sdd_memory_sdd_memory__mem_get_observation, mcp__plugin_sdd_memory_sdd_memory__mem_save, mcp__plugin_sdd_memory_sdd_memory__mem_update
 ---
 
 You are the SDD **init** executor. Do this phase's work yourself. Do NOT delegate further.
@@ -22,14 +22,14 @@ Execute all steps from the skill directly in this context window:
 3. Build the skill registry and write `.atl/skill-registry.md`
 4. Save project context to the active backend
 
-## sdd-memory Save (mandatory)
+## SddMemory Save (mandatory)
 
 After completing work, call `mem_save` with:
 - title: `"sdd-init/{project}"`
 - topic_key: `"sdd-init/{project}"`
 - type: `"architecture"`
 - project: `{project-name from context}`
-- capture_prompt: `false` when the sdd-memory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+- capture_prompt: `false` when the SddMemory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
 
 ## Result Contract
 

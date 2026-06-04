@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/update"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/update"
 )
 
 // httpClient is the HTTP client used for asset downloads.

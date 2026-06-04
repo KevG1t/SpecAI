@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 // --- TestDetectInstalledVersion ---
@@ -135,8 +135,8 @@ func TestDetectInstalledVersionFallbackPaths(t *testing.T) {
 	}
 
 	tool := ToolInfo{
-		Name:          "mytool",
-		DetectCmd:     []string{binaryName, "--version"},
+		Name:      "mytool",
+		DetectCmd: []string{binaryName, "--version"},
 		FallbackPaths: func(homeDir, localAppData string) []string {
 			return []string{filepath.Join(tmpDir, binaryName)}
 		},
@@ -672,9 +672,9 @@ func TestCheckSingleTool_SDDMemoryUsesBinaryReleaseChannel(t *testing.T) {
 	}
 	execCommand = func(name string, args ...string) *exec.Cmd {
 		if name == "sdd-memory" {
-			return mockCmd("echo", "sdd-memory 1.15.13")
+			return exec.Command("echo", "sdd-memory 1.15.13")
 		}
-		return mockCmd("false")
+		return exec.Command("false")
 	}
 
 	result := checkSingleTool(context.Background(), Tools[1], "dev", system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true})
@@ -780,7 +780,7 @@ func TestUpdateHint(t *testing.T) {
 			name:    "specai macOS",
 			tool:    ToolInfo{Name: "specai"},
 			profile: system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			want:    "brew upgrade specai",
+			want:    "npm install -g spec-ai",
 		},
 		{
 			name:    "specai linux",
@@ -795,10 +795,10 @@ func TestUpdateHint(t *testing.T) {
 			want:    "irm https://raw.githubusercontent.com/KevG1t/SpecAI/main/scripts/install.ps1 | iex",
 		},
 		{
-			name:    "sdd-memory macOS brew",
+			name:    "sdd-memory macOS",
 			tool:    ToolInfo{Name: "sdd-memory"},
 			profile: system.PlatformProfile{OS: "darwin", PackageManager: "brew"},
-			want:    "brew upgrade sdd-memory",
+			want:    "specai upgrade (downloads pre-built binary)",
 		},
 		{
 			name:    "sdd-memory linux",
@@ -941,7 +941,7 @@ func TestParseVersionFromOutput(t *testing.T) {
 		want   string
 	}{
 		{name: "sdd-memory v0.3.2", output: "sdd-memory v0.3.2", want: "0.3.2"},
-		{name: "tool 1.0.0", output: "tool version 1.0.0", want: "1.0.0"},
+		{name: "tool 1.0.0", output: "some-tool version 1.0.0", want: "1.0.0"},
 		{name: "bare version", output: "2.1.0", want: "2.1.0"},
 		{name: "no version", output: "no version info here", want: ""},
 		{name: "empty", output: "", want: ""},
@@ -998,6 +998,7 @@ func TestRegistryContents(t *testing.T) {
 	if Tools[1].ReleaseTagPattern != `^v[0-9]+\.[0-9]+\.[0-9]+$` {
 		t.Fatalf("sdd-memory ReleaseTagPattern = %q, want binary v* channel pattern", Tools[1].ReleaseTagPattern)
 	}
+	// OpenCode plugin tools must declare NpmPackage.
 	if Tools[2].NpmPackage == "" || Tools[3].NpmPackage == "" {
 		t.Fatalf("OpenCode plugin tools should declare NpmPackage")
 	}
@@ -1166,7 +1167,7 @@ func TestCheckFiltered_UnknownToolIgnored(t *testing.T) {
 //
 // The spec says:
 //   - Dev build MUST be reported as development-build semantic
-//   - specai self-upgrade is skipped while sdd-memory remains eligible
+//   - specai self-upgrade is skipped while sdd-memory/n remain eligible
 func TestCheckFiltered_DevBuildSemanticsForSpecAI(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1342,7 +1343,7 @@ func TestNoUpdatesPath(t *testing.T) {
 
 // --- TestSddMemoryHintNoBrew ---
 
-// TestSddMemoryHintNoBrew verifies that on non-brew platforms, sdd-memory hint
+// TestSddMemoryHintNoBrew verifies that on non-brew platforms, sddMemoryHint
 // no longer returns "go install..." — it should reflect binary download.
 // This is the regression test for issue #160.
 func TestSddMemoryHintNoBrew(t *testing.T) {
@@ -1367,12 +1368,12 @@ func TestSddMemoryHintNoBrew(t *testing.T) {
 
 			// Must NOT contain "go install".
 			if contains(got, "go install") {
-				t.Errorf("sdd-memory hint for non-brew should NOT contain 'go install', got %q", got)
+				t.Errorf("sddMemoryHint for non-brew should NOT contain 'go install', got %q", got)
 			}
 
 			// Must NOT be empty (should have some actionable hint).
 			if got == "" {
-				t.Errorf("sdd-memory hint for non-brew should not be empty")
+				t.Errorf("sddMemoryHint for non-brew should not be empty")
 			}
 		})
 	}
@@ -1397,146 +1398,6 @@ func TestInstallMethodFieldsOnRegistry(t *testing.T) {
 				t.Errorf("sdd-memory GoImportPath should be empty (binary download, not go-install), got %q", tool.GoImportPath)
 			}
 		}
-	}
-}
-
-// TestBuildExecCmd_Ps1UsesPoershellFile verifies that buildExecCmd wraps a .ps1
-// binary via "powershell -NoProfile -File <path> <args>" instead of passing the
-// .ps1 path as argv[0]. This is a regression test for the Windows PowerShell
-// detection bug (issue #177): exec.Command("tool.ps1", "--version") fails on
-// Windows because CreateProcess cannot launch a .ps1 file directly — it is not
-// an executable image.
-func TestBuildExecCmd_Ps1UsesPoershellFile(t *testing.T) {
-	ps1Path := `C:\Users\test\bin\some-tool.ps1`
-
-	gotBin, gotArgs := buildExecCmd(ps1Path, []string{"--version"})
-
-	if gotBin == ps1Path {
-		t.Fatalf("buildExecCmd returned the .ps1 path as argv[0]: %q — "+
-			"exec.Command cannot launch .ps1 directly on Windows (CreateProcess rejects non-PE images). "+
-			"Must be wrapped via powershell -NoProfile -File.", gotBin)
-	}
-
-	// The binary must be the powershell host (or the testable override).
-	// We don't hard-code the exact powershell binary name to allow CI overrides,
-	// but it must NOT be the .ps1 path itself.
-	wantArgs := []string{"-NoProfile", "-File", ps1Path, "--version"}
-	if len(gotArgs) != len(wantArgs) {
-		t.Fatalf("buildExecCmd args len = %d, want %d; args = %v", len(gotArgs), len(wantArgs), gotArgs)
-	}
-	for i, want := range wantArgs {
-		if gotArgs[i] != want {
-			t.Fatalf("buildExecCmd args[%d] = %q, want %q; full args = %v", i, gotArgs[i], want, gotArgs)
-		}
-	}
-}
-
-// TestBuildExecCmd_NonPs1Passthrough verifies that non-.ps1 binaries (real
-// executables, shell scripts on Linux/macOS) are passed through unchanged.
-func TestBuildExecCmd_NonPs1Passthrough(t *testing.T) {
-	cases := []struct {
-		binary string
-		args   []string
-	}{
-		{"/usr/local/bin/sdd-memory", []string{"version"}},
-		{`C:\Users\user\AppData\Local\sdd-memory\bin\sdd-memory.exe`, []string{"version"}},
-		{"/home/user/.local/bin/some-tool", []string{"--version"}},
-	}
-
-	for _, c := range cases {
-		gotBin, gotArgs := buildExecCmd(c.binary, c.args)
-		if gotBin != c.binary {
-			t.Errorf("buildExecCmd(%q) binary = %q, want passthrough %q", c.binary, gotBin, c.binary)
-		}
-		if len(gotArgs) != len(c.args) {
-			t.Errorf("buildExecCmd(%q) args = %v, want %v", c.binary, gotArgs, c.args)
-			continue
-		}
-		for i := range c.args {
-			if gotArgs[i] != c.args[i] {
-				t.Errorf("buildExecCmd(%q) args[%d] = %q, want %q", c.binary, i, gotArgs[i], c.args[i])
-			}
-		}
-	}
-}
-
-// TestDetectInstalledVersionPs1FallbackInvokesViaPowershell verifies the full
-// integration path: when LookPath fails for a tool, the fallback finds a .ps1
-// file on disk, and detectInstalledVersion builds the exec as
-// "powershell -NoProfile -File <path> --version" — NOT as "<path> --version".
-// This is the regression test for issue #177: the prior implementation
-// passed a .ps1 path as argv[0] to exec.Command which always errors on Windows.
-func TestDetectInstalledVersionPs1FallbackInvokesViaPowershell(t *testing.T) {
-	tmpDir := t.TempDir()
-	ps1Path := filepath.Join(tmpDir, "some-tool.ps1")
-	if err := os.WriteFile(ps1Path, []byte(""), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	tool := ToolInfo{
-		Name:      "some-tool",
-		DetectCmd: []string{"some-tool", "--version"},
-		FallbackPaths: func(homeDir, localAppData string) []string {
-			return []string{ps1Path}
-		},
-	}
-
-	origLookPath := lookPath
-	origExecCommand := execCommand
-	origOsStat := osStat
-	origUserHomeDir := userHomeDir
-	origPowershellPath := powershellPath
-	t.Cleanup(func() {
-		lookPath = origLookPath
-		execCommand = origExecCommand
-		osStat = origOsStat
-		userHomeDir = origUserHomeDir
-		powershellPath = origPowershellPath
-	})
-
-	// Simulate stale PATH: tool not found via LookPath.
-	lookPath = func(string) (string, error) { return "", fmt.Errorf("not found") }
-	osStat = os.Stat // real stat so the .ps1 file is found
-	userHomeDir = func() (string, error) { return t.TempDir(), nil }
-	powershellPath = "echo" // replace powershell with echo so the cmd succeeds and outputs "some-tool 1.2.3"
-
-	// Capture the binary and args that execCommand was called with.
-	var capturedBinary string
-	var capturedArgs []string
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		capturedBinary = name
-		capturedArgs = append([]string{}, args...)
-		// Return a command that outputs a fake version so detectInstalledVersion succeeds.
-		return mockCmd("echo", "some-tool 1.2.3")
-	}
-
-	got := detectInstalledVersion(context.Background(), tool, "")
-
-	// Primary assertion: the binary must NOT be the .ps1 path itself.
-	if capturedBinary == ps1Path {
-		t.Fatalf("execCommand was called with the .ps1 path as binary (%q) — "+
-			"this WILL fail on Windows (CreateProcess cannot exec .ps1). "+
-			"Must be wrapped via powershell -NoProfile -File.", capturedBinary)
-	}
-
-	// The first arg must be -NoProfile (powershell wrapping).
-	if len(capturedArgs) == 0 || capturedArgs[0] != "-NoProfile" {
-		t.Fatalf("execCommand args[0] = %q, want \"-NoProfile\"; full args = %v", func() string {
-			if len(capturedArgs) > 0 {
-				return capturedArgs[0]
-			}
-			return "(empty)"
-		}(), capturedArgs)
-	}
-
-	// The -File flag must point to the .ps1 path.
-	if len(capturedArgs) < 3 || capturedArgs[1] != "-File" || capturedArgs[2] != ps1Path {
-		t.Fatalf("expected args [-NoProfile, -File, %q, ...], got %v", ps1Path, capturedArgs)
-	}
-
-	// The version must still be extracted from output.
-	if got != "1.2.3" {
-		t.Fatalf("detectInstalledVersion() = %q, want \"1.2.3\"", got)
 	}
 }
 

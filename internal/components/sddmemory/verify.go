@@ -10,19 +10,36 @@ import (
 )
 
 var (
-	lookPath    = exec.LookPath
-	execCommand = exec.Command
+	lookPath       = exec.LookPath
+	commandContext = exec.CommandContext
 )
+
+// verifyVersionTimeout bounds the "sdd-memory version" probe so a hung binary
+// (e.g. one that starts a server or blocks on stdin) cannot stall installation
+// or verification indefinitely.
+const verifyVersionTimeout = 8 * time.Second
 
 func VerifyInstalled() error {
 	if _, err := lookPath("sdd-memory"); err != nil {
 		return fmt.Errorf("sdd-memory binary not found in PATH: %w", err)
 	}
+
 	return nil
 }
 
-func VerifyVersion() (string, error) {
-	cmd := execCommand("sdd-memory", "version")
+// VerifyVersion runs "sdd-memory version" and returns the trimmed output.
+// Returns an error if the command fails or produces no output. The call is
+// bounded by verifyVersionTimeout and runs with no stdin so a hung or
+// interactive binary cannot block indefinitely.
+func VerifyVersion(ctx context.Context) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, verifyVersionTimeout)
+	defer cancel()
+
+	cmd := commandContext(ctx, "sdd-memory", "version")
+	cmd.Stdin = nil
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("sdd-memory version command failed: %w", err)

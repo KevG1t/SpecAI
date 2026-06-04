@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "sdd-memory": {
+      "args": [
+        "mcp"
+      ],
+      "command": "/opt/homebrew/bin/sdd-memory"
+    }
+  }
+}

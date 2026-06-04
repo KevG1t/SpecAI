@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/state"
-	"github.com/KevG1t/SpecAI/internal/storage"
+	"github.com/KevG1t/specai/internal/state"
+	"github.com/KevG1t/specai/internal/storage"
 )
 
 // CheckStatus is the outcome of a doctor check: pass, warn, or fail.
@@ -40,7 +40,7 @@ type DoctorReport struct {
 var knownTools = []string{"specai", "sdd-memory", "claude", "opencode"}
 
 const (
-	sddMemoryHealthEnvVar = "SDD_MEMORY_BASE_URL"
+	sddMemoryHealthEnvVar = "SDD-MEMORY_BASE_URL"
 	diskWarnThreshold     = int64(100 * 1024 * 1024) // 100 MB
 	diskFailThreshold     = int64(10 * 1024 * 1024)  // 10 MB
 )
@@ -73,7 +73,7 @@ func RunDoctor(ctx context.Context, w io.Writer) error {
 	report := DoctorReport{}
 	report.Checks = append(report.Checks, checkToolBinaries(pathDirsFn())...)
 	report.Checks = append(report.Checks, checkStateJSON(homeDir))
-	report.Checks = append(report.Checks, checkSDDMemoryReachable())
+	report.Checks = append(report.Checks, checkSddMemoryReachable())
 	report.Checks = append(report.Checks, checkDiskSpace(homeDir))
 
 	renderDoctorReport(w, report)
@@ -203,8 +203,8 @@ func agentConfigDir(homeDir, agentID string) string {
 	}
 }
 
-// checkSDDMemoryReachable checks whether the sdd-memory HTTP health endpoint responds.
-func checkSDDMemoryReachable() CheckResult {
+// checkSddMemoryReachable checks whether the sdd-memory HTTP health endpoint responds.
+func checkSddMemoryReachable() CheckResult {
 	const name = "sdd-memory:reachable"
 
 	baseURL := os.Getenv(sddMemoryHealthEnvVar)
@@ -287,7 +287,7 @@ func renderDoctorReport(w io.Writer, report DoctorReport) {
 	}
 
 	fmt.Fprintln(w, "specai doctor — system health check")
-	fmt.Fprintln(w, "=====================================")
+	fmt.Fprintln(w, "=======================================")
 	fmt.Fprintln(w)
 
 	for _, c := range report.Checks {

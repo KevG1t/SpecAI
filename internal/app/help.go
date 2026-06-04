@@ -28,6 +28,6 @@ FLAGS
   --help, -h    Show this help
 
 Run 'specai help' for this message.
-Documentation: https://github.com/KevG1t/SpecAI
+Documentation: https://github.com/KevG1t/specai
 `, version)
 }

@@ -33,14 +33,14 @@ Execute all steps from the skill directly in this context window:
 8. Mark each task `[x]` complete as you finish it
 9. Persist progress to active backend
 
-## sdd-memory Save (mandatory)
+## SddMemory Save (mandatory)
 
 After completing work, call `mem_save` with:
 - title: `"sdd/{change-name}/apply-progress"`
 - topic_key: `"sdd/{change-name}/apply-progress"`
 - type: `"architecture"`
 - project: `{project-name from context}`
-- capture_prompt: `false` when the sdd-memory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+- capture_prompt: `false` when the SddMemory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
 
 Also update the tasks artifact with `[x]` marks via `mem_update` (sdd-memory) or file edit (openspec/hybrid).
 

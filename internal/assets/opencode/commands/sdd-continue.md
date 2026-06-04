@@ -22,11 +22,11 @@ CONTEXT:
 - Current project: the `basename` of the detected workspace above.
 - Change name: $ARGUMENTS
 - Execution mode: ask/cache per orchestrator
-- Artifact store mode: ask/cache per orchestrator; do not hardcode sdd-memory
+- Artifact store mode: ask/cache per orchestrator; do not hardcode SddMemory
 - Delivery strategy: ask/cache per orchestrator
 - Review budget: ask/cache per orchestrator
 
-sdd-memory NOTE:
+SDD-MEMORY NOTE:
 To check which artifacts exist in sdd-memory/hybrid, search: mem_search(query: "sdd/$ARGUMENTS/", project: "{project}") to list all artifacts for this change.
 Sub-agents handle persistence automatically using the selected artifact store.
 

@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/planner"
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/planner"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 func RenderDryRun(result InstallResult) string {
 	b := &strings.Builder{}
 
-	_, _ = fmt.Fprintln(b, "SpecAI Stack dry-run")
+	_, _ = fmt.Fprintln(b, "AI SpecAI Stack dry-run")
 	_, _ = fmt.Fprintln(b, "=====================")
 	_, _ = fmt.Fprintf(b, "Agents: %s\n", joinAgentIDs(result.Resolved.Agents))
 	_, _ = fmt.Fprintf(b, "Unsupported agents: %s\n", joinAgentIDs(result.Resolved.UnsupportedAgents))

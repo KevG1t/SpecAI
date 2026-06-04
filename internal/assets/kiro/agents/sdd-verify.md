@@ -35,14 +35,14 @@ Execute all steps from the skill directly in this context window:
 Do NOT create or modify project files — your job is verification only, not implementation.
 Do NOT fix any issues found — only report them. The orchestrator decides what to do next.
 
-## sdd-memory Save (mandatory)
+## SddMemory Save (mandatory)
 
 After completing work, call `mem_save` with:
 - title: `"sdd/{change-name}/verify-report"`
 - topic_key: `"sdd/{change-name}/verify-report"`
 - type: `"architecture"`
 - project: `{project-name from context}`
-- capture_prompt: `false` when the sdd-memory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+- capture_prompt: `false` when the SddMemory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
 
 ## Result Contract
 

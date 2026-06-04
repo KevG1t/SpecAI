@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 type statResult struct {
@@ -24,6 +24,8 @@ func NewAdapter() *Adapter {
 	}
 }
 
+// antigravityVariantDir returns the resolved variant directory under ~/.gemini.
+// Prefers "antigravity-desktop" when it exists, falls back to "antigravity-cli".
 func (a *Adapter) antigravityVariantDir(homeDir string) string {
 	desktop := filepath.Join(homeDir, ".gemini", "antigravity-desktop")
 	if stat := a.statPath(desktop); stat.err == nil {
@@ -32,6 +34,8 @@ func (a *Adapter) antigravityVariantDir(homeDir string) string {
 	return filepath.Join(homeDir, ".gemini", "antigravity-cli")
 }
 
+// --- Identity ---
+
 func (a *Adapter) Agent() model.AgentID {
 	return model.AgentAntigravity
 }
@@ -39,6 +43,8 @@ func (a *Adapter) Agent() model.AgentID {
 func (a *Adapter) Tier() model.SupportTier {
 	return model.TierFull
 }
+
+// --- Detection ---
 
 func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, string, bool, error) {
 	configPath := a.antigravityVariantDir(homeDir)
@@ -54,6 +60,8 @@ func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, strin
 	return stat.isDir, "", configPath, stat.isDir, nil
 }
 
+// --- Installation ---
+
 func (a *Adapter) SupportsAutoInstall() bool {
 	return false
 }
@@ -61,6 +69,8 @@ func (a *Adapter) SupportsAutoInstall() bool {
 func (a *Adapter) InstallCommand(_ system.PlatformProfile) ([][]string, error) {
 	return nil, AgentNotInstallableError{Agent: model.AgentAntigravity}
 }
+
+// --- Config paths ---
 
 func (a *Adapter) GlobalConfigDir(homeDir string) string {
 	return a.antigravityVariantDir(homeDir)
@@ -82,6 +92,8 @@ func (a *Adapter) SettingsPath(homeDir string) string {
 	return filepath.Join(a.antigravityVariantDir(homeDir), "settings.json")
 }
 
+// --- Config strategies ---
+
 func (a *Adapter) SystemPromptStrategy() model.SystemPromptStrategy {
 	return model.StrategyAppendToFile
 }
@@ -90,20 +102,53 @@ func (a *Adapter) MCPStrategy() model.MCPStrategy {
 	return model.StrategyMCPConfigFile
 }
 
+// --- MCP ---
+
 func (a *Adapter) MCPConfigPath(homeDir string, _ string) string {
 	return filepath.Join(a.antigravityVariantDir(homeDir), "mcp_config.json")
 }
 
-func (a *Adapter) SupportsOutputStyles() bool     { return false }
-func (a *Adapter) OutputStyleDir(_ string) string { return "" }
-func (a *Adapter) SupportsSlashCommands() bool    { return false }
-func (a *Adapter) CommandsDir(_ string) string    { return "" }
-func (a *Adapter) SupportsSubAgents() bool        { return false }
-func (a *Adapter) SubAgentsDir(_ string) string   { return "" }
-func (a *Adapter) EmbeddedSubAgentsDir() string   { return "" }
-func (a *Adapter) SupportsSkills() bool           { return true }
-func (a *Adapter) SupportsSystemPrompt() bool     { return true }
-func (a *Adapter) SupportsMCP() bool              { return true }
+// --- Optional capabilities ---
+
+func (a *Adapter) SupportsOutputStyles() bool {
+	return false
+}
+
+func (a *Adapter) OutputStyleDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) SupportsSlashCommands() bool {
+	return false
+}
+
+func (a *Adapter) CommandsDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) SupportsSubAgents() bool {
+	return false
+}
+
+func (a *Adapter) SubAgentsDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) EmbeddedSubAgentsDir() string {
+	return ""
+}
+
+func (a *Adapter) SupportsSkills() bool {
+	return true
+}
+
+func (a *Adapter) SupportsSystemPrompt() bool {
+	return true
+}
+
+func (a *Adapter) SupportsMCP() bool {
+	return true
+}
 
 type AgentNotInstallableError struct {
 	Agent model.AgentID
@@ -118,5 +163,6 @@ func defaultStat(path string) statResult {
 	if err != nil {
 		return statResult{err: err}
 	}
+
 	return statResult{isDir: info.IsDir()}
 }

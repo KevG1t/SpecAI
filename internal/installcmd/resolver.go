@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/versions"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/versions"
 )
 
 // cmdLookPath, osStat, osGetenv, and cmdGoVersion are package-level vars for testability.
@@ -22,7 +22,7 @@ var cmdGoVersion = func() ([]byte, error) {
 }
 
 // CommandSequence represents an ordered list of commands to run in sequence.
-// Each inner slice is a single command with its arguments (e.g., ["brew", "install", "specai"]).
+// Each inner slice is a single command with its arguments (e.g., ["brew", "install", "sdd-memory"]).
 // Multi-step installs (e.g., tap + install) are expressed as multiple entries.
 type CommandSequence = [][]string
 
@@ -149,8 +149,8 @@ func uvInstallHint(profile system.PlatformProfile) string {
 
 func (profileResolver) ResolveComponentInstall(profile system.PlatformProfile, component model.ComponentID) (CommandSequence, error) {
 	switch component {
-	case model.ComponentSDDMemory:
-		return resolveSDDMemoryInstall(profile)
+	case model.ComponentSddMemory:
+		return resolveSddMemoryInstall(profile)
 	default:
 		return nil, fmt.Errorf("install command is not supported for component %q", component)
 	}
@@ -209,22 +209,11 @@ func resolveOpenCodeInstall(profile system.PlatformProfile) (CommandSequence, er
 	}
 }
 
-// resolveSDDMemoryInstall returns the correct install command sequence for sdd-memory per platform.
-// - darwin (brew): brew tap + brew install (via KevG1t/homebrew-tap)
-// - linux/windows: returns an error — callers must use sdd-memory download instead.
-func resolveSDDMemoryInstall(profile system.PlatformProfile) (CommandSequence, error) {
-	switch profile.PackageManager {
-	case "brew":
-		return CommandSequence{
-			{"brew", "tap", "KevG1t/homebrew-tap"},
-			{"brew", "install", "sdd-memory"},
-		}, nil
-	default:
-		return nil, fmt.Errorf(
-			"sdd-memory on %q/%q uses direct binary download — use sdd-memory download instead",
-			profile.OS, profile.PackageManager,
-		)
+func bashScriptPath(profile system.PlatformProfile, path string) string {
+	if profile.OS == "windows" {
+		return strings.ReplaceAll(path, `\`, "/")
 	}
+	return path
 }
 
 // GitBashPath is the exported wrapper so other packages (e.g. cli) can
@@ -275,20 +264,13 @@ func gitBashPath() string {
 	return "bash"
 }
 
-func bashScriptPath(profile system.PlatformProfile, path string) string {
-	if profile.OS == "windows" {
-		return strings.ReplaceAll(path, `\`, "/")
-	}
-	return path
-}
-
-// validateGoForModuleInstall checks that Go >=1.24 is installed and GO111MODULE is not
+// validateGoForModuleInstall checks that Go ≥1.24 is installed and GO111MODULE is not
 // disabled before attempting `go install`. Returns an actionable error if any check fails.
 // MUST NOT be called for brew-based installs (brew manages Go transitively).
 func validateGoForModuleInstall(profile system.PlatformProfile) error {
 	if _, err := cmdLookPath("go"); err != nil {
 		return fmt.Errorf(
-			"Go 1.24+ is required to install sdd-memory but was not found in PATH.\n" +
+			"Go 1.24+ is required to install SddMemory but was not found in PATH.\n" +
 				"Please install Go from https://go.dev/dl/ and restart your terminal.")
 	}
 
@@ -309,7 +291,7 @@ func validateGoForModuleInstall(profile system.PlatformProfile) error {
 			minor, _ := strconv.Atoi(versionParts[1])
 			if major < 1 || (major == 1 && minor < 24) {
 				return fmt.Errorf(
-					"Go 1.24+ is required to install sdd-memory, but found go%s.\n"+
+					"Go 1.24+ is required to install SddMemory, but found go%s.\n"+
 						"Please update Go: https://go.dev/dl/", versionStr)
 			}
 		}
@@ -326,7 +308,25 @@ func validateGoForModuleInstall(profile system.PlatformProfile) error {
 	return nil
 }
 
-// Ensure unused imports don't cause compile errors — bashScriptPath is used in
-// platform-specific code paths (Windows install); keep it available.
-var _ = bashScriptPath
-var _ = validateGoForModuleInstall
+// resolveSddMemoryInstall returns the correct install command sequence for sdd-memory per platform.
+// - darwin (brew): brew tap + brew install (via KevG1t/homebrew-tap)
+// - linux/windows: returns an error — callers must use sddmemory.DownloadLatestBinary() instead.
+//
+// The go install method has been removed because it required Go 1.24+ which most
+// users on Linux/Windows don't have. Pre-built binaries are available at:
+// https://github.com/KevG1t/sdd-memory/releases
+func resolveSddMemoryInstall(profile system.PlatformProfile) (CommandSequence, error) {
+	switch profile.PackageManager {
+	case "brew":
+		// macOS (or Linux with Homebrew): brew manages Go transitively — no preflight needed.
+		return CommandSequence{
+			{"brew", "tap", "KevG1t/homebrew-tap"},
+			{"brew", "install", "sdd-memory"},
+		}, nil
+	default:
+		return nil, fmt.Errorf(
+			"sdd-memory on %q/%q uses direct binary download — use sddmemory.DownloadLatestBinary() instead of CommandSequence",
+			profile.OS, profile.PackageManager,
+		)
+	}
+}

@@ -1,3 +1,9 @@
+// Package kimi provides Kimi Code CLI agent integration.
+//
+// Integration Note:
+// This adapter natively relies on Astral's `uv` package manager
+// (`uv tool install kimi-cli`) to securely download and run Kimi CLI,
+// avoiding upstream's pipe-to-shell bootstrap scripts.
 package kimi
 
 import (
@@ -8,11 +14,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/installcmd"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/assets"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/installcmd"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 var LookPathOverride = exec.LookPath
@@ -22,6 +28,7 @@ type statResult struct {
 	err   error
 }
 
+// Adapter implements agents.Adapter for Kimi Code CLI.
 type Adapter struct {
 	lookPath    func(string) (string, error)
 	statPath    func(string) statResult
@@ -30,6 +37,7 @@ type Adapter struct {
 	resolver    installcmd.Resolver
 }
 
+// NewAdapter creates a new Kimi adapter instance.
 func NewAdapter() *Adapter {
 	return &Adapter{
 		lookPath:    LookPathOverride,
@@ -40,6 +48,8 @@ func NewAdapter() *Adapter {
 	}
 }
 
+// --- Identity ---
+
 func (a *Adapter) Agent() model.AgentID {
 	return model.AgentKimi
 }
@@ -47,6 +57,8 @@ func (a *Adapter) Agent() model.AgentID {
 func (a *Adapter) Tier() model.SupportTier {
 	return model.TierFull
 }
+
+// --- Detection ---
 
 func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, string, bool, error) {
 	configPath := ConfigPath(homeDir)
@@ -65,6 +77,7 @@ func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, strin
 	return installed, binaryPath, configPath, stat.isDir, nil
 }
 
+// findKimi searches for kimi in PATH and official fallback locations.
 func (a *Adapter) findKimi() (string, error) {
 	if path, err := a.lookPath("kimi"); err == nil {
 		return path, nil
@@ -95,6 +108,8 @@ func (a *Adapter) findKimi() (string, error) {
 	return "", fmt.Errorf("kimi not found in PATH or official install locations")
 }
 
+// --- Installation ---
+
 func (a *Adapter) SupportsAutoInstall() bool {
 	return true
 }
@@ -106,6 +121,8 @@ func (a *Adapter) InstallCommand(profile system.PlatformProfile) ([][]string, er
 	}
 	return resolver.ResolveAgentInstall(profile, a.Agent())
 }
+
+// --- Config paths ---
 
 func (a *Adapter) GlobalConfigDir(homeDir string) string {
 	return filepath.Join(homeDir, ".kimi")
@@ -119,6 +136,17 @@ func (a *Adapter) SystemPromptFile(homeDir string) string {
 	return filepath.Join(homeDir, ".kimi", "KIMI.md")
 }
 
+// SkillsDir returns the shared skills directory path.
+//
+// Kimi Code CLI supports native Agent Skills. It recognizes both:
+//   - native brand-specific skills: ~/.kimi/skills
+//   - generic shared skills: ~/.config/agents/skills and ~/.agents/skills
+//
+// We intentionally use ~/.config/agents/skills here as a cross-agent shared
+// convention. Kimi will discover this directory natively as part of its
+// generic skills group (the docs mark this path as "recommended").
+//
+// See: https://moonshotai.github.io/kimi-cli/en/customization/skills.html
 func (a *Adapter) SkillsDir(homeDir string) string {
 	return filepath.Join(homeDir, ".config", "agents", "skills")
 }
@@ -131,6 +159,8 @@ func (a *Adapter) CommandsDir(string) string {
 	return ""
 }
 
+// --- Config strategies ---
+
 func (a *Adapter) SystemPromptStrategy() model.SystemPromptStrategy {
 	return model.StrategyJinjaModules
 }
@@ -139,16 +169,42 @@ func (a *Adapter) MCPStrategy() model.MCPStrategy {
 	return model.StrategyMCPConfigFile
 }
 
+// --- MCP ---
+
 func (a *Adapter) MCPConfigPath(homeDir string, _ string) string {
 	return filepath.Join(homeDir, ".kimi", "mcp.json")
 }
 
-func (a *Adapter) SupportsOutputStyles() bool  { return false }
-func (a *Adapter) OutputStyleDir(_ string) string { return "" }
-func (a *Adapter) SupportsSlashCommands() bool  { return false }
-func (a *Adapter) SupportsSkills() bool         { return true }
-func (a *Adapter) SupportsSystemPrompt() bool   { return true }
-func (a *Adapter) SupportsMCP() bool            { return true }
+// --- Optional capabilities ---
+
+func (a *Adapter) SupportsOutputStyles() bool {
+	return false
+}
+
+func (a *Adapter) OutputStyleDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) SupportsSlashCommands() bool {
+	return false
+}
+
+func (a *Adapter) SupportsSkills() bool {
+	return true
+}
+
+func (a *Adapter) SupportsSystemPrompt() bool {
+	return true
+}
+
+func (a *Adapter) SupportsMCP() bool {
+	return true
+}
+
+// --- Sub-agent support (optional interface) ---
+//
+// Kimi uses YAML-based agent specs with separate .md system prompts.
+// The SDD component copies all files from the embedded agents directory.
 
 func (a *Adapter) SupportsSubAgents() bool {
 	return true
@@ -163,7 +219,7 @@ func (a *Adapter) EmbeddedSubAgentsDir() string {
 }
 
 func (a *Adapter) PostInstallMessage(homeDir string) string {
-	argentinaYaml := filepath.Join(homeDir, ".kimi", "agents", "argentina.yaml")
+	modismYaml := filepath.Join(homeDir, ".kimi", "agents", "modism.yaml")
 	skillsRoot := filepath.Join(homeDir, ".config", "agents", "skills")
 
 	return fmt.Sprintf(`Kimi Code configured!
@@ -184,31 +240,10 @@ Native SDD entrypoints:
   /skill:sdd-onboard
 
 Skills root:
-  "%s"`, argentinaYaml, skillsRoot)
+  "%s"`, modismYaml, skillsRoot)
 }
 
-func (a *Adapter) BootstrapTemplate(homeDir string) error {
-	kimiDir := a.GlobalConfigDir(homeDir)
-	if err := os.MkdirAll(kimiDir, 0o755); err != nil {
-		return fmt.Errorf("create kimi config dir: %w", err)
-	}
-
-	skeletonPath := a.SystemPromptFile(homeDir)
-
-	content := assets.MustRead("kimi/KIMI.md")
-	if _, err := filemerge.WriteFileAtomic(skeletonPath, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write KIMI.md skeleton: %w", err)
-	}
-
-	configPath := a.SettingsPath(homeDir)
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		if _, err := filemerge.WriteFileAtomic(configPath, []byte("# Kimi Code Config\n"), 0o644); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+// --- Helpers ---
 
 func defaultStat(path string) statResult {
 	info, err := os.Stat(path)
@@ -223,6 +258,7 @@ func defaultPathExists(path string) bool {
 	return err == nil
 }
 
+// ConfigPath returns the configuration directory path.
 func ConfigPath(homeDir string) string {
 	return filepath.Join(homeDir, ".kimi")
 }
@@ -232,4 +268,35 @@ func binaryName() string {
 		return "kimi.exe"
 	}
 	return "kimi"
+}
+
+// BootstrapTemplate ensures the base KIMI.md template exists in the agent's config directory.
+// It is used by the installation pipeline to guarantee that modular components
+// (SDD, SddMemory) can be included even if the Persona component is not installed.
+func (a *Adapter) BootstrapTemplate(homeDir string) error {
+	kimiDir := a.GlobalConfigDir(homeDir)
+	if err := os.MkdirAll(kimiDir, 0o755); err != nil {
+		return fmt.Errorf("create kimi config dir: %w", err)
+	}
+
+	skeletonPath := a.SystemPromptFile(homeDir)
+
+	// We always write the skeleton to ensure any missing includes are restored.
+	// Since KIMI.md is the 'router' for modular Jinja components, it should
+	// remain managed by the framework.
+	content := assets.MustRead("kimi/KIMI.md")
+	if _, err := filemerge.WriteFileAtomic(skeletonPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write KIMI.md skeleton: %w", err)
+	}
+
+	// Kimi considers config.toml a required file. We create an empty one if
+	// it's missing to satisfy verification during a minimalist install.
+	configPath := a.SettingsPath(homeDir)
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		if _, err := filemerge.WriteFileAtomic(configPath, []byte("# Kimi Code Config\n"), 0o644); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -4,19 +4,19 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 func TestBuildReviewPayloadIncludesPlatformDecision(t *testing.T) {
 	selection := model.Selection{
-		Persona: model.PersonaArgentina,
-		Preset:  model.PresetFull,
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 	}
 
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 		PlatformDecision: PlatformDecision{
 			OS:             "linux",
 			LinuxDistro:    "arch",
@@ -99,8 +99,8 @@ func TestBuildReviewPayloadPlatformDecisionPropagatesPerProfile(t *testing.T) {
 	for _, decision := range profiles {
 		t.Run(decision.OS+"/"+decision.LinuxDistro, func(t *testing.T) {
 			selection := model.Selection{
-				Persona: model.PersonaArgentina,
-				Preset:  model.PresetFull,
+				Persona: model.PersonaModism,
+				Preset:  model.PresetFullModism,
 			}
 			resolved := ResolvedPlan{
 				Agents:           []model.AgentID{model.AgentClaudeCode},
@@ -123,13 +123,13 @@ func TestBuildReviewPayloadPlatformDecisionPropagatesPerProfile(t *testing.T) {
 // Closes #145.
 func TestBuildReviewPayloadIncludesSkills(t *testing.T) {
 	selection := model.Selection{
-		Persona: model.PersonaArgentina,
-		Preset:  model.PresetFull,
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 		Skills:  []model.SkillID{"sdd-apply", "sdd-spec", "go-testing"},
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory, model.ComponentSkills},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory, model.ComponentSkills},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -151,13 +151,13 @@ func TestBuildReviewPayloadIncludesSkills(t *testing.T) {
 // Closes #145.
 func TestBuildReviewPayloadSkillsNilWhenNotSelected(t *testing.T) {
 	selection := model.Selection{
-		Persona: model.PersonaArgentina,
-		Preset:  model.PresetFull,
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 		// Skills not set
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -175,13 +175,13 @@ func TestBuildReviewPayloadSkillsNilWhenNotSelected(t *testing.T) {
 // Closes #149.
 func TestBuildReviewPayloadIncludesStrictTDD(t *testing.T) {
 	selection := model.Selection{
-		Persona:   model.PersonaArgentina,
-		Preset:    model.PresetFull,
+		Persona:   model.PersonaModism,
+		Preset:    model.PresetFullModism,
 		StrictTDD: true,
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -200,13 +200,13 @@ func TestBuildReviewPayloadIncludesStrictTDD(t *testing.T) {
 // Closes #149.
 func TestBuildReviewPayloadStrictTDDFalseWhenDisabled(t *testing.T) {
 	selection := model.Selection{
-		Persona:   model.PersonaArgentina,
-		Preset:    model.PresetFull,
+		Persona:   model.PersonaModism,
+		Preset:    model.PresetFullModism,
 		StrictTDD: false,
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD},
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD},
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -225,13 +225,13 @@ func TestBuildReviewPayloadStrictTDDFalseWhenDisabled(t *testing.T) {
 // Closes #149.
 func TestBuildReviewPayloadHasSDDFalseWithoutSDDComponent(t *testing.T) {
 	selection := model.Selection{
-		Persona:   model.PersonaArgentina,
-		Preset:    model.PresetFull,
+		Persona:   model.PersonaModism,
+		Preset:    model.PresetFullModism,
 		StrictTDD: true,
 	}
 	resolved := ResolvedPlan{
 		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory}, // no SDD
+		OrderedComponents: []model.ComponentID{model.ComponentSddMemory}, // no SDD
 	}
 
 	payload := BuildReviewPayload(selection, resolved)
@@ -241,53 +241,13 @@ func TestBuildReviewPayloadHasSDDFalseWithoutSDDComponent(t *testing.T) {
 	}
 }
 
-// TestBuildReviewPayloadIncludesSDDMode verifies that BuildReviewPayload transfers
-// the SDDMode field from selection to ReviewPayload.
-func TestBuildReviewPayloadIncludesSDDMode(t *testing.T) {
-	selection := model.Selection{
-		Persona: model.PersonaArgentina,
-		Preset:  model.PresetFull,
-		SDDMode: model.SDDModeMulti,
-	}
-	resolved := ResolvedPlan{
-		Agents:            []model.AgentID{model.AgentOpenCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD},
-	}
-
-	payload := BuildReviewPayload(selection, resolved)
-
-	if payload.SDDMode != model.SDDModeMulti {
-		t.Errorf("SDDMode = %q, want %q", payload.SDDMode, model.SDDModeMulti)
-	}
-}
-
-// TestBuildReviewPayloadSDDModeEmptyWhenNotSet verifies SDDMode is empty string
-// when selection has no SDDMode.
-func TestBuildReviewPayloadSDDModeEmptyWhenNotSet(t *testing.T) {
-	selection := model.Selection{
-		Persona: model.PersonaArgentina,
-		Preset:  model.PresetFull,
-		// SDDMode not set
-	}
-	resolved := ResolvedPlan{
-		Agents:            []model.AgentID{model.AgentClaudeCode},
-		OrderedComponents: []model.ComponentID{model.ComponentSDDMemory},
-	}
-
-	payload := BuildReviewPayload(selection, resolved)
-
-	if payload.SDDMode != "" {
-		t.Errorf("SDDMode = %q, want empty string", payload.SDDMode)
-	}
-}
-
 func TestResolverOutputIsPlatformAgnostic(t *testing.T) {
 	// Planner resolver does NOT set PlatformDecision — it is set by CLI after resolve.
 	// This test confirms resolver output has zero-value PlatformDecision.
 	resolver := NewResolver(MVPGraph())
 	selection := model.Selection{
 		Agents:     []model.AgentID{model.AgentClaudeCode},
-		Components: []model.ComponentID{model.ComponentSDDMemory},
+		Components: []model.ComponentID{model.ComponentSddMemory},
 	}
 
 	plan, err := resolver.Resolve(selection)

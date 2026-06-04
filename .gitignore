@@ -1,21 +1,42 @@
 # Binaries
+/specai
 *.exe
-*.exe~
 *.dll
 *.so
 *.dylib
-bin/
 
-# Test outputs
-coverage
-coverage.out
-c.out
+# Test binary
 *.test
 
-# IDE / OS
+# Output of go coverage
+*.out
+
+# IDE
 .idea/
 .vscode/
-.DS_Store
+*.swp
+*.swo
+*~
 
-# Misc
-*.log
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+cmd/specai/main
+dist/
+
+# npm-package dist binaries (populated at release time, not committed)
+npm-package/dist/*
+!npm-package/dist/.gitkeep
+
+# Agent tooling metadata (generated per-user, not product code)
+.atl/
+.pi/
+
+# SddMemory local runtime state (project sync chunks are intentionally versioned)
+.sdd-memory/sdd-memory.db
+.sdd-memory/cloud.json
+.pi-lens/
+.atl

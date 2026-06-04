@@ -1,9 +1,9 @@
-# PRD: SpecAI Installer
+# PRD: Specai Installer
 
-> **One command. Any agent. Any OS. The SpecAI ecosystem — configured and ready.**
+> **One command. Any agent. Any OS. The Specai ecosystem — configured and ready.**
 
 **Version**: 0.1.0-draft
-**Author**: kevg1t
+**Author**: KevG1t
 **Date**: 2026-02-27
 **Status**: Draft
 
@@ -17,7 +17,7 @@ AI-assisted development in 2026 is no longer optional — it's the standard. Eve
 
 A raw AI agent out of the box is like a sports car with no tuning — it runs, but it's nowhere near its potential. To get real value you need:
 
-1. **Persistent memory** (SDD-Memory) — so the agent remembers decisions, bugs, and conventions across sessions
+1. **Persistent memory** (SddMemory) — so the agent remembers decisions, bugs, and conventions across sessions
 2. **MCP servers** (Context7, Notion, Jira, etc.) — so the agent can access real documentation and project management tools
 3. **Coding skills** — curated best-practice patterns for React 19, Next.js 15, TypeScript, Tailwind 4, Zod 4, testing, etc.
 4. **SDD workflow** (Spec-Driven Development) — so the agent plans before coding, not the other way around
@@ -30,17 +30,17 @@ Most developers either:
 - Spend DAYS manually configuring one agent, then can't replicate it on another machine or tool
 - Never set up memory, MCP, or skills because the setup is fragmented across 5 different repos
 
-**This installer eliminates that gap entirely.** You pick your agent(s), you pick your config level, and the entire SpecAI ecosystem gets injected into your tools — ready to go. From zero to championship-level AI development in minutes.
+**This installer eliminates that gap entirely.** You pick your agent(s), you pick your config level, and the entire Specai ecosystem gets injected into your tools — ready to go. From zero to championship-level AI development in minutes.
 
 ---
 
 ## 2. Vision
 
-**The SpecAI ecosystem — installable by anyone, on any agent, on any OS, in one command.**
+**The Specai ecosystem — installable by anyone, on any agent, on any OS, in one command.**
 
 This is NOT an "AI agent installer." Most agents are already easy to install (`npm i -g @anthropic-ai/claude-code`, `brew install opencode`, etc.). This is an **ecosystem configurator**: it takes whatever AI agent(s) you use and supercharges them with the SpecAI stack:
 
-- **SDD-Memory** — persistent cross-session memory
+- **SddMemory** — persistent cross-session memory
 - **SDD** — Spec-Driven Development workflow (plan before you code)
 - **Skills** — curated coding patterns for modern stacks
 - **MCP servers** — real documentation, Notion, Jira, and more
@@ -48,7 +48,7 @@ This is NOT an "AI agent installer." Most agents are already easy to install (`n
 
 **Before**: "I installed Claude Code / OpenCode / Cursor / whatever, but it's just a chatbot that writes code."
 
-**After**: `curl -sL get.SpecAI.ai/ai | sh` → Pick your agent(s) → Pick your config → Your agent now has memory, skills, workflow, MCP tools, and a persona that actually teaches you. Same ecosystem regardless of which tool you use.
+**After**: `curl -sL get.specai.ai/ai | sh` → Pick your agent(s) → Pick your config → Your agent now has memory, skills, workflow, MCP tools, and a persona that actually teaches you. Same ecosystem regardless of which tool you use.
 
 ---
 
@@ -114,7 +114,7 @@ The installer follows a **dependency-first** approach:
 │    ◌ OpenCode (native binary)                                    │
 │                                                                  │
 │  Ecosystem:                                                      │
-│    ◌ SDD-Memory (via Homebrew — no runtime deps)                     │
+│    ◌ SddMemory (via Homebrew — no runtime deps)                     │
 │    ◌ SDD skills (file copy — no deps)                            │
 │    ◌ Skills library (file copy — no deps)                        │
 └──────────────────────────────────────────────────────────────────┘
@@ -128,15 +128,20 @@ These are the base tools the installer itself and the ecosystem need.
 
 | Dependency | Min Version | Why | Install Method |
 |-----------|-------------|-----|----------------|
+| `bash` | 3.2+ | Install scripts, SddMemory plugin hooks | Pre-installed on all targets |
+| `git` | 2.x | SddMemory (git sync), skills clone, agent integrations | `brew`/`apt`/`pacman`/`dnf`/`pkg` |
+| `curl` | Any | Binary downloads, installer script | Pre-installed on most systems |
 
 #### Conditionally Required (based on user's selections)
 
 | Dependency | Min Version | When Needed | Install Method |
 |-----------|-------------|-------------|----------------|
-| **Homebrew** | Any | macOS (primary pkg manager), Linux (recommended for SDD-Memory, agents) | Official install script |
+| **Homebrew** | Any | macOS (primary pkg manager), Linux (recommended for SddMemory, agents) | Official install script |
 | **Node.js** | 20+ | Claude Code (needs 18+), Gemini CLI (needs 20+) — installer picks the highest required version | `brew install node` / `nvm` / `fnm` / distro package |
 | **npm** | Comes with Node.js | Installing Claude Code, Gemini CLI, Codex | Bundled with Node.js |
-| **Go** | 1.25+ | ONLY if building SDD-Memory from source (NOT needed for binary/Homebrew install) | `brew install go` / distro package |
+| **Go** | 1.25+ | ONLY if building SddMemory from source (NOT needed for binary/Homebrew install) | `brew install go` / distro package |
+| **python3** | 3.x | SddMemory plugin (optional mode) | Pre-installed on macOS, `apt`/`pacman`/`dnf` on Linux |
+| **gh** (GitHub CLI) | Any | Optional: agent auth | `brew install gh` / distro package |
 
 #### Platform-Specific Notes
 
@@ -147,6 +152,7 @@ These are the base tools the installer itself and the ecosystem need.
 | **Arch** | bash, curl, git, python3, sha256sum | Node.js (`pacman -S nodejs npm`) | Arch packages are usually current — `pacman` versions are fine |
 | **Fedora/RHEL** | bash, curl, git, sha256sum | Node.js (`dnf install nodejs`) | May need `dnf module enable nodejs:20` for correct version |
 | **WSL 2** | Same as host Linux distro | Same as Linux + note about Windows-side agents (Cursor, VSCode) | Windows-side agents use Windows paths; WSL agents use Linux paths |
+| **Windows native** | None guaranteed | Everything: git (Git for Windows), Node.js (winget/scoop), bash (Git Bash) | Everything needs bash — Git for Windows includes Git Bash |
 | **Termux** | bash, curl, git | Node.js (`pkg install nodejs`), python (`pkg install python`) | No sudo, no Homebrew. Commands run directly, not via `sh -c`. Go cross-compile has limitations on Android. |
 
 ### 5.0.3 Node.js Version Management
@@ -167,7 +173,7 @@ Node.js is the most critical dependency — multiple agents depend on it, and di
 - R-DEP-02: The installer MUST show the complete dependency tree to the user and get confirmation before installing anything
 - R-DEP-03: The installer MUST install missing dependencies automatically (with user consent) using the platform's preferred package manager
 - R-DEP-04: The installer MUST handle Node.js version requirements intelligently — Claude Code needs 18+, Gemini CLI needs 20+, so install 20+ to satisfy both
-- R-DEP-05: The installer MUST NOT install Go unless the user explicitly chooses to build SDD-Memory from source (pre-compiled binaries are the default)
+- R-DEP-05: The installer MUST NOT install Go unless the user explicitly chooses to build SddMemory from source (pre-compiled binaries are the default)
 - R-DEP-06: On Linux, the installer MUST NOT use distro-default Node.js if it's below v20 — use NodeSource, fnm, or Homebrew instead
 - R-DEP-07: The installer MUST handle platform-specific differences transparently (BSD sed vs GNU sed, sha256sum vs shasum, Xcode CLT on macOS)
 - R-DEP-08: The installer MUST detect existing version managers (fnm, nvm, n) and use them instead of installing Node.js system-wide
@@ -179,7 +185,7 @@ Node.js is the most critical dependency — multiple agents depend on it, and di
 
 | Component | bash | git | curl | Node.js | Homebrew | python3 | gh CLI |
 |-----------|------|-----|------|---------|----------|---------|--------|
-| **SDD-Memory** (binary) | — | — | ✓ (download) | — | ✓ (preferred) | — | — |
+| **SddMemory** (binary) | — | — | ✓ (download) | — | ✓ (preferred) | — | — |
 | **Claude Code** | ✓ (hooks) | ✓ | — | ✓ (20+) | ◌ | — | — |
 | **OpenCode** | — | — | ✓ (download) | — | — | — | — |
 | **Gemini CLI** | — | — | — | ✓ (20+) | ◌ | — | — |
@@ -223,8 +229,12 @@ The installer supports configuring the SpecAI ecosystem into ANY AI coding agent
 
 | Tier | What Gets Configured | Agents |
 |------|---------------------|--------|
+| **Full** | SddMemory plugin + MCP servers + skills + SDD orchestrator + persona + theme + permissions + statusline + hooks | Claude Code, OpenCode |
+| **Good** | Skills + MCP servers + SDD (inline mode, no sub-agents) + persona rules | Cursor, VSCode |
+| **Partial** | Skills via system instructions + MCP where supported + persona | Gemini CLI, Codex, Windsurf, JetBrains, Zed |
 | **Minimal** | Persona and coding conventions via project/workspace rules | Xcode, Antigravity, any emerging agent |
 
+> **Note:** SddMemory is agent-agnostic — it works with ANY provider for memory execution, independent of which AI coding agent the user chose. It's a cross-cutting concern, not tied to a specific agent tier.
 
 **Requirements:**
 - R-AGENT-01: The installer MUST detect already-installed agents and offer configuration only (not re-install)
@@ -236,22 +246,22 @@ The installer supports configuring the SpecAI ecosystem into ANY AI coding agent
 - R-AGENT-07: The installer architecture MUST allow adding new agents by implementing a single interface — no changes to TUI or core logic required
 - R-AGENT-08: The installer MUST be forward-compatible: when new AI agents emerge, a community contributor can add support by implementing the Agent interface and submitting a PR
 
-### 6.2 SDD-Memory (Persistent Memory System)
+### 6.2 SddMemory (Persistent Memory System)
 
 | Component | Method | Notes |
 |-----------|--------|-------|
-| SDD-Memory binary | Go install / Homebrew / direct download | Single binary, no deps |
-| SDD-Memory plugin for Claude Code | `claude plugin marketplace add` | Automatic |
-| SDD-Memory plugin for OpenCode | Copy `sdd-memory.ts` to plugins dir | Automatic |
-| SDD-Memory config for Gemini CLI | Write `~/.gemini/settings.json` + `system.md` | Automatic |
-| SDD-Memory config for Codex | Write `~/.codex/config.toml` entries | Automatic |
+| SddMemory binary | Go install / Homebrew / direct download | Single binary, no deps |
+| SddMemory plugin for Claude Code | `claude plugin marketplace add` | Automatic |
+| SddMemory plugin for OpenCode | Copy `sdd-memory.ts` to plugins dir | Automatic |
+| SddMemory config for Gemini CLI | Write `~/.gemini/settings.json` + `system.md` | Automatic |
+| SddMemory config for Codex | Write `~/.codex/config.toml` entries | Automatic |
 
 **Requirements:**
-- R-SDD_MEMORY-01: SDD-Memory MUST be installed as a prerequisite for any agent that supports it
-- R-SDD_MEMORY-02: The installer MUST configure SDD-Memory integration for EVERY selected agent automatically
-- R-SDD_MEMORY-03: The installer MUST verify SDD-Memory is running (health check on port 7437) after installation
-- R-SDD_MEMORY-04: The installer SHOULD configure SDD-Memory to start automatically on system boot (launchd on macOS, systemd on Linux)
-- R-SDD_MEMORY-05: If SDD-Memory is already installed, the installer MUST check the version and offer to upgrade
+- R-SDD-MEMORY-01: SddMemory MUST be installed as a prerequisite for any agent that supports it
+- R-SDD-MEMORY-02: The installer MUST configure SddMemory integration for EVERY selected agent automatically
+- R-SDD-MEMORY-03: The installer MUST verify SddMemory is running (health check on port 7437) after installation
+- R-SDD-MEMORY-04: The installer SHOULD configure SddMemory to start automatically on system boot (launchd on macOS, systemd on Linux)
+- R-SDD-MEMORY-05: If SddMemory is already installed, the installer MUST check the version and offer to upgrade
 
 ### 6.3 SDD (Spec-Driven Development) Skills
 
@@ -273,8 +283,9 @@ The full SDD Agent Team skill set (9 skills):
 - R-SDD-01: SDD skills MUST be installed to the correct path for each selected agent (Claude Code: `~/.claude/skills/`, OpenCode: `~/.config/opencode/skills/`, Cursor: `~/.cursor/skills/`)
 - R-SDD-02: The SDD orchestrator configuration MUST be injected into the agent's global config (CLAUDE.md, opencode.json agents, .cursorrules)
 - R-SDD-03: OpenCode slash commands for SDD phases MUST be installed when OpenCode is selected, enabling the agent to invoke SDD organically when it detects a substantial change
+- R-SDD-04: The installer MUST pull SDD skills from the latest release of `kevg1t/sdd-agent-team`
 
-### 6.4 MCP Servers
+### 6.5 MCP Servers
 
 | MCP Server | Transport | Purpose | Priority |
 |------------|-----------|---------|----------|
@@ -289,7 +300,7 @@ The full SDD Agent Team skill set (9 skills):
 - R-MCP-03: For authenticated MCP servers (Notion, Jira), the installer MUST inform the user that auth tokens need to be configured separately, and provide the exact config path and documentation link
 - R-MCP-04: The installer MUST NOT store or request API keys, tokens, or credentials
 
-### 6.5 Coding Skills Library
+### 6.6 Coding Skills Library
 
 Beyond SDD, additional coding skills that encode best practices:
 
@@ -312,7 +323,7 @@ Beyond SDD, additional coding skills that encode best practices:
 - R-SKILLS-05: Skills SHOULD be pulled from a central repository or registry, not embedded in the binary
 - R-SKILLS-06: The installer MUST configure agent global instructions (CLAUDE.md, opencode agents) to auto-detect and load skills based on file context
 
-### 6.6 Agent Configuration (Persona, Theme, Permissions)
+### 6.7 Agent Configuration (Persona, Theme, Permissions)
 
 #### Persona Selection — "Your own SpecAI!"
 
@@ -352,7 +363,7 @@ The SpecAI persona is the heart of this ecosystem, but it's **100% optional**. T
 ### 7.1 Installation Flow
 
 ```
-curl -sL get.SpecAI.ai/ai | sh
+curl -sL get.specai.ai/ai | sh
                   │
                   ▼
      ┌─────────────────────┐
@@ -363,7 +374,7 @@ curl -sL get.SpecAI.ai/ai | sh
                 ▼
      ┌─────────────────────────────────┐
      │   TUI: Welcome                   │
-     │   "SpecAI Ecosystem"       │
+     │   "Specai Ecosystem"       │
      │   Supercharge your AI agents.    │
      └──────────┬──────────────────────┘
                 │
@@ -373,7 +384,7 @@ curl -sL get.SpecAI.ai/ai | sh
      │  Detected: Claude Code ✓         │
      │            OpenCode ✓            │
      │            Cursor ✗              │
-     │            SDD-Memory ✗              │
+     │            SddMemory ✗              │
      │  OS: macOS (Apple Silicon)       │
      └──────────┬──────────────────────┘
                 │
@@ -404,12 +415,12 @@ curl -sL get.SpecAI.ai/ai | sh
      ┌─────────────────────────────────┐
      │  Select Ecosystem Preset         │
      │                                  │
-     │  ★ Dev Stack + Polish             │  ← Everything: SDD-Memory + SDD + Skills
-     │     (SDD-Memory + SDD + All Skills   │     + MCP + Theme + Permissions
+     │  ★ Dev Stack + Polish             │  ← Everything: SddMemory + SDD + Skills
+     │     (SddMemory + SDD + All Skills   │     + MCP + Theme + Permissions
      │      + MCP + Theme)              │
      │                                  │
      │  ○ Dev Stack                     │  ← Tools without persona
-     │  ○ Memory Only                   │  ← Just SDD-Memory + basics
+     │  ○ Memory Only                   │  ← Just SddMemory + basics
      │  ○ Custom                        │  ← Pick each component
      └──────────┬──────────────────────┘
                 │
@@ -417,7 +428,7 @@ curl -sL get.SpecAI.ai/ai | sh
         │ If "Custom":  │
         │               ▼
         │  ┌──────────────────────┐
-        │  │ ☑ SDD-Memory (memory)    │
+        │  │ ☑ SddMemory (memory)    │
         │  │ ☑ SDD (workflow)     │
         │  │ Select Skills...     │
         │  │ Select MCP servers...│
@@ -432,7 +443,7 @@ curl -sL get.SpecAI.ai/ai | sh
      │                                  │
      │  Agents: Claude Code, OpenCode   │
      │  Persona: SpecAI              │
-     │  Memory: SDD-Memory ✓                │
+     │  Memory: SddMemory ✓                │
      │  Workflow: SDD (9 skills) ✓      │
      │  Coding Skills: 15 skills ✓      │
      │  MCP: Context7, Notion ✓         │
@@ -445,11 +456,11 @@ curl -sL get.SpecAI.ai/ai | sh
      ┌─────────────────────────────────┐
      │  Configuring...                  │
      │                                  │
-     │  ✓ Installing SDD-Memory             │
+     │  ✓ Installing SddMemory             │
      │  ✓ Configuring Claude Code       │
      │    ✓ Skills (22 files)           │
      │    ✓ MCP servers                 │
-     │    ✓ SDD-Memory plugin               │
+     │    ✓ SddMemory plugin               │
      │    ✓ Permissions & theme         │
      │  ◌ Configuring OpenCode...       │
      │    [████████░░] 80%              │
@@ -470,7 +481,7 @@ curl -sL get.SpecAI.ai/ai | sh
      │                                  │
      │  Agents configured: 2            │
      │  Skills installed: 22            │
-     │  Memory: SDD-Memory running ✓        │
+     │  Memory: SddMemory running ✓        │
      └─────────────────────────────────┘
 ```
 
@@ -479,9 +490,9 @@ curl -sL get.SpecAI.ai/ai | sh
 For CI, automation, and team provisioning:
 
 ```bash
-SpecAI install \
+specai install \
   --agents claude-code,opencode \
-  --preset SpecAI \
+  --preset specai \
   --skills full-stack \
   --mcp context7,notion \
   --non-interactive
@@ -526,9 +537,9 @@ This section describes how all SpecAI ecosystem components interact with each ot
 
 ```mermaid
 graph TB
-    subgraph INSTALLER["🔧 SpecAI INSTALLER (one-time setup)"]
+    subgraph INSTALLER["🔧 Specai INSTALLER (one-time setup)"]
         direction TB
-        GAI[SpecAI binary]
+        GAI[specai binary]
         GAI --> DEP_ENGINE[Dependency Engine]
         GAI --> AGENT_ENGINE[Agent Configurator]
         GAI --> ECO_ENGINE[Ecosystem Injector]
@@ -551,9 +562,9 @@ graph TB
         OTHER[Other agents...]
     end
 
-    subgraph ECOSYSTEM["⚡ SpecAIMAN ECOSYSTEM (injected into agents)"]
+    subgraph ECOSYSTEM["⚡ SPECAI ECOSYSTEM (injected into agents)"]
         direction TB
-        SDD_MEMORY[🧠 SDD-Memory<br/>Persistent Memory]
+        SDD-MEMORY[🧠 SddMemory<br/>Persistent Memory]
         SDD[📋 SDD Skills<br/>Spec-Driven Development]
         SKILLS[📚 Coding Skills<br/>React, TS, Tailwind, etc.]
         MCP[🔌 MCP Servers<br/>Context7, Notion, Jira]
@@ -572,9 +583,9 @@ graph TB
     DEV -->|uses| OC
     DEV -->|uses| GEM
 
-    CC -->|remembers via| SDD_MEMORY
-    OC -->|remembers via| SDD_MEMORY
-    GEM -->|remembers via| SDD_MEMORY
+    CC -->|remembers via| SDD-MEMORY
+    OC -->|remembers via| SDD-MEMORY
+    GEM -->|remembers via| SDD-MEMORY
 
     CC -->|follows| SKILLS
     OC -->|follows| SKILLS
@@ -618,10 +629,10 @@ graph LR
         AGENT_CORE --> AGENT_PERSONA
     end
 
-    subgraph MEMORY_LAYER["SDD-Memory Memory System"]
+    subgraph MEMORY_LAYER["SddMemory Memory System"]
         direction TB
         MEM_PLUGIN[Agent Plugin<br/>Claude: hooks + MCP<br/>OpenCode: TS plugin<br/>Gemini: system.md]
-        MEM_SERVER[SDD-Memory Server<br/>localhost:7437]
+        MEM_SERVER[SddMemory Server<br/>localhost:7437]
         MEM_DB[(SQLite + FTS5<br/>~/.sdd-memory/sdd-memory.db)]
         MEM_PLUGIN --> MEM_SERVER
         MEM_SERVER --> MEM_DB
@@ -638,9 +649,6 @@ graph LR
         SDD_ORCH[Orchestrator<br/>in CLAUDE.md / agent config]
         SDD_SKILLS_2[9 Phase Skills<br/>explore → propose →<br/>spec → design → tasks →<br/>apply → verify → archive]
         SDD_ORCH --> SDD_SKILLS_2
-    end
-
-        direction TB
     end
 
     CODE -->|"ask AI for help"| AGENT_CORE
@@ -661,7 +669,7 @@ graph LR
 
 ```mermaid
 flowchart TD
-    START([SpecAI install]) --> DETECT
+    START([specai install]) --> DETECT
 
     subgraph PHASE_1["Phase 1: System Detection"]
         DETECT[Detect OS / Arch / WSL / Termux]
@@ -682,7 +690,7 @@ flowchart TD
     REVIEW --> BACKUP
 
     subgraph PHASE_3["Phase 3: Backup"]
-        BACKUP[Backup existing configs<br/>~/.SpecAI-backup-TIMESTAMP/]
+        BACKUP[Backup existing configs<br/>~/.specai-backup-TIMESTAMP/]
     end
 
     BACKUP --> DEP_INSTALL
@@ -700,31 +708,34 @@ flowchart TD
     subgraph PHASE_5["Phase 5: Core Components"]
         direction TB
         AGENT_INSTALL[Install missing agents<br/>Claude Code / OpenCode / etc.]
-        AGENT_INSTALL --> SDD_MEMORY_INSTALL[Install SDD-Memory binary<br/>via Homebrew or download]
+        AGENT_INSTALL --> SDD-MEMORY_INSTALL[Install SddMemory binary<br/>via Homebrew or download]
+        SDD-MEMORY_INSTALL --> SDD-MEMORY_START[Start SddMemory server<br/>+ configure auto-start]
     end
 
-    SDD_MEMORY_START --> CONFIG_LOOP
+    SDD-MEMORY_START --> CONFIG_LOOP
 
     subgraph PHASE_6["Phase 6: Configure Each Agent"]
         direction TB
         CONFIG_LOOP[For each selected agent:]
-        CONFIG_LOOP --> INJECT_SDD_MEMORY[Inject SDD-Memory<br/>plugin / MCP / instructions]
-        INJECT_SDD_MEMORY --> INJECT_SKILLS[Copy skills to<br/>agent's skill directory]
+        CONFIG_LOOP --> INJECT_SDD-MEMORY[Inject SddMemory<br/>plugin / MCP / instructions]
+        INJECT_SDD-MEMORY --> INJECT_SKILLS[Copy skills to<br/>agent's skill directory]
         INJECT_SKILLS --> INJECT_SDD[Configure SDD<br/>orchestrator + commands]
         INJECT_SDD --> INJECT_MCP[Configure MCP servers<br/>Context7, Notion, Jira]
         INJECT_MCP --> INJECT_PERSONA[Inject persona<br/>CLAUDE.md / agents / rules]
         INJECT_PERSONA --> INJECT_THEME[Apply theme +<br/>permissions + statusline]
     end
 
+    INJECT_THEME --> VERIFY
 
     subgraph PHASE_7["Phase 7: Verification"]
         direction TB
         VERIFY[Health checks]
-        VERIFY --> CHECK_SDD_MEMORY[SDD-Memory: GET /health ✓]
-        CHECK_SDD_MEMORY --> CHECK_SKILLS[Skills: files exist ✓]
+        VERIFY --> CHECK_SDD-MEMORY[SddMemory: GET /health ✓]
+        CHECK_SDD-MEMORY --> CHECK_SKILLS[Skills: files exist ✓]
         CHECK_SKILLS --> CHECK_MCP[MCP: configs valid ✓]
     end
 
+    CHECK_MCP --> DONE([Complete!<br/>Show next steps])
 
     style PHASE_1 fill:#1a1b26,stroke:#957FB8,color:#957FB8
     style PHASE_2 fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
@@ -740,7 +751,8 @@ flowchart TD
 ```mermaid
 graph TD
     subgraph SOURCES["Source Repositories (fetched at install time)"]
-        REPO_SDD_MEMORY[kevg1t/<br/>sdd-memory]
+        REPO_SDD[kevg1t/<br/>sdd-agent-team]
+        REPO_SDD-MEMORY[kevg1t/<br/>sdd-memory]
         REPO_SKILLS[Skills Registry<br/>30+ skill files]
     end
 
@@ -748,12 +760,12 @@ graph TD
         CC_MD[CLAUDE.md<br/>Persona + SDD Orchestrator]
         CC_SETTINGS[settings.json<br/>Permissions, theme, statusline,<br/>thinking verbs, vim mode]
         CC_SKILLS_DIR[skills/<br/>SDD skills + coding skills]
-        CC_PLUGINS[plugins/<br/>SDD-Memory plugin]
+        CC_PLUGINS[plugins/<br/>SddMemory plugin]
         CC_JSON[~/.claude.json<br/>MCP servers: Context7, etc.]
     end
 
     subgraph OC_CONFIG["OpenCode (~/.config/opencode/)"]
-        OC_JSON[opencode.json<br/>Agents, MCP servers,<br/>SDD-Memory plugin, theme]
+        OC_JSON[opencode.json<br/>Agents, MCP servers,<br/>SddMemory plugin, theme]
         OC_SKILLS_DIR[skill/<br/>SDD skills + coding skills]
         OC_COMMANDS[commands/<br/>SDD slash commands]
         OC_PLUGINS[plugins/<br/>sdd-memory.ts]
@@ -766,11 +778,9 @@ graph TD
     end
 
     subgraph GEM_CONFIG["Gemini CLI (~/.gemini/)"]
-        GEM_SETTINGS[settings.json<br/>MCP: SDD-Memory]
+        GEM_SETTINGS[settings.json<br/>MCP: SddMemory]
         GEM_SYSTEM[system.md<br/>Memory protocol + persona]
         GEM_ENV[.env<br/>GEMINI_SYSTEM_MD=1]
-    end
-
     end
 
     REPO_SDD -->|"9 SKILL.md files"| CC_SKILLS_DIR
@@ -778,15 +788,14 @@ graph TD
     REPO_SDD -->|"condensed .cursorrules"| CUR_RULES
     REPO_SDD -->|"8 command .md files"| OC_COMMANDS
 
-    REPO_SDD_MEMORY -->|"claude plugin install"| CC_PLUGINS
-    REPO_SDD_MEMORY -->|"copy sdd-memory.ts"| OC_PLUGINS
-    REPO_SDD_MEMORY -->|"MCP entry"| GEM_SETTINGS
-    REPO_SDD_MEMORY -->|"memory protocol"| GEM_SYSTEM
+    REPO_SDD-MEMORY -->|"claude plugin install"| CC_PLUGINS
+    REPO_SDD-MEMORY -->|"copy sdd-memory.ts"| OC_PLUGINS
+    REPO_SDD-MEMORY -->|"MCP entry"| GEM_SETTINGS
+    REPO_SDD-MEMORY -->|"memory protocol"| GEM_SYSTEM
 
     REPO_SKILLS -->|"coding skill files"| CC_SKILLS_DIR
     REPO_SKILLS -->|"coding skill files"| OC_SKILLS_DIR
     REPO_SKILLS -->|"coding skill files"| CUR_SKILLS_DIR
-
 
     style SOURCES fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
     style CC_CONFIG fill:#1a1b26,stroke:#7FB4CA,color:#7FB4CA
@@ -797,48 +806,50 @@ graph TD
 
 #### 8.0.5 Memory & Knowledge Flow — How the Agent Learns Over Time
 
-This diagram shows the continuous learning loop that SDD-Memory enables across sessions:
+This diagram shows the continuous learning loop that SddMemory enables across sessions:
 
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
     participant Agent as AI Agent<br/>(Claude Code / OpenCode)
-    participant SDD-Memory as SDD-Memory Server<br/>(localhost:7437)
+    participant SddMemory as SddMemory Server<br/>(localhost:7437)
     participant DB as SQLite + FTS5<br/>(~/.sdd-memory/sdd-memory.db)
     participant MCP as MCP Servers<br/>(Context7, Notion, Jira)
     participant SDD as SDD Workflow
 
+    Note over Dev,SDD: === SESSION START ===
 
-    Agent->>SDD-Memory: mem_session_start(project)
-    SDD-Memory->>DB: INSERT session
-    SDD-Memory-->>Agent: Previous context injected<br/>(recent sessions, decisions, bugs)
+    Agent->>SddMemory: mem_session_start(project)
+    SddMemory->>DB: INSERT session
+    SddMemory-->>Agent: Previous context injected<br/>(recent sessions, decisions, bugs)
 
+    Note over Dev,SDD: === DEVELOPMENT LOOP ===
 
     Dev->>Agent: "Add auth to the API"
     Agent->>MCP: Query Context7 for JWT docs
     MCP-->>Agent: Latest library documentation
-    Agent->>SDD-Memory: mem_search("auth patterns")
-    SDD-Memory->>DB: FTS5 MATCH query
-    DB-->>SDD-Memory: Past decisions about auth
-    SDD-Memory-->>Agent: "Last time we used JWT with httpOnly cookies"
+    Agent->>SddMemory: mem_search("auth patterns")
+    SddMemory->>DB: FTS5 MATCH query
+    DB-->>SddMemory: Past decisions about auth
+    SddMemory-->>Agent: "Last time we used JWT with httpOnly cookies"
 
     Agent->>SDD: Detects substantial feature,<br/>initiates SDD workflow
     Note over SDD: explore → propose → spec<br/>→ design → tasks → apply
 
     Agent->>Dev: Implementation + explanation
 
-    Agent->>SDD-Memory: mem_save("JWT auth middleware",<br/>type: decision)
-    SDD-Memory->>DB: INSERT observation<br/>(with topic_key upsert)
+    Agent->>SddMemory: mem_save("JWT auth middleware",<br/>type: decision)
+    SddMemory->>DB: INSERT observation<br/>(with topic_key upsert)
 
+    Note over Dev,SDD: === SESSION END ===
 
+    Agent->>SddMemory: mem_session_summary(goal,<br/>discoveries, accomplished, files)
+    SddMemory->>DB: INSERT summary observation
 
+    Note over Dev,SDD: === NEXT SESSION (days later) ===
 
-    Agent->>SDD-Memory: mem_session_summary(goal,<br/>discoveries, accomplished, files)
-    SDD-Memory->>DB: INSERT summary observation
-
-
-    Agent->>SDD-Memory: mem_context(project)
-    SDD-Memory-->>Agent: "Last session: added JWT auth<br/>to src/middleware/auth.ts.<br/>Decision: httpOnly cookies,<br/>refresh token rotation."
+    Agent->>SddMemory: mem_context(project)
+    SddMemory-->>Agent: "Last session: added JWT auth<br/>to src/middleware/auth.ts.<br/>Decision: httpOnly cookies,<br/>refresh token rotation."
     Note over Agent: Agent resumes WITH FULL CONTEXT<br/>as if it never left
 ```
 
@@ -849,37 +860,37 @@ When a developer uses multiple agents, the ecosystem keeps them in sync:
 ```mermaid
 graph TB
     subgraph SHARED["Shared Layer (single source of truth)"]
-        SDD_MEMORY_DB[(SDD-Memory DB<br/>~/.sdd-memory/sdd-memory.db<br/>All memories, all sessions)]
+        SDD-MEMORY_DB[(SddMemory DB<br/>~/.sdd-memory/sdd-memory.db<br/>All memories, all sessions)]
         SKILLS_SOURCE[Skills Files<br/>Identical copies in<br/>each agent's skill dir]
     end
 
     subgraph AGENT_CC["Claude Code Session"]
         CC_AGENT[Agent + Persona]
-        CC_SDD_MEMORY_PLUGIN[SDD-Memory Plugin<br/>hooks + MCP]
+        CC_SDD-MEMORY_PLUGIN[SddMemory Plugin<br/>hooks + MCP]
     end
 
     subgraph AGENT_OC["OpenCode Session"]
         OC_AGENT[Agent + Persona]
-        OC_SDD_MEMORY_PLUGIN[SDD-Memory Plugin<br/>TS plugin + MCP]
+        OC_SDD-MEMORY_PLUGIN[SddMemory Plugin<br/>TS plugin + MCP]
     end
 
     subgraph AGENT_GEM["Gemini CLI Session"]
         GEM_AGENT[Agent + system.md]
-        GEM_SDD_MEMORY_MCP[SDD-Memory MCP]
+        GEM_SDD-MEMORY_MCP[SddMemory MCP]
     end
 
-    CC_SDD_MEMORY_PLUGIN <-->|"read/write memories"| SDD_MEMORY_DB
-    OC_SDD_MEMORY_PLUGIN <-->|"read/write memories"| SDD_MEMORY_DB
-    GEM_SDD_MEMORY_MCP <-->|"read/write memories"| SDD_MEMORY_DB
+    CC_SDD-MEMORY_PLUGIN <-->|"read/write memories"| SDD-MEMORY_DB
+    OC_SDD-MEMORY_PLUGIN <-->|"read/write memories"| SDD-MEMORY_DB
+    GEM_SDD-MEMORY_MCP <-->|"read/write memories"| SDD-MEMORY_DB
 
     CC_AGENT -->|"follows"| SKILLS_SOURCE
     OC_AGENT -->|"follows"| SKILLS_SOURCE
     GEM_AGENT -->|"follows"| SKILLS_SOURCE
 
-    CC_AGENT -.->|"decisions saved in session 1"| SDD_MEMORY_DB
-    SDD_MEMORY_DB -.->|"recalled in session 2"| OC_AGENT
-    OC_AGENT -.->|"new decisions saved"| SDD_MEMORY_DB
-    SDD_MEMORY_DB -.->|"full context available"| GEM_AGENT
+    CC_AGENT -.->|"decisions saved in session 1"| SDD-MEMORY_DB
+    SDD-MEMORY_DB -.->|"recalled in session 2"| OC_AGENT
+    OC_AGENT -.->|"new decisions saved"| SDD-MEMORY_DB
+    SDD-MEMORY_DB -.->|"full context available"| GEM_AGENT
 
     style SHARED fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
     style AGENT_CC fill:#1a1b26,stroke:#7FB4CA,color:#7FB4CA
@@ -887,7 +898,7 @@ graph TB
     style AGENT_GEM fill:#1a1b26,stroke:#FF9E64,color:#FF9E64
 ```
 
-**Key architectural principle:** SDD-Memory is the **shared brain** across all agents. A decision made in Claude Code is available in OpenCode and Gemini CLI. Skills are identical copies. The developer can switch agents freely without losing context.
+**Key architectural principle:** SddMemory is the **shared brain** across all agents. A decision made in Claude Code is available in OpenCode and Gemini CLI. Skills are identical copies. The developer can switch agents freely without losing context.
 
 #### 8.0.7 Component Ownership & Boundaries
 
@@ -903,20 +914,13 @@ graph TB
         I6[Health verification]
     end
 
-    subgraph SDD_MEMORY_OWNS["SDD-Memory Owns (runtime)"]
+    subgraph SDD-MEMORY_OWNS["SddMemory Owns (runtime)"]
         direction LR
         E1[Memory persistence]
         E2[Session tracking]
         E3[FTS5 search]
         E4[Cross-agent sync]
         E5[Git sync for teams]
-    end
-
-        direction LR
-        G1[Pre-commit review]
-        G2[File caching]
-        G3[Multi-provider routing]
-        G4[PR review mode]
     end
 
     subgraph AGENT_OWNS["Agent Owns (session-time)"]
@@ -931,16 +935,15 @@ graph TB
     subgraph USER_OWNS["User Owns (always)"]
         direction LR
         U1[API keys & auth]
-        U2[AGENTS.md rules]
         U4[Which agents to use]
     end
 
-    INSTALLER_OWNS -->|"sets up"| SDD_MEMORY_OWNS
+    INSTALLER_OWNS -->|"sets up"| SDD-MEMORY_OWNS
     INSTALLER_OWNS -->|"configures"| AGENT_OWNS
     USER_OWNS -->|"provides to"| AGENT_OWNS
 
     style INSTALLER_OWNS fill:#1a1b26,stroke:#E0C15A,color:#E0C15A
-    style SDD_MEMORY_OWNS fill:#1a1b26,stroke:#B7CC85,color:#B7CC85
+    style SDD-MEMORY_OWNS fill:#1a1b26,stroke:#B7CC85,color:#B7CC85
     style AGENT_OWNS fill:#1a1b26,stroke:#7FB4CA,color:#7FB4CA
     style USER_OWNS fill:#1a1b26,stroke:#957FB8,color:#957FB8
 ```
@@ -951,7 +954,7 @@ graph TB
 
 | Layer | Technology | Rationale |
 |-------|-----------|-----------|
-| Language | Go | Same as SpecAI.Dots + SDD-Memory. Single binary, cross-compile, no runtime deps |
+| Language | Go | Same as SpecAI.Dots + SddMemory. Single binary, cross-compile, no runtime deps |
 | TUI | Bubbletea + Lipgloss | Proven in SpecAI.Dots. Elm architecture, excellent terminal support |
 | Distribution | Homebrew tap + direct binary download + curl installer | Same as SpecAI.Dots |
 | Skills source | Git clone from repos at install time | Always latest version |
@@ -960,9 +963,9 @@ graph TB
 ### 8.2 Package Structure (Proposed)
 
 ```
-SpecAI/
+specai/
 ├── cmd/
-│   └── SpecAI/
+│   └── specai/
 │       └── main.go                 # CLI entrypoint
 ├── internal/
 │   ├── system/
@@ -978,13 +981,13 @@ SpecAI/
 │   │   ├── codex.go                # Codex install + config
 │   │   └── windsurf.go             # Windsurf install + config
 │   ├── components/
-│   │   ├── sdd-memory.go               # SDD-Memory install + config per agent
+│   │   ├── sdd-memory.go               # SddMemory install + config per agent
 │   │   ├── sdd.go                  # SDD skills install + orchestrator config
 │   │   ├── mcp.go                  # MCP server configuration per agent
 │   │   ├── skills.go               # Skills library install
 │   │   └── config.go               # Persona, theme, permissions, etc.
 │   ├── presets/
-│   │   ├── SpecAI.go            # Dev Stack + Polish preset definition (`full-SpecAI`)
+│   │   ├── specai.go            # Dev Stack + Polish preset definition (`full-specai`)
 │   │   ├── minimal.go              # Memory Only preset definition (`minimal`)
 │   │   └── preset.go               # Preset interface
 │   ├── backup/
@@ -1033,7 +1036,7 @@ type Agent interface {
     Install(ctx context.Context) error     // Install the agent binary (optional — user may already have it)
 
     // Ecosystem configuration (each returns ErrNotSupported if agent can't do it)
-    ConfigureSDD-Memory() error                // Set up SDD-Memory integration (plugin, MCP, or instructions)
+    ConfigureSddMemory() error                // Set up SddMemory integration (plugin, MCP, or instructions)
     ConfigureMCP(servers []MCPServer) error // Add MCP server entries
     ConfigureSkills(skills []Skill) error  // Install skill files to correct paths
     ConfigureSDD() error                   // Set up SDD orchestrator + commands/slash-commands
@@ -1073,9 +1076,9 @@ Persona is selected separately on the Persona screen and applied independently o
 
 | Preset | Display Label | What's Included | Description |
 |--------|--------------|-----------------|-------------|
-| `full-SpecAI` | Dev Stack + Polish | All agents detected + SDD-Memory + SDD + all skills + MCP + theme | The complete experience. Everything configured, dark theme, the works. |
-| `ecosystem-only` | Dev Stack | SDD-Memory + SDD + skills + MCP for selected agents | All the tools and workflow. For developers who want the ecosystem without opinionated defaults. |
-| `minimal` | Memory Only | SDD-Memory + basic skills for selected agents | Just memory and essential skills. Quick and lean. |
+| `full-specai` | Dev Stack + Polish | All agents detected + SddMemory + SDD + all skills + MCP + theme | The complete experience. Everything configured, dark theme, the works. |
+| `ecosystem-only` | Dev Stack | SddMemory + SDD + skills + MCP for selected agents | All the tools and workflow. For developers who want the ecosystem without opinionated defaults. |
+| `minimal` | Memory Only | SddMemory + basic skills for selected agents | Just memory and essential skills. Quick and lean. |
 | `custom` | Custom | User picks each component | Full control over every aspect. |
 
 ---
@@ -1086,11 +1089,11 @@ Persona is selected separately on the Persona screen and applied independently o
 
 | Method | Command | Priority |
 |--------|---------|----------|
-| curl (recommended) | `curl -sL get.SpecAI.ai/ai \| sh` | P0 |
-| Homebrew | `brew install kevg1t/tap/SpecAI` | P0 |
-| Go install | `go install github.com/kevg1t/SpecAI/cmd/SpecAI@latest` | P1 |
+| curl (recommended) | `curl -sL get.specai.ai/ai \| sh` | P0 |
+| Homebrew | `brew install kevg1t/tap/specai` | P0 |
+| Go install | `go install github.com/kevg1t/specai/cmd/specai@latest` | P1 |
 | Direct binary | Download from GitHub Releases | P1 |
-| winget (Windows) | `winget install SpecAI` | P2 |
+| winget (Windows) | `winget install specai` | P2 |
 
 ### 9.2 Cross-Compilation Targets
 
@@ -1118,9 +1121,9 @@ Persona is selected separately on the Persona screen and applied independently o
 ### 10.1 Self-Update
 
 **Requirements:**
-- R-UPDATE-01: The installer MUST support `SpecAI update` to check for and install newer versions of itself
-- R-UPDATE-02: The installer MUST support `SpecAI update --skills` to pull latest skill versions for all configured agents
-- R-UPDATE-03: The installer MUST support `SpecAI update --sdd-memory` to update SDD-Memory to the latest version
+- R-UPDATE-01: The installer MUST support `specai update` to check for and install newer versions of itself
+- R-UPDATE-02: The installer MUST support `specai update --skills` to pull latest skill versions for all configured agents
+- R-UPDATE-03: The installer MUST support `specai update --sdd-memory` to update SddMemory to the latest version
 - R-UPDATE-04: The installer SHOULD check for updates on launch and notify (not auto-update)
 
 ### 10.2 Config Sync
@@ -1137,27 +1140,26 @@ Persona is selected separately on the Persona screen and applied independently o
 
 ### 11.1 What the User Gets After Installation
 
-When the installer completes with "Dev Stack + Polish" (`full-SpecAI`) preset + Claude Code + OpenCode:
+When the installer completes with "Dev Stack + Polish" (`full-specai`) preset + Claude Code + OpenCode:
 
 **Claude Code:**
 - `~/.claude/CLAUDE.md` — SpecAI persona with SDD orchestrator
 - `~/.claude/settings.json` — Security-first permissions, SpecAI theme, vim mode, custom statusline, thinking verbs
 - `~/.claude/skills/` — All selected skills (SDD + coding skills)
-- `~/.claude/plugins/` — SDD-Memory plugin installed and active
+- `~/.claude/plugins/` — SddMemory plugin installed and active
 - `~/.claude.json` — Context7 MCP server configured
 
 **OpenCode:**
-- `~/.config/opencode/opencode.json` — Agents (SpecAI, sdd-orchestrator), MCP servers (sdd-memory, context7), SDD-Memory plugin, SpecAI theme
+- `~/.config/opencode/opencode.json` — Agents (specai, sdd-orchestrator), MCP servers (sdd-memory, context7), SddMemory plugin, SpecAI theme
 - `~/.config/opencode/skills/` — All selected skills mirrored
 - `~/.config/opencode/commands/` — SDD slash commands
-- `~/.config/opencode/plugins/` — SDD-Memory TypeScript plugin
+- `~/.config/opencode/plugins/` — SddMemory TypeScript plugin
 
-**SDD-Memory:**
+**SddMemory:**
 - `sdd-memory` binary in PATH
 - Running as background service (port 7437)
 - Database initialized at `~/.sdd-memory/sdd-memory.db`
 - Integrated with all selected agents
-
 
 **Verification:**
 - The installer runs a health check: `sdd-memory serve` responds, MCP tools are callable, skills are in correct paths
@@ -1194,7 +1196,7 @@ The completion screen MUST show:
 ### 12.3 Reliability
 - R-REL-01: Every installation step MUST be idempotent (safe to re-run)
 - R-REL-02: If a step fails, the installer MUST continue with remaining steps and report failures at the end
-- R-REL-03: The installer MUST support `SpecAI repair` to re-run failed steps
+- R-REL-03: The installer MUST support `specai repair` to re-run failed steps
 - R-REL-04: The backup system MUST create timestamped snapshots before any config modification
 
 ### 12.4 Extensibility
@@ -1212,12 +1214,12 @@ The completion screen MUST show:
 
 ## 13. Relationship to SpecAI.Dots
 
-| Aspect | SpecAI.Dots | SpecAI Installer |
+| Aspect | SpecAI.Dots | Specai Installer |
 |--------|---------------|----------------------|
 | Purpose | Dev environment (editors, shells, terminals) | AI development layer (agents, memory, skills) |
-| What it installs | Neovim, Fish/Zsh/Nushell, Tmux/Zellij, Ghostty/Kitty/etc. | Claude Code, OpenCode, SDD-Memory, SDD, MCP servers, skills |
+| What it installs | Neovim, Fish/Zsh/Nushell, Tmux/Zellij, Ghostty/Kitty/etc. | Claude Code, OpenCode, SddMemory, SDD, MCP servers, skills |
 | Overlap | None — complementary tools | None — different layer |
-| Can use together | Yes — install SpecAI.Dots first for dev env, then SpecAI for AI layer | Same |
+| Can use together | Yes — install SpecAI.Dots first for dev env, then Specai for AI layer | Same |
 | Shared patterns | Go + Bubbletea + Lipgloss, multi-OS detection, backup system | Same architecture, consistent UX |
 
 **Requirements:**
@@ -1233,7 +1235,7 @@ These are NOT requirements for v1 but should inform architectural decisions:
 
 1. **Team profiles** — Shareable config profiles for standardizing AI setup across a team
 2. **Plugin marketplace** — Browse and install community-created skills from a central registry
-3. **AI agent health dashboard** — TUI screen showing status of all installed agents, SDD-Memory memory stats, MCP server connectivity
+3. **AI agent health dashboard** — TUI screen showing status of all installed agents, SddMemory memory stats, MCP server connectivity
 4. **Auto-detection of project stack** — When entering a project directory, suggest relevant skills to install
 5. **Migration tool** — Import settings from one agent to another (e.g., Cursor user switching to Claude Code)
 6. **SpecAI.Dots integration** — Combined installer that does BOTH dev environment + AI layer in one flow
@@ -1256,7 +1258,7 @@ These are NOT requirements for v1 but should inform architectural decisions:
 
 ## 16. Open Questions
 
-1. **Naming**: `SpecAI`, `SpecAI`, `gai`, or something else? Should it be part of the `kevg1t` org or standalone?
+1. **Naming**: `specai`, `specai`, `gai`, or something else? Should it be part of the `kevg1t` org or standalone?
 2. **Skills registry**: Should skills be embedded in the binary, fetched from GitHub at install time, or pulled from a dedicated registry service?
 3. **Windows native**: How much effort to invest in native Windows (not WSL) support for v1? Most AI coding tools have limited Windows support anyway.
 4. **Config format**: Should the installer's own config (what was installed, preferences) be stored as JSON, YAML, or TOML? Where?
@@ -1271,9 +1273,11 @@ These are NOT requirements for v1 but should inform architectural decisions:
 |------|-------------|------------|
 | `claude` CLI setup | Installs Claude Code only | Single tool, no skills/memory/MCP |
 | `opencode` install | Installs OpenCode only | Single tool, manual config |
-| `sdd-memory setup` | Installs SDD-Memory for one agent | Memory only, no skills/agents |
+| `sdd-memory setup` | Installs SddMemory for one agent | Memory only, no skills/agents |
+| `sdd-agent-team/install.sh` | Installs SDD skills | Skills only, no agents/memory |
 | Various dotfile managers | Stow, chezmoi, etc. | Generic, not AI-specific |
 
+**None of these solve the full problem.** Each handles one piece. This installer orchestrates ALL of them — SddMemory, SDD, skills, MCP, persona, theme — into a coherent, working AI development ecosystem across any agent the user chooses.
 
 ---
 
@@ -1281,30 +1285,30 @@ These are NOT requirements for v1 but should inform architectural decisions:
 
 ```bash
 # Dev Stack + Polish preset with Claude Code + OpenCode
-SpecAI install --preset SpecAI --agents claude-code,opencode
+specai install --preset specai --agents claude-code,opencode
 
 # Memory Only setup, just Claude Code with basic security
-SpecAI install --preset minimal --agents claude-code
+specai install --preset minimal --agents claude-code
 
 # Team provisioning from shared profile
-SpecAI install --profile ./team-ai-config.yaml
+specai install --profile ./team-ai-config.yaml
 
 # Update all skills to latest
-SpecAI update --skills
+specai update --skills
 
-# Update SDD-Memory
-SpecAI update --sdd-memory
+# Update SddMemory
+specai update --sdd-memory
 
 # Backup current configs
-SpecAI backup
+specai backup
 
 # Restore from backup
-SpecAI restore --list
-SpecAI restore --id 2026-02-27-143022
+specai restore --list
+specai restore --id 2026-02-27-143022
 
 # Repair failed installation
-SpecAI repair
+specai repair
 
 # Show what's installed
-SpecAI status
+specai status
 ```

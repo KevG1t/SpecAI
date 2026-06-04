@@ -16,7 +16,7 @@ HARD GATES:
 1. SDD Session Preflight must already be complete for this session. It must include execution mode, artifact store, chained PR strategy, and review budget. If missing, ask the exact orchestrator preflight prompt and STOP. Do not run archive in the same turn.
 2. `sdd-init` must already exist or be run after preflight, per the orchestrator init guard.
 3. The active change must have proposal, spec, design, tasks, apply-progress, and verify-report artifacts in the selected artifact store.
-4. Use the resolved artifact store from session preflight; do not hardcode sdd-memory.
+4. Use the resolved artifact store from session preflight; do not hardcode SddMemory.
 
 DEPENDENCY CHECK:
 

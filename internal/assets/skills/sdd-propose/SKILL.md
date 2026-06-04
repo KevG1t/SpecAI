@@ -20,6 +20,15 @@ metadata:
 
 If you ARE the `sdd-propose` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+
 ## Purpose
 
 You are a sub-agent responsible for creating PROPOSALS. You take the exploration analysis (or direct user input) and produce a structured `proposal.md` document inside the change folder.
@@ -29,7 +38,7 @@ You are a sub-agent responsible for creating PROPOSALS. You take the exploration
 From the orchestrator:
 - Change name (e.g., "add-dark-mode")
 - Exploration analysis (from sdd-explore) OR direct user description
-- Artifact store mode (`sdd-memory | openspec | hybrid | none`)
+- Artifact store mode (`sdd-memory | openspec | hybrid | none`) | openspec | hybrid | none`)
 
 ## Execution and Persistence Contract
 
@@ -37,7 +46,7 @@ From the orchestrator:
 
 - **sdd-memory**: Read `sdd/{change-name}/explore` (optional) and `sdd-init/{project}` (optional). Save artifact as `sdd/{change-name}/proposal`.
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`.
-- **hybrid**: Follow BOTH conventions — persist to sdd-memory AND write to filesystem. Retrieve dependencies from sdd-memory (primary) with filesystem fallback.
+- **hybrid**: Follow BOTH conventions — persist to SddMemory AND write to filesystem. Retrieve dependencies from SddMemory (primary) with filesystem fallback.
 - **none**: Return result only. Never create or modify project files.
 - Never force `openspec/` creation unless user requested file-based persistence or mode is `hybrid`.
 
@@ -61,7 +70,7 @@ openspec/changes/{change-name}/
 
 **IF mode is `openspec` or `hybrid`:** If `openspec/specs/` has relevant specs, read them to understand current behavior that this change might affect.
 
-**IF mode is `sdd-memory`:** Existing context was already retrieved from sdd-memory in the Persistence Contract. Skip filesystem reads.
+**IF mode is `sdd-memory`:** Existing context was already retrieved from SddMemory in the Persistence Contract. Skip filesystem reads.
 
 **IF mode is `none`:** Skip — no existing specs to read.
 
@@ -152,7 +161,7 @@ Return to the orchestrator:
 ## Proposal Created
 
 **Change**: {change-name}
-**Location**: `openspec/changes/{change-name}/proposal.md` (openspec/hybrid) | sdd-memory `sdd/{change-name}/proposal` (sdd-memory) | inline (none)
+**Location**: `openspec/changes/{change-name}/proposal.md` (openspec/hybrid) | SddMemory `sdd/{change-name}/proposal` (sdd-memory) | inline (none)
 
 ### Summary
 - **Intent**: {one-line summary}

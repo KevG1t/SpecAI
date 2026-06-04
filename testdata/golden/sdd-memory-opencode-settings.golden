@@ -1,0 +1,11 @@
+{
+  "mcp": {
+    "sdd-memory": {
+      "command": [
+        "/opt/homebrew/bin/sdd-memory",
+        "mcp"
+      ],
+      "type": "local"
+    }
+  }
+}

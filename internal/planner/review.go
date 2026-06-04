@@ -1,6 +1,6 @@
 package planner
 
-import "github.com/KevG1t/SpecAI/internal/model"
+import "github.com/KevG1t/specai/internal/model"
 
 func BuildReviewPayload(selection model.Selection, resolved ResolvedPlan) ReviewPayload {
 	autoAdded := make(map[model.ComponentID]struct{}, len(resolved.AddedDependencies))
@@ -34,6 +34,5 @@ func BuildReviewPayload(selection model.Selection, resolved ResolvedPlan) Review
 		// Issue #149: pass StrictTDD and whether SDD is in plan.
 		StrictTDD: selection.StrictTDD,
 		HasSDD:    hasSDD,
-		SDDMode:   selection.SDDMode,
 	}
 }

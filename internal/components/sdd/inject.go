@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/components/skills"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/opencode"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/assets"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/components/skills"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/opencode"
 )
 
 type InjectionResult struct {
@@ -27,34 +27,72 @@ type InjectOptions struct {
 	ClaudeModelAssignments   map[string]model.ClaudeModelAlias
 	KiroModelAssignments     map[string]model.ClaudeModelAlias
 
+	// WorkspaceDir is the root of the current workspace (e.g. os.Getwd()).
+	// When non-empty and the adapter implements workflowInjector, native
+	// workflow files are copied to <workspaceDir>/.windsurf/workflows/.
 	WorkspaceDir string
 
-	// StrictTDD enables Strict TDD mode marker injection.
+	// StrictTDD enables Strict TDD mode. When true, a
+	// <!-- specai:strict-tdd-mode --> marker section is injected into
+	// the agent's system prompt so agents know Strict TDD is active.
 	StrictTDD bool
 
+	// Profiles lists named SDD profiles to generate and merge into the
+	// OpenCode settings file. The default profile (Name="" or Name="default")
+	// is skipped — it is handled by the existing flow.
 	Profiles []model.Profile
 
 	// PreserveOpenCodeOrchestratorPrompt keeps the existing
-	// opencode.json agent.sdd-orchestrator.prompt value during sync.
+	// opencode.json agent.specai-orchestrator.prompt value during sync.
+	// Used by external-single-active profile strategy integrations where
+	// external tools extend orchestrator policy/prompt at runtime.
 	PreserveOpenCodeOrchestratorPrompt bool
 
+	// Capability is the model capability ("capable" or "small") used to
+	// extract the appropriate section from SDD skill files. If empty,
+	// skills.InjectWithCapability will be called with empty capability
+	// (no section extraction, full content written).
 	Capability string
 }
 
+// workflowInjector is an optional adapter capability: if an adapter
+// implements this interface, sdd.Inject will copy the embedded workflow
+// assets into the workspace directory provided via InjectOptions.WorkspaceDir.
+// This intentionally does NOT extend agents.Adapter to avoid requiring all
+// adapters to implement no-op stubs.
 type workflowInjector interface {
 	SupportsWorkflows() bool
+	// WorkflowsDir returns the target filesystem directory where workflow files
+	// should be written (e.g. <workspaceDir>/.windsurf/workflows/).
 	WorkflowsDir(workspaceDir string) string
+	// EmbeddedWorkflowsDir returns the path inside the embedded assets FS where
+	// this adapter's workflow sources live (e.g. "windsurf/workflows").
+	// This removes the hardcoded agent name from the injection step, making
+	// the workflowInjector pattern reusable for future agents.
 	EmbeddedWorkflowsDir() string
 }
 
+// kiroModelResolver is an optional adapter capability. When implemented,
+// the subagent copy loop resolves ClaudeModelAlias values to native model IDs
+// and stamps them into the agent frontmatter sentinel {{KIRO_MODEL}}.
+// Adapters that do not implement this interface are unaffected.
 type kiroModelResolver interface {
 	KiroModelID(alias model.ClaudeModelAlias) string
 }
 
+// claudeModelResolver is an optional adapter capability. When implemented,
+// the subagent copy loop stamps the resolved ClaudeModelAlias into the agent
+// frontmatter sentinel {{CLAUDE_MODEL}}. Claude Code accepts "opus", "sonnet",
+// and "haiku" directly as model values, so the resolver is effectively an
+// identity function on the alias string — but the interface keeps the opt-in
+// shape consistent with kiroModelResolver.
 type claudeModelResolver interface {
 	ClaudeModelID(alias model.ClaudeModelAlias) string
 }
 
+// monorepoRootMarkers identify files/dirs that ONLY exist at the true root
+// of a multi-package workspace. If any of these is found while walking up,
+// we stop immediately — this is the authoritative project root.
 var monorepoRootMarkers = []string{
 	"pnpm-workspace.yaml",
 	"pnpm-workspace.yml",
@@ -64,6 +102,8 @@ var monorepoRootMarkers = []string{
 	"rush.json",
 }
 
+// strongProjectMarkers are definitive project roots that are not
+// package.json (which can appear at every level in a monorepo).
 var strongProjectMarkers = []string{
 	".git",
 	"go.mod",
@@ -73,35 +113,62 @@ var strongProjectMarkers = []string{
 	"build.gradle",
 }
 
+// maxAncestorDepth is the maximum number of parent directories findProjectRoot
+// will traverse before giving up. This prevents infinite loops on deeply-nested
+// trees and ensures we stop well before reaching the filesystem root.
 const maxAncestorDepth = 20
 
+// bootstrapper is an optional adapter capability: if an adapter implements
+// this interface, any injector that writes Jinja modules will first ensure
+// the base template (entry point) exists.
 type bootstrapper interface {
 	BootstrapTemplate(homeDir string) error
 }
 
+// findProjectRoot walks upward from dir, looking for the best project root.
+//
+// Priority order:
+//  1. Monorepo root markers (pnpm-workspace.yaml, nx.json, turbo.json, etc.) —
+//     return immediately when found; these are authoritative workspace roots.
+//  2. Strong markers (.git, go.mod, Cargo.toml, etc.) — return immediately;
+//     these are unambiguous project roots.
+//  3. Weak marker (package.json only) — record as candidate but keep walking
+//     upward, since a monorepo marker may exist higher up.
+//
+// Walking upward means users can run specai from any subdirectory of their
+// project (e.g. repo/packages/app) and still detect the correct workspace root.
+// In a JS/TS monorepo, every package has package.json, so we must not stop at
+// the first one — we keep walking to find the highest ancestor with package.json
+// (or a monorepo root marker above it).
 func findProjectRoot(dir string) (string, bool) {
 	if dir == "" {
 		return "", false
 	}
 	current := filepath.Clean(dir)
-	var bestCandidate string
+	var bestCandidate string // best weak (package.json-only) match found so far
 
 	for i := 0; i < maxAncestorDepth; i++ {
+		// Check monorepo root markers first — highest priority; return immediately.
 		for _, marker := range monorepoRootMarkers {
 			if _, err := os.Stat(filepath.Join(current, marker)); err == nil {
 				return current, true
 			}
 		}
+		// Check strong project markers — definitive roots; return immediately.
 		for _, marker := range strongProjectMarkers {
 			if _, err := os.Stat(filepath.Join(current, marker)); err == nil {
 				return current, true
 			}
 		}
+		// Weak marker: package.json — record but keep walking. Always update
+		// to the highest ancestor with a package.json, since in a JS project
+		// the root package.json is the authoritative project boundary.
 		if _, err := os.Stat(filepath.Join(current, "package.json")); err == nil {
 			bestCandidate = current
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
+			// Reached filesystem root ("/" on Unix, "C:\" on Windows).
 			break
 		}
 		current = parent
@@ -118,10 +185,15 @@ var (
 	npmRun      = func(dir string, args ...string) ([]byte, error) {
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = dir
+		// CombinedOutput captures stdout+stderr so we can surface actionable
+		// error messages on failure. Do not set Stdout/Stderr separately.
 		return cmd.CombinedOutput()
 	}
 )
 
+// overlayAssetPath returns the embedded asset path for the SDD agent overlay
+// based on the selected SDD mode. Empty or SDDModeSingle uses the single
+// orchestrator overlay; SDDModeMulti uses the multi-agent overlay.
 func overlayAssetPath(sddMode model.SDDModeID) string {
 	if sddMode == model.SDDModeMulti {
 		return "opencode/sdd-overlay-multi.json"
@@ -145,7 +217,10 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 	files := make([]string, 0)
 	changed := false
 
-	// 1. Inject SDD orchestrator into global system prompt.
+	// 1. Inject SDD orchestrator into the global system prompt for agents that
+	// rely on prompt files. OpenCode and Kilocode are handled differently: their
+	// orchestrator instructions must be scoped to the OpenCode specai-orchestrator agent only,
+	// otherwise the SDD phase sub-agents inherit coordinator-only delegation rules.
 	if adapter.Agent() != model.AgentOpenCode && adapter.Agent() != model.AgentKilocode {
 		switch adapter.SystemPromptStrategy() {
 		case model.StrategyMarkdownSections:
@@ -157,6 +232,11 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			files = append(files, result.Files...)
 
 		case model.StrategyFileReplace, model.StrategyAppendToFile, model.StrategyInstructionsFile, model.StrategySteeringFile:
+			// For FileReplace/AppendToFile agents, the SDD orchestrator is included
+			// in the generic persona asset. However, if the user chose neutral or
+			// custom persona, the SDD content must still be injected. We append the
+			// SDD orchestrator section to the existing system prompt file so it is
+			// always present regardless of persona choice.
 			result, err := injectFileAppend(homeDir, adapter)
 			if err != nil {
 				return InjectionResult{}, err
@@ -165,12 +245,15 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			files = append(files, result.Files...)
 
 		case model.StrategyJinjaModules:
+			// Ensure the base template exists for Jinja-based agents.
 			if bs, ok := adapter.(bootstrapper); ok {
 				if err := bs.BootstrapTemplate(homeDir); err != nil {
 					return InjectionResult{}, fmt.Errorf("bootstrap template: %w", err)
 				}
 			}
 
+			// Write the SDD orchestrator as a standalone Jinja include module.
+			// The static KIMI.md template references it via {% include "sdd-orchestrator.md" %}.
 			configDir := adapter.GlobalConfigDir(homeDir)
 			content := assets.MustRead(sddOrchestratorAsset(adapter.Agent()))
 			modulePath := filepath.Join(configDir, "sdd-orchestrator.md")
@@ -183,9 +266,12 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 1b. Inject strict-tdd-mode marker if enabled.
+	// 1b. If StrictTDD is enabled, inject the strict-tdd-mode marker section
+	// into the system prompt file so agents know Strict TDD is active.
 	if opts.StrictTDD && adapter.Agent() != model.AgentOpenCode && adapter.Agent() != model.AgentKilocode {
 		if adapter.SystemPromptStrategy() == model.StrategyJinjaModules {
+			// Write the strict-tdd-mode marker as a standalone Jinja include module.
+			// The static KIMI.md template references it via {% include "strict-tdd-mode.md" %}.
 			configDir := adapter.GlobalConfigDir(homeDir)
 			content := "Strict TDD Mode: enabled"
 			modulePath := filepath.Join(configDir, "strict-tdd-mode.md")
@@ -208,6 +294,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 				return InjectionResult{}, writeErr
 			}
 			changed = changed || writeResult.Changed
+			// Only append path once (it may already be in files from step 1).
 			alreadyInFiles := false
 			for _, f := range files {
 				if f == promptPath {
@@ -221,7 +308,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 2. Write slash commands.
+	// 2. Write slash commands (if the agent supports them).
 	if adapter.SupportsSlashCommands() {
 		commandsDir := adapter.CommandsDir(homeDir)
 		if commandsDir != "" {
@@ -249,7 +336,15 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 2b. OpenCode overlay injection.
+	// 2b. OpenCode /sdd-* commands reference agent: specai-orchestrator.
+	// Ensure that agent is present even when persona component is not installed.
+	//
+	// mergedSettingsBytes holds the final merged opencode.json bytes produced by
+	// mergeJSONFile. We keep them in memory so the post-check (step 4) can validate
+	// the merge result without re-reading from disk — on Windows/WSL2, the atomic
+	// rename (temp → target) may not be immediately visible to a subsequent
+	// os.ReadFile call due to VFS/NTFS metadata caching, which caused the spurious
+	// "post-check: .../opencode.json missing sdd-apply sub-agent" error.
 	var mergedSettingsBytes []byte
 	if adapter.Agent() == model.AgentOpenCode || adapter.Agent() == model.AgentKilocode {
 		settingsPath := adapter.SettingsPath(homeDir)
@@ -259,12 +354,21 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 				return InjectionResult{}, fmt.Errorf("read SDD overlay asset: %w", err)
 			}
 
+			// Inject model assignments into the overlay before merging.
+			// Models are ONLY written when the user explicitly chose them via
+			// the TUI model picker (multi-mode). The overlay JSON itself must
+			// NOT contain model fields — otherwise the deep merge overwrites
+			// whatever the user already has in opencode.json.
 			overlayBytes := []byte(overlayContent)
+			// For multi-mode, write shared prompt files before inlining references.
 			if sddMode == model.SDDModeMulti {
+				// Build phase → capability map from model assignments.
 				phaseCapabilities := make(map[string]string)
 				for phase, assignment := range opts.OpenCodeModelAssignments {
 					phaseCapabilities[phase] = model.ModelCapability(assignment.ModelID)
 				}
+				// Also include phase assignments from named profiles so their
+				// prompt files are written with the correct section.
 				for _, profile := range opts.Profiles {
 					for phase, assignment := range profile.PhaseAssignments {
 						if assignment.ModelID != "" {
@@ -321,6 +425,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			files = append(files, settingsPath)
 			mergedSettingsBytes = agentResult.merged
 
+			// Install OpenCode plugins (all SDD modes).
 			pluginResult, err := installOpenCodePlugins(homeDir, adapter)
 			if err != nil {
 				return InjectionResult{}, err
@@ -328,6 +433,10 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			changed = changed || pluginResult.Changed
 			files = append(files, pluginResult.Files...)
 
+			// Inject named profiles (if any). Each profile generates 11 agent
+			// definitions (orchestrator + 10 phases) and merges them into
+			// opencode.json. The default profile (empty name or "default") is
+			// handled by the existing overlay flow above and is skipped here.
 			for _, profile := range opts.Profiles {
 				if profile.Name == "" || profile.Name == "default" {
 					continue
@@ -346,7 +455,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 3. Write SDD skill files.
+	// 3. Write SDD skill files (if the agent supports skills).
 	if adapter.SupportsSkills() {
 		skillDir := adapter.SkillsDir(homeDir)
 		if skillDir != "" {
@@ -364,6 +473,9 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 				"sdd-onboard", "judgment-day",
 			}
 
+			// Write shared skill files (not SDD-specific, but needed by SDD).
+			// These are written directly, not via skills.Inject, since they are
+			// not part of the skills component's injection scope.
 			for _, fileName := range sharedFiles {
 				assetPath := "skills/_shared/" + fileName
 				content, readErr := assets.Read(assetPath)
@@ -384,6 +496,9 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 				files = append(files, path)
 			}
 
+			// Write SDD skill files using skills.InjectWithCapability, which
+			// extracts the appropriate model section from each skill file based on capability.
+			// Default to "capable" when no specific capability is set.
 			capability := opts.Capability
 			if capability == "" {
 				capability = "capable"
@@ -397,7 +512,12 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 3b. Write native workflow files.
+	// 3b. Write native workflow files (Windsurf Hybrid-First, and any future
+	// agent that implements the workflowInjector optional interface).
+	// findProjectRoot walks upward from WorkspaceDir so specai can be
+	// invoked from any subdirectory (e.g. repo/internal/foo) and still inject
+	// workflows at the real project root. Skips silently if no root is found
+	// (e.g. running from home dir without a project).
 	if wi, ok := adapter.(workflowInjector); ok && wi.SupportsWorkflows() {
 		if projectRoot, found := findProjectRoot(opts.WorkspaceDir); found {
 			workflowsDir := wi.WorkflowsDir(projectRoot)
@@ -426,7 +546,9 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 3c. Write native sub-agent files.
+	// 3c. Write native sub-agent files for adapters that support them. Sub-agent files are
+	// written to the user's home directory (e.g. ~/.cursor/agents/), not to the
+	// workspace, so no project-root detection is needed here.
 	var agentsDir string
 	if adapter.SupportsSubAgents() {
 		agentsDir = adapter.SubAgentsDir(homeDir)
@@ -444,11 +566,14 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			if entry.IsDir() {
 				continue
 			}
+			// Copy all files (not just .md) to support Kimi's YAML-based agents
 			contentStr := assets.MustRead(embeddedDir + "/" + entry.Name())
 
+			// Resolve {{KIRO_MODEL}} placeholder for adapters that support it (e.g. Kiro).
+			// Non-Kiro adapters (Cursor, etc.) don't implement kiroModelResolver and are unaffected.
 			if kmr, ok := adapter.(kiroModelResolver); ok {
 				phase := strings.TrimSuffix(entry.Name(), ".md")
-				alias := model.ClaudeModelSonnet
+				alias := model.ClaudeModelSonnet // safe default
 				if opts.KiroModelAssignments != nil {
 					if a, hasAlias := opts.KiroModelAssignments[phase]; hasAlias {
 						alias = a
@@ -456,6 +581,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 						alias = d
 					}
 				} else if opts.ClaudeModelAssignments != nil {
+					// Backward-compatible fallback when Kiro-specific assignments are not provided.
 					if a, hasAlias := opts.ClaudeModelAssignments[phase]; hasAlias {
 						alias = a
 					} else if d, hasDefault := opts.ClaudeModelAssignments["default"]; hasDefault {
@@ -465,6 +591,8 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 				contentStr = strings.ReplaceAll(contentStr, "{{KIRO_MODEL}}", kmr.KiroModelID(alias))
 			}
 
+			// Resolve {{CLAUDE_MODEL}} placeholder for adapters that support it (e.g. Claude Code).
+			// Non-Claude adapters don't implement claudeModelResolver and are unaffected.
 			if cmr, ok := adapter.(claudeModelResolver); ok {
 				phase := strings.TrimSuffix(entry.Name(), ".md")
 				alias := resolveClaudeModelAlias(opts.ClaudeModelAssignments, phase)
@@ -481,6 +609,7 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			}
 		}
 
+		// Post-check: verify critical agent files exist (either .md or .yaml)
 		for _, phase := range []string{"sdd-apply", "sdd-verify"} {
 			found := false
 			for _, ext := range []string{".md", ".yaml"} {
@@ -496,7 +625,10 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 		}
 	}
 
-	// 4. Install skill-registry startup automation.
+	// 4. Install skill-registry startup automation for agents with runtime hooks.
+	// This keeps `.atl/skill-registry.md` fresh without making the orchestrator
+	// spend tokens rescanning skills on every session. The command itself is
+	// fingerprint-cached, so normal startup is cheap.
 	automationResult, err := installSkillRegistryAutomation(homeDir, adapter)
 	if err != nil {
 		return InjectionResult{}, err
@@ -504,23 +636,40 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 	changed = changed || automationResult.Changed
 	files = append(files, automationResult.Files...)
 
-	// 5. Post-injection verification.
+	// 5. Post-injection verification — catch silent failures.
+	// Primary: validate against the in-memory merged bytes to avoid false
+	// negatives on Windows/WSL2 where a freshly-renamed file may not be
+	// immediately visible via os.ReadFile.
+	// Fallback: if the in-memory check fails, re-read from disk — the
+	// opposite failure mode can also occur (in-memory buffer stale but
+	// disk has the correct content).
 	if adapter.Agent() == model.AgentOpenCode {
 		settingsPath := adapter.SettingsPath(homeDir)
 		settingsText := string(mergedSettingsBytes)
 
+		// Fallback: if in-memory bytes are empty but the merge succeeded
+		// (file was written), read from disk.
 		if len(mergedSettingsBytes) == 0 {
 			if diskBytes, readErr := os.ReadFile(settingsPath); readErr == nil {
 				settingsText = string(diskBytes)
 			}
 		}
 
-		if !hasOpenCodeAgentKey(settingsText, "sdd-orchestrator") {
+		if !hasOpenCodeAgentKey(settingsText, "specai-orchestrator") {
+			// In-memory check failed — try reading from disk as last resort.
 			if diskBytes, readErr := os.ReadFile(settingsPath); readErr == nil {
 				settingsText = string(diskBytes)
 			}
-			if !hasOpenCodeAgentKey(settingsText, "sdd-orchestrator") {
-				return InjectionResult{}, fmt.Errorf("post-check: %q missing sdd-orchestrator agent definition — OpenCode /sdd-* commands will fail", settingsPath)
+			if !hasOpenCodeAgentKey(settingsText, "specai-orchestrator") {
+				return InjectionResult{}, fmt.Errorf("post-check: %q missing specai-orchestrator agent definition — OpenCode /sdd-* commands will fail", settingsPath)
+			}
+		}
+		if hasOpenCodeAgentKey(settingsText, "sdd-orchestrator") {
+			if diskBytes, readErr := os.ReadFile(settingsPath); readErr == nil {
+				settingsText = string(diskBytes)
+			}
+			if hasOpenCodeAgentKey(settingsText, "sdd-orchestrator") {
+				return InjectionResult{}, fmt.Errorf("post-check: %q still contains legacy sdd-orchestrator agent definition after OpenCode SDD sync", settingsPath)
 			}
 		}
 		if sddMode == model.SDDModeMulti && !strings.Contains(settingsText, `"sdd-apply"`) {
@@ -532,12 +681,16 @@ func Inject(homeDir string, adapter agents.Adapter, sddMode model.SDDModeID, opt
 			}
 		}
 
+		// Verify profile orchestrators were injected correctly.
+		// For each named profile, check that sdd-orchestrator-{name} is present
+		// in the merged settings. A missing key means the overlay merge silently failed.
 		for _, profile := range opts.Profiles {
 			if profile.Name == "" || profile.Name == "default" {
 				continue
 			}
 			orchKey := `"sdd-orchestrator-` + profile.Name + `"`
 			if !strings.Contains(settingsText, orchKey) {
+				// Last-resort disk read.
 				if diskBytes, readErr := os.ReadFile(settingsPath); readErr == nil {
 					settingsText = string(diskBytes)
 				}
@@ -589,7 +742,9 @@ func inlineOpenCodeSDDPrompts(overlayBytes []byte, homeDir, settingsPath string,
 		return overlayBytes, nil
 	}
 
-	orchestratorRaw, ok := agentsMap["sdd-orchestrator"]
+	// Inline the orchestrator prompt (always inlined, not a file reference),
+	// unless an external strategy requested preserving the existing prompt.
+	orchestratorRaw, ok := agentsMap["specai-orchestrator"]
 	if !ok {
 		return overlayBytes, nil
 	}
@@ -598,9 +753,27 @@ func inlineOpenCodeSDDPrompts(overlayBytes []byte, homeDir, settingsPath string,
 		return overlayBytes, nil
 	}
 	if preserveExistingOrchestratorPrompt {
-		existingPrompt, err := readOpenCodeAgentPrompt(settingsPath, "sdd-orchestrator")
+		existingPrompt, err := readOpenCodeAgentPrompt(settingsPath, "specai-orchestrator")
 		if err != nil {
 			return nil, err
+		}
+		if existingPrompt == "" {
+			existingPrompt, err = readOpenCodeAgentPrompt(settingsPath, "gentle-orchestrator")
+			if err != nil {
+				return nil, err
+			}
+		}
+		if existingPrompt == "" {
+			existingPrompt, err = readOpenCodeAgentPrompt(settingsPath, "sdd-orchestrator")
+			if err != nil {
+				return nil, err
+			}
+		}
+		if existingPrompt == "" {
+			existingPrompt, err = readMisnamedOpenCodeLegacySDDPrompt(settingsPath)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if existingPrompt != "" {
 			orchestratorMap["prompt"] = migratePreservedOpenCodeOrchestratorPrompt(existingPrompt)
@@ -611,6 +784,8 @@ func inlineOpenCodeSDDPrompts(overlayBytes []byte, homeDir, settingsPath string,
 		orchestratorMap["prompt"] = assets.MustRead(sddOrchestratorAsset(model.AgentOpenCode))
 	}
 
+	// Replace sub-agent prompt placeholders with {file:<absolutePath>} references.
+	// The placeholder format is __PROMPT_FILE_{phase}__ where {phase} is the agent name.
 	if homeDir != "" {
 		promptDir := SharedPromptDir(homeDir)
 		for _, phase := range subAgentPhaseOrder {
@@ -642,7 +817,13 @@ func migratePreservedOpenCodeOrchestratorPrompt(prompt string) string {
 		return prompt
 	}
 
-	return ensurePreservedOpenCodeOrchestratorPreflight(prompt)
+	replacer := strings.NewReplacer(
+		"Bind this to the dedicated `sdd-orchestrator` agent only.",
+		"Bind this to the dedicated `specai-orchestrator` agent only.",
+		"agent.sdd-orchestrator.model",
+		"agent.specai-orchestrator.model",
+	)
+	return ensurePreservedOpenCodeOrchestratorPreflight(replacer.Replace(prompt))
 }
 
 func ensurePreservedOpenCodeOrchestratorPreflight(prompt string) string {
@@ -657,7 +838,9 @@ Required preflight choices: execution mode, artifact store, chained PR strategy,
 
 Ask the user directly with a compact, numbered preflight prompt. Match the user's current language for all user-facing prose. If the user writes Spanish, ask the preflight in Spanish. Keep option codes (` + "`A1`" + `, ` + "`B1`" + `, ` + "`C1`" + `, ` + "`D1`" + `) and canonical values unchanged. Do NOT ask the user to type raw keys like ` + "`execution mode`" + `, ` + "`artifact store`" + `, ` + "`chained PR strategy`" + `, or ` + "`review budget`" + `. Do NOT mention non-existent tools. Do NOT invent informal values; use only the canonical values after the user chooses.
 
-Do NOT mix languages inside one preflight prompt: headings, option titles, descriptions, and follow-up text must all be in the user's current language.
+Do NOT mix languages inside one preflight prompt: headings, option titles, descriptions, and follow-up text must all be in the user's current language. If the current language is Spanish, use the Spanish localized shape below as the neutral fallback; if an active persona defines a direct-conversation Spanish style, adapt only user-facing prose to that persona while preserving option codes and canonical values. Do not translate only the intro while keeping English labels like ` + "`Pace`" + `, ` + "`Artifacts`" + `, ` + "`Review`" + `, ` + "`recommended`" + `, ` + "`forecast`" + `, or ` + "`budget`" + `.
+
+Use this shape for English users, or translate user-facing prose to the user's current language while preserving option codes. Translation means the whole shape: headings, option titles, and descriptions together.
 
 ` + "```text" + `
 Before continuing with SDD, choose one option per group.
@@ -669,8 +852,8 @@ A. Pace
 
 B. Artifacts
    B1 OpenSpec (recommended): repo files, traceable in review.
-   B2 sdd-memory: faster, no spec files in the repo.
-   B3 Both: OpenSpec files plus sdd-memory copy.
+   B2 SddMemory: faster, no spec files in the repo.
+   B3 Both: OpenSpec files plus SddMemory copy.
 
 C. PRs
    C1 Ask me (recommended): stop and ask if the forecast exceeds the budget.
@@ -698,8 +881,8 @@ A. Ritmo
 
 B. Artefactos
    B1 OpenSpec (recomendado): archivos en el repo, trazables en revisión.
-   B2 sdd-memory: más rápido, sin archivos de especificación en el repo.
-   B3 Ambos: archivos OpenSpec más copia en sdd-memory.
+   B2 SddMemory: más rápido, sin archivos de especificación en el repo.
+   B3 Ambos: archivos OpenSpec más copia en SddMemory.
 
 C. PRs
    C1 Preguntarme (recomendado): frenar y preguntar si la estimación supera el presupuesto.
@@ -713,14 +896,14 @@ D. Revisión
    D3 Otro: preguntar el número después.
 ` + "```" + `
 
-Map answers to canonical values: A1/Interactive -> ` + "`interactive`" + `; A2/Automatic -> ` + "`auto`" + `; B1/OpenSpec -> ` + "`openspec`" + `; B2/sdd-memory -> ` + "`sdd-memory`" + `; B3/Both -> ` + "`both`" + `; C1/Ask me -> ` + "`ask-always`" + `; C2/Single PR -> ` + "`single-pr-default`" + `; C3/Chained -> ` + "`force-chained`" + `; C4/Auto -> ` + "`auto-forecast`" + `; D1/400 lines -> ` + "`review_budget_lines: 400`" + `; D2/800 lines -> ` + "`review_budget_lines: 800`" + `; D3/Other -> ask one follow-up for the number.
+Map answers to canonical values: A1/Interactive -> ` + "`interactive`" + `; A2/Automatic -> ` + "`auto`" + `; B1/OpenSpec -> ` + "`openspec`" + `; B2/SddMemory -> ` + "`sdd-memory`" + `; B3/Both -> ` + "`both`" + `; C1/Ask me -> ` + "`ask-always`" + `; C2/Single PR -> ` + "`single-pr-default`" + `; C3/Chained -> ` + "`force-chained`" + `; C4/Auto -> ` + "`auto-forecast`" + `; D1/400 lines -> ` + "`review_budget_lines: 400`" + `; D2/800 lines -> ` + "`review_budget_lines: 800`" + `; D3/Other -> ask one follow-up for the number.
 
 Hard gate rules:
 
 - ` + "`openspec/config.yaml`" + `, existing SDD artifacts, previous ` + "`sdd-init`" + ` results, or installed SDD assets do NOT satisfy session preflight.
 - If the session has no preflight block, ask the localized user-facing preflight prompt above and STOP. Do not run init, delegate phases, edit files, or apply tasks in the same turn.
 - For a new feature request that says to use SDD, start at preflight -> init guard -> explore/proposal. Never launch ` + "`sdd-apply`" + ` just because the user asked to implement a feature.
-- In ` + "`interactive`" + ` mode, pause after each delegated phase returns, summarize the phase, ask before launching the next phase, and STOP. Match the user's language and active persona for direct conversation only. Do not run /sdd-ff phases back-to-back unless execution mode is ` + "`auto`" + `.
+- In ` + "`interactive`" + ` mode, pause after each delegated phase returns, summarize the phase, ask before launching the next phase, and STOP. Match the user's language and active persona for direct conversation only; for Spanish neutral fallback ask: "¿Quiere ajustar algo o continuamos?". Do not run /sdd-ff phases back-to-back unless execution mode is ` + "`auto`" + `.
 <!-- /specai:sdd-session-preflight-migration -->
 `
 
@@ -728,8 +911,12 @@ Hard gate rules:
 		strings.Contains(prompt, "openspec/config.yaml") &&
 		strings.Contains(prompt, "Never launch `sdd-apply`") &&
 		strings.Contains(prompt, "Match the user's current language") &&
+		strings.Contains(prompt, "Do NOT mix languages inside one preflight prompt") &&
+		strings.Contains(prompt, "Spanish localized shape below as the neutral fallback") &&
 		strings.Contains(prompt, "pause after each delegated phase returns") &&
-		strings.Contains(prompt, "Before continuing with SDD") {
+		strings.Contains(prompt, "Before continuing with SDD") &&
+		!strings.Contains(prompt, "question` tool") &&
+		!containsOpenCodeOrchestratorLanguageLeak(prompt) {
 		return prompt
 	}
 
@@ -743,6 +930,20 @@ Hard gate rules:
 	}
 
 	return strings.TrimRight(prompt, "\n") + preflight
+}
+
+func containsOpenCodeOrchestratorLanguageLeak(prompt string) bool {
+	for _, leak := range []string{
+		"elegí",
+		"Respondé",
+		"¿Querés ajustar algo o continuamos?",
+		"If the current language is Spanish, use the Spanish localized shape below verbatim",
+	} {
+		if strings.Contains(prompt, leak) {
+			return true
+		}
+	}
+	return false
 }
 
 func readOpenCodeAgentPrompt(settingsPath, agentKey string) (string, error) {
@@ -783,6 +984,44 @@ func readOpenCodeAgentPrompt(settingsPath, agentKey string) (string, error) {
 	return prompt, nil
 }
 
+// readMisnamedOpenCodeLegacySDDPrompt reads an SDD prompt from the legacy
+// "specai" agent key in opencode.json, which was used by older installer versions.
+func readMisnamedOpenCodeLegacySDDPrompt(settingsPath string) (string, error) {
+	if strings.TrimSpace(settingsPath) == "" {
+		return "", nil
+	}
+
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read OpenCode settings %q: %w", settingsPath, err)
+	}
+
+	var root map[string]any
+	if err := json.Unmarshal(data, &root); err != nil {
+		return "", nil
+	}
+	agentsRaw, ok := root["agent"]
+	if !ok {
+		return "", nil
+	}
+	agentsMap, ok := agentsRaw.(map[string]any)
+	if !ok {
+		return "", nil
+	}
+	agentRaw, ok := agentsMap["specai"]
+	if !ok || !looksLikeOpenCodeSDDConductor(agentRaw) {
+		return "", nil
+	}
+	agentMap, ok := agentRaw.(map[string]any)
+	if !ok {
+		return "", nil
+	}
+	prompt, _ := agentMap["prompt"].(string)
+	return prompt, nil
+}
 
 func installSkillRegistryAutomation(homeDir string, adapter agents.Adapter) (InjectionResult, error) {
 	if adapter.Agent() != model.AgentClaudeCode {
@@ -888,6 +1127,10 @@ func claudeHookListContains(hookEntries []any, command string) bool {
 	return false
 }
 
+// installOpenCodePlugins copies the background-agents plugin and installs its
+// npm/bun dependency into the agent's global config directory. Returns an error
+// with an actionable message if the package manager is present but the install
+// fails. If no package manager is available, the install is skipped (soft failure).
 func installOpenCodePlugins(homeDir string, adapter agents.Adapter) (InjectionResult, error) {
 	opencodeDir := adapter.GlobalConfigDir(homeDir)
 	pluginsDir := filepath.Join(opencodeDir, "plugins")
@@ -914,9 +1157,13 @@ func installOpenCodePlugins(homeDir string, adapter agents.Adapter) (InjectionRe
 		}
 	}
 
+	// Install dependency — prefer bun (OpenCode uses it), fall back to npm.
+	// If neither is available, skip with a soft no-op (npm/bun not installed).
+	// If a package manager IS found and the install fails, surface the error.
 	depPkg := "unique-names-generator"
 	nmPath := filepath.Join(opencodeDir, "node_modules", depPkg)
 
+	// Only run the install if the package is not already present.
 	pkgMissing := false
 	pkgMgrRan := false
 	if _, statErr := os.Stat(nmPath); os.IsNotExist(statErr) {
@@ -928,8 +1175,12 @@ func installOpenCodePlugins(homeDir string, adapter agents.Adapter) (InjectionRe
 		}
 	}
 
+	// Post-install validation: if a package manager ran and claimed success,
+	// confirm the package actually landed on disk.
 	if pkgMissing && pkgMgrRan {
 		if _, statErr := os.Stat(nmPath); os.IsNotExist(statErr) {
+			// Package manager reported success but the package still isn't there.
+			// This is unusual (e.g. bun wrote to a different location). Surface it.
 			return InjectionResult{}, fmt.Errorf(
 				"post-install check: %q was not found after install in %q — "+
 					"the background-agents plugin will fail to load.\n"+
@@ -942,7 +1193,12 @@ func installOpenCodePlugins(homeDir string, adapter agents.Adapter) (InjectionRe
 	return InjectionResult{Changed: changed, Files: files}, nil
 }
 
+// runPkgInstall installs a node package in the given directory using bun (if
+// available) or npm. Returns (true, nil) on success, (false, nil) if no
+// package manager is found (soft skip), or (true, error) with a descriptive,
+// actionable message if a package manager was found but the install failed.
 func runPkgInstall(dir, pkg string) (ran bool, err error) {
+	// Prefer bun — OpenCode ships with bun.lock and recommends bun.
 	if bunPath, lookErr := npmLookPath("bun"); lookErr == nil {
 		out, runErr := npmRun(dir, bunPath, "add", pkg)
 		if runErr != nil {
@@ -954,6 +1210,7 @@ func runPkgInstall(dir, pkg string) (ran bool, err error) {
 		return true, nil
 	}
 
+	// Fall back to npm.
 	if npmPath, lookErr := npmLookPath("npm"); lookErr == nil {
 		out, runErr := npmRun(dir, npmPath, "install", "--save", pkg)
 		if runErr != nil {
@@ -965,12 +1222,18 @@ func runPkgInstall(dir, pkg string) (ran bool, err error) {
 		return true, nil
 	}
 
+	// No package manager available — soft skip.
 	return false, nil
 }
 
 type mergeJSONResult struct {
 	writeResult filemerge.WriteResult
-	merged      []byte
+	// merged holds the final JSON bytes that were written to disk.
+	// Callers should validate against this in-memory copy instead of
+	// re-reading the file from disk — on Windows/WSL2, the atomic rename
+	// (temp → target) may not be immediately visible to a subsequent
+	// os.ReadFile call due to VFS/NTFS metadata caching.
+	merged []byte
 }
 
 func mergeJSONFile(path string, overlay []byte) (mergeJSONResult, error) {
@@ -986,6 +1249,11 @@ func mergeJSONFile(path string, overlay []byte) (mergeJSONResult, error) {
 	if err != nil {
 		return mergeJSONResult{}, fmt.Errorf("migrate opencode agents key: %w", err)
 	}
+	baseJSON, err = migrateLegacyOpenCodeSDDOrchestrator(baseJSON)
+	if err != nil {
+		return mergeJSONResult{}, fmt.Errorf("migrate opencode sdd orchestrator agent: %w", err)
+	}
+
 	merged, err := filemerge.MergeJSONObjects(baseJSON, overlay)
 	if err != nil {
 		return mergeJSONResult{}, err
@@ -999,6 +1267,15 @@ func mergeJSONFile(path string, overlay []byte) (mergeJSONResult, error) {
 	return mergeJSONResult{writeResult: writeResult, merged: merged}, nil
 }
 
+// defaultOpenCodeShareDisabled adds a defensive OpenCode default for SDD
+// installs: disable session sharing unless the user already chose a share mode.
+//
+// SDD multi-agent mode creates child sessions for native sub-agents. In
+// OpenCode 1.15.x, session creation can route through SessionShare.create when
+// sharing is enabled/automatic, and that path has been observed to fail with a
+// SQLite FOREIGN KEY constraint error for child sessions. Keeping the default
+// local avoids breaking sub-agent startup while preserving explicit user config
+// such as "share": "manual" or "share": "auto".
 func defaultOpenCodeShareDisabled(settingsPath string, overlay []byte) ([]byte, error) {
 	if openCodeSettingsHasShare(settingsPath) {
 		return overlay, nil
@@ -1033,6 +1310,95 @@ func openCodeSettingsHasShare(settingsPath string) bool {
 	return exists
 }
 
+// migrateLegacyOpenCodeSDDOrchestrator removes legacy or accidentally renamed
+// base OpenCode SDD conductor agents. The base SDD coordinator is now the
+// specai-orchestrator primary agent; named profile agents such as
+// sdd-orchestrator-cheap intentionally remain untouched because they are
+// generated profile-specific coordinators. The old OpenCode "gentle-orchestrator"
+// and "specai" agent keys (from pre-SpecAI installer versions) are revoked and
+// removed during sync; if they clearly contain the old SDD conductor prompt and
+// no specai-orchestrator exists yet, the prompt is migrated before the revoked
+// key is deleted.
+func migrateLegacyOpenCodeSDDOrchestrator(baseJSON []byte) ([]byte, error) {
+	if len(strings.TrimSpace(string(baseJSON))) == 0 {
+		return baseJSON, nil
+	}
+
+	root := map[string]any{}
+	if err := json.Unmarshal(baseJSON, &root); err != nil {
+		return baseJSON, nil
+	}
+
+	agentsRaw, ok := root["agent"]
+	if !ok {
+		return baseJSON, nil
+	}
+	agentsMap, ok := agentsRaw.(map[string]any)
+	if !ok {
+		return baseJSON, nil
+	}
+
+	legacy, hasLegacy := agentsMap["sdd-orchestrator"]
+	revokedGentleOrchestrator, hasGentleOrchestrator := agentsMap["gentle-orchestrator"]
+	revokedLegacy, hasRevokedLegacy := agentsMap["specai"]
+	legacyLooksLikeConductor := hasRevokedLegacy && looksLikeOpenCodeSDDConductor(revokedLegacy)
+	gentleOrchestratorLooksLikeConductor := hasGentleOrchestrator && looksLikeOpenCodeSDDConductor(revokedGentleOrchestrator)
+	if !hasLegacy && !hasRevokedLegacy && !hasGentleOrchestrator {
+		return baseJSON, nil
+	}
+	// Prefer gentle-orchestrator as source if no sdd-orchestrator migration source exists.
+	if !hasLegacy && gentleOrchestratorLooksLikeConductor {
+		legacy = revokedGentleOrchestrator
+		hasLegacy = true
+	}
+	if !hasLegacy && legacyLooksLikeConductor {
+		legacy = revokedLegacy
+		hasLegacy = true
+	}
+
+	if _, hasSpecAIOrchestrator := agentsMap["specai-orchestrator"]; !hasSpecAIOrchestrator && hasLegacy {
+		agentsMap["specai-orchestrator"] = legacy
+	}
+	delete(agentsMap, "sdd-orchestrator")
+	delete(agentsMap, "gentle-orchestrator")
+	if hasRevokedLegacy {
+		delete(agentsMap, "specai")
+	}
+
+	encoded, err := json.MarshalIndent(root, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(encoded, '\n'), nil
+}
+
+func looksLikeOpenCodeSDDConductor(agentRaw any) bool {
+	agentMap, ok := agentRaw.(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, field := range []string{"description", "prompt"} {
+		value, _ := agentMap[field].(string)
+		if strings.Contains(value, "SDD Orchestrator") || strings.Contains(value, "SDD conductor") {
+			return true
+		}
+	}
+	permissionRaw, ok := agentMap["permission"].(map[string]any)
+	if !ok {
+		return false
+	}
+	taskRaw, ok := permissionRaw["task"].(map[string]any)
+	if !ok {
+		return false
+	}
+	replaceRaw, ok := taskRaw["__replace__"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, allowsApply := replaceRaw["sdd-apply"]
+	_, allowsVerify := replaceRaw["sdd-verify"]
+	return allowsApply && allowsVerify
+}
 
 func hasOpenCodeAgentKey(settingsText, agentKey string) bool {
 	root := map[string]any{}
@@ -1051,6 +1417,9 @@ func hasOpenCodeAgentKey(settingsText, agentKey string) bool {
 	return exists
 }
 
+// migrateLegacyOpenCodeAgentsKey normalizes old OpenCode schema that used
+// "agents" to the current "agent" key. It keeps existing agent entries and
+// merges legacy ones without overriding current definitions.
 func migrateLegacyOpenCodeAgentsKey(baseJSON []byte) ([]byte, error) {
 	if len(strings.TrimSpace(string(baseJSON))) == 0 {
 		return baseJSON, nil
@@ -1058,6 +1427,7 @@ func migrateLegacyOpenCodeAgentsKey(baseJSON []byte) ([]byte, error) {
 
 	root := map[string]any{}
 	if err := json.Unmarshal(baseJSON, &root); err != nil {
+		// Preserve prior behavior for non-JSON/non-parseable inputs.
 		return baseJSON, nil
 	}
 
@@ -1100,6 +1470,9 @@ func migrateLegacyOpenCodeAgentsKey(baseJSON []byte) ([]byte, error) {
 	return append(encoded, '\n'), nil
 }
 
+// sddOrchestratorMarkers are used to detect if SDD content was already injected
+// (e.g., via a persona file or a previous SDD injection). Keep legacy and
+// current headings to remain backward compatible across upstream syncs.
 var sddOrchestratorMarkers = []string{
 	"## Agent Teams Orchestrator",
 	"## Spec-Driven Development (SDD) Orchestrator",
@@ -1116,6 +1489,8 @@ func hasSDDOrchestrator(content string) bool {
 	return false
 }
 
+// sddOrchestratorAsset returns the embedded asset path for the SDD orchestrator
+// content based on the agent. Agent-specific assets take priority; generic is fallback.
 func sddOrchestratorAsset(agent model.AgentID) string {
 	switch agent {
 	case model.AgentClaudeCode:
@@ -1159,8 +1534,11 @@ func injectFileAppend(homeDir string, adapter agents.Adapter) (InjectionResult, 
 		existing = steeringFrontmatter
 	}
 
+	// Use agent-specific SDD orchestrator content when available; fall back to generic.
 	content := assets.MustRead(sddOrchestratorAsset(adapter.Agent()))
 
+	// If there is a bare (un-marked) legacy orchestrator block, strip it first
+	// so InjectMarkdownSection can re-inject the current canonical content.
 	if hasLegacyBareOrchestrator(existing) {
 		existing = stripBareOrchestratorForFilePrompt(existing)
 	}
@@ -1199,9 +1577,23 @@ func hasLegacyBareOrchestrator(content string) bool {
 		return true
 	}
 
+	// Legacy bare content exists when an orchestrator heading appears before the
+	// canonical marker-based section.
 	return firstHeading < markedIdx
 }
 
+// stripBareOrchestratorForFilePrompt removes an un-marked SDD orchestrator
+// block from file-replace/append/instructions prompt files.
+//
+// Unlike CLAUDE.md markdown-section files, these prompt files often carry the
+// whole orchestrator as a contiguous block followed by other managed sections
+// (for example sdd-memory-protocol markers). The legacy block also contains many
+// "##" headings, so trimming until the next "##" is not enough.
+//
+// Strategy:
+//   - start at the first known orchestrator heading
+//   - end at the next managed marker ("<!-- specai:") if present, else EOF
+//   - preserve content before/after and normalize surrounding blank lines
 func stripBareOrchestratorForFilePrompt(content string) string {
 	if markedIdx := strings.Index(content, "<!-- specai:sdd-orchestrator -->"); markedIdx >= 0 {
 		prefix := content[:markedIdx]
@@ -1263,7 +1655,7 @@ func stripBareOrchestratorForFilePrompt(content string) string {
 
 const instructionsFrontmatter = "---\n" +
 	"name: SpecAI Persona\n" +
-	"description: Argentina persona with SDD orchestration and sdd-memory protocol\n" +
+	"description: Modism persona with SDD orchestration and sdd-memory protocol\n" +
 	"applyTo: \"**\"\n" +
 	"---\n"
 
@@ -1271,6 +1663,11 @@ const steeringFrontmatter = "---\n" +
 	"inclusion: always\n" +
 	"---\n"
 
+// stripBareOrchestratorSection removes an un-marked "## Agent Teams Orchestrator"
+// (or legacy equivalent) block from content. It finds the first matching heading
+// and removes everything from that line to the next same-level (##) heading or
+// the end of file. This is used to migrate files that contain bare orchestrator
+// content (e.g. copied from docs) before injecting the canonical marker-based version.
 func stripBareOrchestratorSection(content string) string {
 	lines := strings.Split(content, "\n")
 
@@ -1292,6 +1689,7 @@ func stripBareOrchestratorSection(content string) string {
 		return content
 	}
 
+	// Find end: next ## heading (same or higher level) after startLine, or EOF.
 	endLine := len(lines)
 	for i := startLine + 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
@@ -1301,9 +1699,11 @@ func stripBareOrchestratorSection(content string) string {
 		}
 	}
 
+	// Rebuild: keep lines before startLine and lines from endLine onward.
 	before := lines[:startLine]
 	after := lines[endLine:]
 
+	// Trim trailing blank lines from the before section to avoid double newlines.
 	for len(before) > 0 && strings.TrimSpace(before[len(before)-1]) == "" {
 		before = before[:len(before)-1]
 	}
@@ -1314,6 +1714,7 @@ func stripBareOrchestratorSection(content string) string {
 	}
 	if len(after) > 0 {
 		afterStr := strings.Join(after, "\n")
+		// Trim leading blank lines from the after section.
 		afterStr = strings.TrimLeft(afterStr, "\n")
 		if afterStr != "" {
 			parts = append(parts, afterStr)
@@ -1343,8 +1744,12 @@ func injectMarkdownSections(homeDir string, adapter agents.Adapter, assignments 
 		return InjectionResult{}, err
 	}
 
+	// Strip legacy Agent Teams Lite block (from standalone ATL installer).
 	existing = filemerge.StripLegacyATLBlock(existing)
 
+	// If bare (un-marked) orchestrator content exists but the HTML markers are
+	// not present, strip the bare block first. This migrates legacy files to the
+	// canonical marker-based state without duplicating the section.
 	if hasSDDOrchestrator(existing) && !strings.Contains(existing, "<!-- specai:sdd-orchestrator -->") {
 		existing = stripBareOrchestratorSection(existing)
 	}
@@ -1450,6 +1855,8 @@ func renderClaudeModelAssignmentsSection(assignments map[string]model.ClaudeMode
 	return b.String()
 }
 
+// jdAgentSet is a package-level set for O(1) JD agent membership checks,
+// consistent with the sddPhaseSet pattern in read_assignments.go.
 var jdAgentSet = buildJDAgentSet()
 
 func buildJDAgentSet() map[string]bool {
@@ -1461,11 +1868,30 @@ func buildJDAgentSet() map[string]bool {
 	return set
 }
 
+// isJDAgent reports whether the agent name is a judgment-day workflow agent.
+// JD agents are excluded from root model fallback to preserve independent
+// model configuration for diversity of perspective between judges.
 func isJDAgent(name string) bool {
 	return jdAgentSet[name]
 }
 
+// injectModelAssignments injects "model" fields into sub-agent definitions
+// within the overlay JSON before it is merged into the settings file.
+//
+// Decision tree for EACH sub-agent:
+//  1. TUI assignment exists for this agent → use it (always wins)
+//  2. Agent already exists as a key in the user's existing opencode.json
+//     (existingAgentKeys) → skip; let the deep merge preserve whatever the
+//     user already has (including no model at all — that's intentional)
+//  3. Neither of the above AND rootModelID is set → inject rootModelID so the
+//     agent does not silently inherit the orchestrator model at runtime, and
+//     write variant="" to stay symmetric with case 1 and prevent stale variant
+//     leakage on the deep merge.
+//
+// If none of the above conditions apply, nothing is written for that agent.
 func injectModelAssignments(overlayBytes []byte, assignments map[string]model.ModelAssignment, rootModelID string, existingAgentKeys map[string]bool) ([]byte, error) {
+	assignments = normalizeOpenCodeSDDModelAssignments(assignments)
+
 	var overlay map[string]any
 	if err := json.Unmarshal(overlayBytes, &overlay); err != nil {
 		return nil, fmt.Errorf("unmarshal overlay for model injection: %w", err)
@@ -1490,6 +1916,7 @@ func injectModelAssignments(overlayBytes []byte, assignments map[string]model.Mo
 
 		switch {
 		case hasExplicitAssignment && assignment.ProviderID != "" && assignment.ModelID != "":
+			// 1. TUI choice always wins
 			agentMap["model"] = assignment.FullID()
 			if assignment.Effort != "" {
 				agentMap["variant"] = assignment.Effort
@@ -1497,8 +1924,15 @@ func injectModelAssignments(overlayBytes []byte, assignments map[string]model.Mo
 				agentMap["variant"] = ""
 			}
 		case existingAgentKeys[phase]:
-			// Agent already exists in user's config — preserve whatever they have.
+			// 2. Agent already exists in user's config — let merge preserve whatever they have
+			// (don't touch the overlay for this agent's model)
 		case rootModelID != "":
+			// 3. Fresh install or new agent: use root model as default to break inheritance.
+			// Also clear variant explicitly so the overlay output stays symmetric
+			// with case 1 — this prevents a stale variant from leaking through if
+			// the embedded overlay or upstream pipeline ever carries a variant.
+			// Exception: JD agents are excluded from root model propagation to support
+			// independent model configuration and diversity of perspective between judges.
 			if !isJDAgent(phase) {
 				agentMap["model"] = rootModelID
 				agentMap["variant"] = ""
@@ -1513,7 +1947,39 @@ func injectModelAssignments(overlayBytes []byte, assignments map[string]model.Mo
 	return append(result, '\n'), nil
 }
 
+// normalizeOpenCodeSDDModelAssignments accepts the historical
+// sdd-orchestrator and gentle-orchestrator assignment keys as input aliases,
+// but writes them to the current base coordinator key: specai-orchestrator.
+// Named profile keys remain unchanged.
+func normalizeOpenCodeSDDModelAssignments(assignments map[string]model.ModelAssignment) map[string]model.ModelAssignment {
+	if len(assignments) == 0 {
+		return assignments
+	}
+	if _, hasSpecAI := assignments["specai-orchestrator"]; hasSpecAI {
+		return assignments
+	}
+	// Accept any legacy key as a migration source.
+	legacyAssignment, hasLegacy := assignments["sdd-orchestrator"]
+	if !hasLegacy {
+		legacyAssignment, hasLegacy = assignments["gentle-orchestrator"]
+	}
+	if !hasLegacy {
+		return assignments
+	}
 
+	normalized := make(map[string]model.ModelAssignment, len(assignments))
+	for key, assignment := range assignments {
+		if key == "sdd-orchestrator" || key == "gentle-orchestrator" {
+			continue
+		}
+		normalized[key] = assignment
+	}
+	normalized["specai-orchestrator"] = legacyAssignment
+	return normalized
+}
+
+// readOpenCodeRootModel reads the top-level "model" field from the opencode.json
+// at path. Returns empty string if the file does not exist or has no model field.
 func readOpenCodeRootModel(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -1532,6 +1998,10 @@ func readOpenCodeRootModel(path string) (string, error) {
 	return rootModelID, nil
 }
 
+// readExistingAgentModels reads opencode.json at path and returns a set of
+// agent names that already exist as keys under the "agent" map, regardless of
+// whether those agents have a "model" field. Returns an empty map if the file
+// does not exist or has no "agent" key.
 func readExistingAgentModels(path string) (map[string]bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

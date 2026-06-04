@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type InjectionResult struct {
@@ -14,6 +14,8 @@ type InjectionResult struct {
 	Files   []string
 }
 
+// claudeCodeOverlayJSON sets Claude Code to bypassPermissions mode (auto-accept all).
+// Valid modes: "acceptEdits", "bypassPermissions", "default", "dontAsk", "plan".
 var claudeCodeOverlayJSON = []byte(`{
   "permissions": {
     "defaultMode": "bypassPermissions",
@@ -47,6 +49,7 @@ var claudeCodeOverlayJSON = []byte(`{
 }
 `)
 
+// openCodeOverlayJSON uses the OpenCode "permission" key with bash/read granularity.
 var openCodeOverlayJSON = []byte(`{
   "permission": {
     "bash": {
@@ -78,6 +81,7 @@ var openCodeOverlayJSON = []byte(`{
 }
 `)
 
+// geminiCLIOverlayJSON sets Gemini CLI to "auto_edit" mode (auto-approve edit tools).
 var geminiCLIOverlayJSON = []byte(`{
   "general": {
     "defaultApprovalMode": "auto_edit"
@@ -85,235 +89,22 @@ var geminiCLIOverlayJSON = []byte(`{
 }
 `)
 
+// qwenCodeOverlayJSON sets Qwen Code to "auto_edit" mode (auto-approve edits, manual approval for shell commands).
 var qwenCodeOverlayJSON = []byte(`{
   "permissions": {
-    "defaultMode": "auto_edit",
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(sudo rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Edit(.env)",
-      "Edit(.env.*)",
-      "Read(.ssh/*)",
-      "Edit(.ssh/*)",
-      "Read(.credentials/*)",
-      "Edit(.credentials/*)",
-      "Read(.aws/credentials)",
-      "Edit(.aws/credentials)",
-      "Read(**/*.pem)",
-      "Edit(**/*.pem)",
-      "Read(**/*.key)",
-      "Edit(**/*.key)",
-      "Read(**/secrets/*)",
-      "Edit(**/secrets/*)"
-    ]
+    "defaultMode": "auto_edit"
   }
 }
 `)
 
+// vscodeCopilotOverlayJSON enables auto-approve for VS Code Copilot chat tools.
 var vscodeCopilotOverlayJSON = []byte(`{
   "chat.tools.autoApprove": true
 }
 `)
 
-// Windsurf uses a VSCode-like JSON settings format with windsurf.ai.permissions namespace.
-var windsurfOverlayJSON = []byte(`{
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(sudo rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(sudo rm -rf ~)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Edit(.env)",
-      "Edit(.env.*)",
-      "Read(.ssh/*)",
-      "Edit(.ssh/*)",
-      "Read(.credentials/*)",
-      "Edit(.credentials/*)",
-      "Read(.aws/credentials)",
-      "Edit(.aws/credentials)",
-      "Read(**/*.pem)",
-      "Edit(**/*.pem)",
-      "Read(**/*.key)",
-      "Edit(**/*.key)",
-      "Read(**/secrets/*)",
-      "Edit(**/secrets/*)"
-    ]
-  }
-}
-`)
-
-// Kimi uses TOML config; JSON permissions injection is not supported.
-// This overlay intentionally returns nil — see agentOverlay() case arm.
-// Kimi TOML permissions not yet supported: the filemerge package does not support
-// TOML merge for the Kimi config.toml schema. When Kimi documents a stable
-// permissions TOML schema, replace nil with a real overlay.
-var kimiOverlayJSON []byte = nil
-
-// Kiro uses a JSON settings file with mcpServers permissions object.
-var kiroOverlayJSON = []byte(`{
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(sudo rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Edit(.env)",
-      "Edit(.env.*)",
-      "Read(.ssh/*)",
-      "Edit(.ssh/*)",
-      "Read(.credentials/*)",
-      "Edit(.credentials/*)",
-      "Read(.aws/credentials)",
-      "Edit(.aws/credentials)",
-      "Read(**/*.pem)",
-      "Edit(**/*.pem)",
-      "Read(**/*.key)",
-      "Edit(**/*.key)",
-      "Read(**/secrets/*)",
-      "Edit(**/secrets/*)"
-    ]
-  }
-}
-`)
-
-// Trae mirrors the Claude Code schema: defaultMode + deny array in mcp.json.
-var traeOverlayJSON = []byte(`{
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(sudo rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Edit(.env)",
-      "Edit(.env.*)",
-      "Read(.ssh/*)",
-      "Edit(.ssh/*)",
-      "Read(.credentials/*)",
-      "Edit(.credentials/*)",
-      "Read(.aws/credentials)",
-      "Edit(.aws/credentials)",
-      "Read(**/*.pem)",
-      "Edit(**/*.pem)",
-      "Read(**/*.key)",
-      "Edit(**/*.key)",
-      "Read(**/secrets/*)",
-      "Edit(**/secrets/*)"
-    ]
-  }
-}
-`)
-
-// Pi uses a custom JSON permissions schema in ~/.pi/agent/settings.json.
-var piOverlayJSON = []byte(`{
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(sudo rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Edit(.env)",
-      "Edit(.env.*)",
-      "Read(.ssh/*)",
-      "Edit(.ssh/*)",
-      "Read(.credentials/*)",
-      "Edit(.credentials/*)",
-      "Read(.aws/credentials)",
-      "Edit(.aws/credentials)",
-      "Read(**/*.pem)",
-      "Edit(**/*.pem)",
-      "Read(**/*.key)",
-      "Edit(**/*.key)",
-      "Read(**/secrets/*)",
-      "Edit(**/secrets/*)"
-    ]
-  }
-}
-`)
-
-// OpenClaw uses a JSON mcp.permissions.deny structure.
-var openClawOverlayJSON = []byte(`{
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(sudo rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Edit(.env)",
-      "Edit(.env.*)",
-      "Read(.ssh/*)",
-      "Edit(.ssh/*)",
-      "Read(.credentials/*)",
-      "Edit(.credentials/*)",
-      "Read(.aws/credentials)",
-      "Edit(.aws/credentials)",
-      "Read(**/*.pem)",
-      "Edit(**/*.pem)",
-      "Read(**/*.key)",
-      "Edit(**/*.key)",
-      "Read(**/secrets/*)",
-      "Edit(**/secrets/*)"
-    ]
-  }
-}
-`)
-
-// Antigravity uses an mcpServers permissions object (same pattern as context7 overlays).
-var antigravityOverlayJSON = []byte(`{
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(sudo rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Edit(.env)",
-      "Edit(.env.*)",
-      "Read(.ssh/*)",
-      "Edit(.ssh/*)",
-      "Read(.credentials/*)",
-      "Edit(.credentials/*)",
-      "Read(.aws/credentials)",
-      "Edit(.aws/credentials)",
-      "Read(**/*.pem)",
-      "Edit(**/*.pem)",
-      "Read(**/*.key)",
-      "Edit(**/*.key)",
-      "Read(**/secrets/*)",
-      "Edit(**/secrets/*)"
-    ]
-  }
-}
-`)
-
+// agentOverlay returns the correct permission overlay for the given agent,
+// or nil if the agent does not support permission injection via settings.json.
 func agentOverlay(id model.AgentID) []byte {
 	switch id {
 	case model.AgentClaudeCode:
@@ -324,27 +115,17 @@ func agentOverlay(id model.AgentID) []byte {
 		return geminiCLIOverlayJSON
 	case model.AgentQwenCode:
 		return qwenCodeOverlayJSON
+	case model.AgentAntigravity:
+		// Antigravity manages permissions via IDE UI (Artifact Review Policy /
+		// Terminal Command Auto Execution). No injectable settings.json schema.
+		return nil
 	case model.AgentVSCodeCopilot:
 		return vscodeCopilotOverlayJSON
-	case model.AgentWindsurf:
-		return windsurfOverlayJSON
-	case model.AgentKimi:
-		// Kimi TOML permissions not yet supported — returns nil intentionally.
-		// See kimiOverlayJSON declaration for details.
-		return kimiOverlayJSON
-	case model.AgentKiroIDE:
-		return kiroOverlayJSON
-	case model.AgentTrae:
-		return traeOverlayJSON
-	case model.AgentPi:
-		return piOverlayJSON
-	case model.AgentOpenClaw:
-		return openClawOverlayJSON
-	case model.AgentAntigravity:
-		return antigravityOverlayJSON
 	case model.AgentCursor:
+		// Cursor manages permissions via cli-config.json, not settings.json.
 		return nil
 	case model.AgentCodex:
+		// Codex has no known settings.json path; permissions are skipped.
 		return nil
 	default:
 		return nil
@@ -392,5 +173,6 @@ var osReadFile = func(path string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("read json file %q: %w", path, err)
 	}
+
 	return content, nil
 }

@@ -3,69 +3,25 @@ package screens
 import (
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/KevG1t/specai/internal/tui/styles"
 )
 
-// StrictTDDSelectedMsg is emitted when the user confirms a Strict TDD choice.
-type StrictTDDSelectedMsg struct {
-	Enabled bool
+// StrictTDDOptionEnable is the index of the "Enable" option.
+const StrictTDDOptionEnable = 0
+
+// StrictTDDOptionDisable is the index of the "Disable" option.
+const StrictTDDOptionDisable = 1
+
+// StrictTDDOptions returns the list of option labels for the Strict TDD screen.
+func StrictTDDOptions() []string {
+	return []string{"Enable", "Disable"}
 }
 
-const (
-	StrictTDDOptionEnable  = 0
-	StrictTDDOptionDisable = 1
-)
-
-// StrictTDDModel is a standalone BubbleTea model for Strict TDD selection.
-type StrictTDDModel struct {
-	cursor  int
-	enabled bool
-}
-
-func NewStrictTDDModel() StrictTDDModel {
-	return StrictTDDModel{
-		enabled: true,
-	}
-}
-
-func (m StrictTDDModel) Init() tea.Cmd { return nil }
-
-func (m StrictTDDModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	options := []string{"Enable", "Disable"}
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "j", "down":
-			if m.cursor < len(options) {
-				m.cursor++
-				if m.cursor < len(options) {
-					m.enabled = m.cursor == StrictTDDOptionEnable
-				}
-			}
-		case "k", "up":
-			if m.cursor > 0 {
-				m.cursor--
-				if m.cursor < len(options) {
-					m.enabled = m.cursor == StrictTDDOptionEnable
-				}
-			}
-		case "enter":
-			if m.cursor < len(options) {
-				enabled := m.cursor == StrictTDDOptionEnable
-				return m, func() tea.Msg { return StrictTDDSelectedMsg{Enabled: enabled} }
-			}
-			return m, func() tea.Msg { return BackMsg{} }
-		case "esc":
-			return m, func() tea.Msg { return BackMsg{} }
-		}
-	}
-	return m, nil
-}
-
-func (m StrictTDDModel) View() string {
+// RenderStrictTDD renders the Strict TDD Mode selection screen.
+// enabled indicates whether Strict TDD Mode is currently active.
+// cursor is the current cursor position.
+func RenderStrictTDD(enabled bool, cursor int) string {
 	var b strings.Builder
-	options := []string{"Enable", "Disable"}
 
 	b.WriteString(styles.TitleStyle.Render("STRICT TDD MODE"))
 	b.WriteString("\n\n")
@@ -76,14 +32,15 @@ func (m StrictTDDModel) View() string {
 	b.WriteString(styles.SubtextStyle.Render("then implements the minimum code to pass before refactoring."))
 	b.WriteString("\n\n")
 
+	options := StrictTDDOptions()
 	for idx, opt := range options {
-		isSelected := (idx == StrictTDDOptionEnable && m.enabled) || (idx == StrictTDDOptionDisable && !m.enabled)
-		focused := idx == m.cursor
+		isSelected := (idx == StrictTDDOptionEnable && enabled) || (idx == StrictTDDOptionDisable && !enabled)
+		focused := idx == cursor
 		b.WriteString(renderRadio(opt, isSelected, focused))
 	}
 
 	b.WriteString("\n")
-	b.WriteString(renderOptions([]string{"Back"}, m.cursor-len(options)))
+	b.WriteString(renderOptions([]string{"Back"}, cursor-len(options)))
 	b.WriteString("\n")
 	b.WriteString(styles.HelpStyle.Render("j/k: navigate • enter: select • esc: back"))
 

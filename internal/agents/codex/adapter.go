@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/versions"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/versions"
 )
 
 var LookPathOverride = exec.LookPath
@@ -30,6 +30,8 @@ func NewAdapter() *Adapter {
 	}
 }
 
+// --- Identity ---
+
 func (a *Adapter) Agent() model.AgentID {
 	return model.AgentCodex
 }
@@ -37,6 +39,8 @@ func (a *Adapter) Agent() model.AgentID {
 func (a *Adapter) Tier() model.SupportTier {
 	return model.TierFull
 }
+
+// --- Detection ---
 
 func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, string, bool, error) {
 	configPath := filepath.Join(homeDir, ".codex")
@@ -55,17 +59,23 @@ func (a *Adapter) Detect(_ context.Context, homeDir string) (bool, string, strin
 	return installed, binaryPath, configPath, stat.isDir, nil
 }
 
+// --- Installation ---
+
 func (a *Adapter) SupportsAutoInstall() bool {
 	return true
 }
 
 func (a *Adapter) InstallCommand(profile system.PlatformProfile) ([][]string, error) {
+	// Codex CLI installs via npm on all platforms. Version is pinned and
+	// postinstall scripts are blocked to mitigate supply-chain risk.
 	pkg := "@openai/codex@" + versions.Codex
 	if profile.OS == "linux" && !profile.NpmWritable {
 		return [][]string{{"sudo", "npm", "install", "-g", "--ignore-scripts", pkg}}, nil
 	}
 	return [][]string{{"npm", "install", "-g", "--ignore-scripts", pkg}}, nil
 }
+
+// --- Config paths ---
 
 func (a *Adapter) GlobalConfigDir(homeDir string) string {
 	return filepath.Join(homeDir, ".codex")
@@ -84,8 +94,11 @@ func (a *Adapter) SkillsDir(homeDir string) string {
 }
 
 func (a *Adapter) SettingsPath(_ string) string {
+	// Codex has no known settings.json path; permissions component skips nil-overlay agents.
 	return ""
 }
+
+// --- Config strategies ---
 
 func (a *Adapter) SystemPromptStrategy() model.SystemPromptStrategy {
 	return model.StrategyFileReplace
@@ -95,25 +108,62 @@ func (a *Adapter) MCPStrategy() model.MCPStrategy {
 	return model.StrategyTOMLFile
 }
 
+// --- MCP ---
+
+// MCPConfigPath returns the path to Codex's TOML config file (~/.codex/config.toml).
+// The serverName argument is ignored — Codex uses a single config file for all MCP servers.
 func (a *Adapter) MCPConfigPath(homeDir string, _ string) string {
 	return filepath.Join(homeDir, ".codex", "config.toml")
 }
 
-func (a *Adapter) SupportsOutputStyles() bool  { return false }
-func (a *Adapter) OutputStyleDir(_ string) string { return "" }
-func (a *Adapter) SupportsSlashCommands() bool  { return false }
-func (a *Adapter) CommandsDir(_ string) string  { return "" }
-func (a *Adapter) SupportsSubAgents() bool      { return false }
-func (a *Adapter) SubAgentsDir(_ string) string { return "" }
-func (a *Adapter) EmbeddedSubAgentsDir() string { return "" }
-func (a *Adapter) SupportsSkills() bool         { return true }
-func (a *Adapter) SupportsSystemPrompt() bool   { return true }
-func (a *Adapter) SupportsMCP() bool            { return true }
+// --- Optional capabilities ---
+
+func (a *Adapter) SupportsOutputStyles() bool {
+	return false
+}
+
+func (a *Adapter) OutputStyleDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) SupportsSlashCommands() bool {
+	return false
+}
+
+func (a *Adapter) CommandsDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) SupportsSubAgents() bool {
+	return false
+}
+
+func (a *Adapter) SubAgentsDir(_ string) string {
+	return ""
+}
+
+func (a *Adapter) EmbeddedSubAgentsDir() string {
+	return ""
+}
+
+func (a *Adapter) SupportsSkills() bool {
+	return true
+}
+
+func (a *Adapter) SupportsSystemPrompt() bool {
+	return true
+}
+
+// SupportsMCP returns true — Codex supports MCP via ~/.codex/config.toml.
+func (a *Adapter) SupportsMCP() bool {
+	return true
+}
 
 func defaultStat(path string) statResult {
 	info, err := os.Stat(path)
 	if err != nil {
 		return statResult{err: err}
 	}
+
 	return statResult{isDir: info.IsDir()}
 }

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/catalog"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/catalog"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 type InstallInput struct {
@@ -68,11 +68,11 @@ func NormalizeInstallFlags(flags InstallFlags, detection system.DetectionResult)
 
 func normalizePersona(value string) (model.PersonaID, error) {
 	if strings.TrimSpace(value) == "" {
-		return model.PersonaArgentina, nil
+		return model.PersonaModism, nil
 	}
 
 	switch model.PersonaID(value) {
-	case model.PersonaArgentina, model.PersonaNicaragua, model.PersonaNeutral, model.PersonaCustom:
+	case model.PersonaModism, model.PersonaModismNeutralArtifacts, model.PersonaNeutral, model.PersonaCustom:
 		return model.PersonaID(value), nil
 	default:
 		return "", fmt.Errorf("unsupported persona %q", value)
@@ -81,11 +81,11 @@ func normalizePersona(value string) (model.PersonaID, error) {
 
 func normalizePreset(value string) (model.PresetID, error) {
 	if strings.TrimSpace(value) == "" {
-		return model.PresetFull, nil
+		return model.PresetFullModism, nil
 	}
 
 	switch model.PresetID(value) {
-	case model.PresetFull, model.PresetEcosystemOnly, model.PresetMinimal, model.PresetCustom:
+	case model.PresetFullModism, model.PresetEcosystemOnly, model.PresetMinimal, model.PresetCustom:
 		return model.PresetID(value), nil
 	default:
 		return "", fmt.Errorf("unsupported preset %q", value)
@@ -153,20 +153,19 @@ func componentsForPreset(preset model.PresetID, persona model.PersonaID) []model
 	var components []model.ComponentID
 	switch preset {
 	case model.PresetMinimal:
-		components = []model.ComponentID{model.ComponentSDDMemory}
+		components = []model.ComponentID{model.ComponentSddMemory}
 	case model.PresetEcosystemOnly:
-		components = []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD, model.ComponentSkills, model.ComponentContext7}
+		components = []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD, model.ComponentSkills, model.ComponentContext7}
 	case model.PresetCustom:
 		return nil
-	default: // full
+	default: // full-modism
 		components = []model.ComponentID{
-			model.ComponentSDDMemory,
+			model.ComponentSddMemory,
 			model.ComponentSDD,
 			model.ComponentSkills,
 			model.ComponentContext7,
 			model.ComponentPermission,
 			model.ComponentClaudeTheme,
-			model.ComponentOpenCodeArgentinaLogo,
 		}
 	}
 	if persona != model.PersonaCustom {
@@ -243,7 +242,7 @@ func isPiOnlyAgents(agents []model.AgentID) bool {
 }
 
 func piOnlyComponents() []model.ComponentID {
-	return []model.ComponentID{model.ComponentSDDMemory}
+	return []model.ComponentID{model.ComponentSddMemory}
 }
 
 func unique[T comparable](items []T) []T {

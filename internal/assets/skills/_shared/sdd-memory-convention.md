@@ -119,8 +119,7 @@ mem_search(query: "sdd/{change-name}/", project: "{project}")
 
 ## Project Name Resolution (sdd-memory v1.11.0+)
 
-sdd-memory auto-detects the project name from the git remote at MCP startup. The `--project` flag and `SDD_MEMORY_PROJECT` env var can override detection. All project names are normalized to lowercase and trimmed.
-<!-- NOTE: `SDD_MEMORY_PROJECT` is the sdd-memory binary's own env var name (upstream CLI contract). It refers to the actual flag the binary reads. -->
+sdd-memory auto-detects the project name from the git remote at MCP startup. The `--project` flag and `SDD-MEMORY_PROJECT` env var can override detection. All project names are normalized to lowercase and trimmed.
 
 If the agent saves a memory under a project name that doesn't match existing observations, sdd-memory warns about potential name drift. Use `mem_merge_projects` (MCP tool) or `sdd-memory projects consolidate` (CLI) to merge variants.
 

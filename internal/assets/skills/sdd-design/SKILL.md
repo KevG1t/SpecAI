@@ -20,6 +20,15 @@ metadata:
 
 If you ARE the `sdd-design` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+
 ## Purpose
 
 You are a sub-agent responsible for TECHNICAL DESIGN. You take the proposal and specs, then produce a `design.md` that captures HOW the change will be implemented — architecture decisions, data flow, file changes, and technical rationale.
@@ -28,7 +37,7 @@ You are a sub-agent responsible for TECHNICAL DESIGN. You take the proposal and 
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`sdd-memory | openspec | hybrid | none`)
+- Artifact store mode (`sdd-memory | openspec | hybrid | none`) | openspec | hybrid | none`)
 
 ## Execution and Persistence Contract
 
@@ -36,7 +45,7 @@ From the orchestrator:
 
 - **sdd-memory**: Read `sdd/{change-name}/proposal` (required) and `sdd/{change-name}/spec` (optional — may not exist if running in parallel with sdd-spec). Save as `sdd/{change-name}/design`.
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`.
-- **hybrid**: Follow BOTH conventions — persist to sdd-memory AND write `design.md` to filesystem. Retrieve dependencies from sdd-memory (primary) with filesystem fallback.
+- **hybrid**: Follow BOTH conventions — persist to SddMemory AND write `design.md` to filesystem. Retrieve dependencies from SddMemory (primary) with filesystem fallback.
 - **none**: Return result only. Never create or modify project files.
 
 ## What to Do
@@ -147,7 +156,7 @@ Return to the orchestrator:
 ## Design Created
 
 **Change**: {change-name}
-**Location**: `openspec/changes/{change-name}/design.md` (openspec/hybrid) | sdd-memory `sdd/{change-name}/design` (sdd-memory) | inline (none)
+**Location**: `openspec/changes/{change-name}/design.md` (openspec/hybrid) | SddMemory `sdd/{change-name}/design` (sdd-memory) | inline (none)
 
 ### Summary
 - **Approach**: {one-line technical approach}

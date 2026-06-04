@@ -3,16 +3,15 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
-
-permissions:
-  contents: write
-  pages: write
-  id-token: write
+      - 'v*'
 
 jobs:
-  goreleaser:
+  release:
+    name: Build and publish release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,33 +24,53 @@ jobs:
           go-version-file: go.mod
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: '~> v2'
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy-install-script:
-    needs: goreleaser
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Extract binaries into npm-package/dist
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          DIST="npm-package/dist"
+          mkdir -p "$DIST"
+
+          # Unix archives (tar.gz)
+          for PAIR in linux_amd64:linux-amd64 linux_arm64:linux-arm64 darwin_amd64:darwin-amd64 darwin_arm64:darwin-arm64; do
+            GORELEASER_PAIR="${PAIR%%:*}"
+            JS_PAIR="${PAIR##*:}"
+            ARCHIVE="dist/specai_${VERSION}_${GORELEASER_PAIR}.tar.gz"
+            if [ -f "$ARCHIVE" ]; then
+              tar -xzf "$ARCHIVE" -C "$DIST" specai
+              mv "$DIST/specai" "$DIST/specai-${JS_PAIR}"
+            fi
+          done
+
+          # Windows archives (zip)
+          for PAIR in windows_amd64:windows-amd64 windows_arm64:windows-arm64; do
+            GORELEASER_PAIR="${PAIR%%:*}"
+            JS_PAIR="${PAIR##*:}"
+            ARCHIVE="dist/specai_${VERSION}_${GORELEASER_PAIR}.zip"
+            if [ -f "$ARCHIVE" ]; then
+              unzip -o "$ARCHIVE" specai.exe -d "$DIST"
+              mv "$DIST/specai.exe" "$DIST/specai-${JS_PAIR}.exe"
+            fi
+          done
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          path: '.'
-      
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Bump npm package version and publish
+        working-directory: npm-package
+        run: |
+          npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

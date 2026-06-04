@@ -3,12 +3,12 @@ package sddmemory
 import (
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 const (
-	SetupModeEnvVar   = "SPECAI_SDD_MEMORY_SETUP_MODE"
-	SetupStrictEnvVar = "SPECAI_SDD_MEMORY_SETUP_STRICT"
+	SetupModeEnvVar   = "SPECAI_SDDMEMORY_SETUP_MODE"
+	SetupStrictEnvVar = "SPECAI_SDDMEMORY_SETUP_STRICT"
 )
 
 type SetupMode string
@@ -48,14 +48,22 @@ func SetupAgentSlug(agent model.AgentID) (string, bool) {
 	case model.AgentGeminiCLI:
 		return "gemini-cli", true
 	case model.AgentCodex:
+		// Codex slug registered for future MCP support; ShouldAttemptSetup gates on SupportsMCP().
 		return "codex", true
 	case model.AgentAntigravity:
+		// Antigravity relies on Gemini's sdd-memory setup surface; the sdd-memory binary
+		// does not currently expose a native "antigravity" slug.
 		return "gemini-cli", true
 	case model.AgentWindsurf:
 		return "windsurf", true
 	case model.AgentCursor, model.AgentVSCodeCopilot:
+		// Cursor and VS Code Copilot do not use `sdd-memory setup` — their MCP
+		// config is injected directly by the sddmemory component. Returning false
+		// here is intentional, not an omission.
 		return "", false
 	case model.AgentQwenCode:
+		// Qwen uses direct settings.json injection only. The sdd-memory binary does
+		// not currently expose a native `qwen-code` setup target.
 		return "", false
 	default:
 		return "", false

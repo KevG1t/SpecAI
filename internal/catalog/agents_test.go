@@ -3,7 +3,7 @@ package catalog
 import (
 	"testing"
 
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 func TestAllAgentsIncludesPi(t *testing.T) {

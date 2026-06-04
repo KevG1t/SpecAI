@@ -1,0 +1,34 @@
+package cli
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/planner"
+)
+
+func TestRenderDryRunIncludesPlatformDecision(t *testing.T) {
+	result := InstallResult{
+		Selection: model.Selection{Persona: model.PersonaModism, Preset: model.PresetFullModism},
+		Resolved: planner.ResolvedPlan{
+			Agents:            []model.AgentID{model.AgentClaudeCode},
+			OrderedComponents: []model.ComponentID{model.ComponentSddMemory},
+		},
+		Review: planner.ReviewPayload{
+			PlatformDecision: planner.PlatformDecision{
+				OS:             "linux",
+				LinuxDistro:    "ubuntu",
+				PackageManager: "apt",
+				Supported:      true,
+			},
+		},
+	}
+
+	output := RenderDryRun(result)
+
+	want := "Platform decision: os=linux distro=ubuntu package-manager=apt status=supported"
+	if !strings.Contains(output, want) {
+		t.Fatalf("RenderDryRun() missing platform decision\noutput=%s", output)
+	}
+}

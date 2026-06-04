@@ -38,11 +38,11 @@ type InstallState struct {
 	// ModelAssignments maps sub-agent names to provider/model pairs (OpenCode).
 	ModelAssignments map[string]ModelAssignmentState `json:"model_assignments,omitempty"`
 
-	// Persona records the persona the user installed ("argentina", "neutral",
+	// Persona records the persona the user installed ("modism", "neutral",
 	// "custom"). Persisted so that `specai sync` regenerates the same persona
-	// the user originally chose instead of defaulting to Argentina every time.
+	// the user originally chose instead of defaulting to Modism every time.
 	// Empty for state files written before persona persistence was added —
-	// callers fall back to PersonaArgentina in that case.
+	// callers fall back to PersonaModism in that case.
 	Persona string `json:"persona,omitempty"`
 }
 

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/KevG1t/specai/internal/components/filemerge"
 )
 
 // UserHomeDirFn is the function used to resolve the user's home directory.
@@ -149,21 +151,9 @@ func restoreEntry(entry ManifestEntry, trustedSnapshot bool) error {
 		return fmt.Errorf("create restore directory for %q: %w", entry.OriginalPath, err)
 	}
 
-	if _, err := writeFileAtomic(entry.OriginalPath, content, os.FileMode(entry.Mode)); err != nil {
+	if _, err := filemerge.WriteFileAtomic(entry.OriginalPath, content, os.FileMode(entry.Mode)); err != nil {
 		return fmt.Errorf("restore path %q: %w", entry.OriginalPath, err)
 	}
 
 	return nil
-}
-
-func writeFileAtomic(path string, data []byte, mode os.FileMode) (int, error) {
-	tempPath := path + ".tmp"
-	if err := os.WriteFile(tempPath, data, mode); err != nil {
-		return 0, err
-	}
-	if err := os.Rename(tempPath, path); err != nil {
-		os.Remove(tempPath)
-		return 0, err
-	}
-	return len(data), nil
 }

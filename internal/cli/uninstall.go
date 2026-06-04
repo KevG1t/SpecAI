@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/catalog"
-	componentuninstall "github.com/KevG1t/SpecAI/internal/components/uninstall"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/catalog"
+	componentuninstall "github.com/KevG1t/specai/internal/components/uninstall"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type UninstallFlags struct {
@@ -67,7 +67,7 @@ func RunUninstallWithSelection(homeDir, workspaceDir string, agentIDs []model.Ag
 	return componentuninstall.PartialUninstall(homeDir, workspaceDir, AppVersion, agents, components)
 }
 
-func RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir string, agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, sddMemoryScope model.SDDMemoryUninstallScope) (componentuninstall.Result, error) {
+func RunUninstallWithSelectionAndProfiles(homeDir, workspaceDir string, agentIDs []model.AgentID, componentIDs []model.ComponentID, profileNames []string, sddMemoryScope model.SddMemoryUninstallScope) (componentuninstall.Result, error) {
 	agents := make([]string, 0, len(agentIDs))
 	for _, agentID := range agentIDs {
 		agents = append(agents, string(agentID))

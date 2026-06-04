@@ -4,176 +4,149 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/planner"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/planner"
 )
 
-func makeFullReviewPayload() planner.ReviewPayload {
-	return planner.ReviewPayload{
-		Agents:  []model.AgentID{model.AgentClaudeCode, model.AgentOpenCode},
-		Persona: model.PersonaArgentina,
-		Preset:  model.PresetFull,
+// ─── Issue #145: Review screen must show individual skills ───────────────────
+
+// TestRenderReviewShowsSkillNames verifies that when ReviewPayload.Skills is
+// populated, RenderReview output contains each individual skill name.
+//
+// Closes #145.
+func TestRenderReviewShowsSkillNames(t *testing.T) {
+	payload := planner.ReviewPayload{
+		Agents:  []model.AgentID{model.AgentClaudeCode},
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
 		Components: []planner.ComponentAction{
-			{ID: model.ComponentSDDMemory, Action: "selected"},
-			{ID: model.ComponentSDD, Action: "selected"},
-			{ID: model.ComponentPersona, Action: "auto-dependency"},
+			{ID: model.ComponentSkills, Action: "selected"},
 		},
-		AddedDependencies: []model.ComponentID{model.ComponentPersona},
-		Skills:            []model.SkillID{model.SkillSDDApply, model.SkillGoTesting},
-		StrictTDD:         true,
-		HasSDD:            true,
+		Skills: []model.SkillID{"sdd-apply", "sdd-spec", "go-testing"},
+	}
+
+	out := RenderReview(payload, 0)
+
+	for _, skillName := range []string{"sdd-apply", "sdd-spec", "go-testing"} {
+		if !strings.Contains(out, skillName) {
+			t.Errorf("RenderReview output missing skill %q; output:\n%s", skillName, out)
+		}
 	}
 }
 
-func TestReview_ViewRendersAllSections(t *testing.T) {
-	m := NewReviewModel(makeFullReviewPayload())
-	view := m.View()
-
-	checks := []struct {
-		name  string
-		token string
-	}{
-		{"agent claude-code", "claude-code"},
-		{"agent opencode", "opencode"},
-		{"persona argentina", "argentina"},
-		{"preset full", "full"},
-		{"component sdd-memory", "sdd-memory"},
-		{"skill sdd-apply", "sdd-apply"},
-		{"strict TDD heading", "Strict TDD"},
-		{"Install action", "Install"},
-		{"Back action", "Back"},
+// TestRenderReviewHidesSkillsSectionWhenEmpty verifies that when there are no
+// skills selected, the review screen does not crash and shows no skill names.
+//
+// Closes #145.
+func TestRenderReviewHidesSkillsSectionWhenEmpty(t *testing.T) {
+	payload := planner.ReviewPayload{
+		Agents:  []model.AgentID{model.AgentClaudeCode},
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
+		// No Skills field.
 	}
 
-	for _, c := range checks {
-		t.Run(c.name, func(t *testing.T) {
-			if !strings.Contains(view, c.token) {
-				t.Errorf("view does not contain %q", c.token)
-			}
-		})
+	out := RenderReview(payload, 0)
+
+	// Should not panic and should render something.
+	if len(out) == 0 {
+		t.Fatal("RenderReview returned empty string")
 	}
 }
 
-func TestReview_AutoDependencyBadgeShown(t *testing.T) {
-	m := NewReviewModel(makeFullReviewPayload())
-	view := m.View()
+// ─── Issue #149: Review screen must show Strict TDD status ───────────────────
 
-	// persona is in AddedDependencies — should show auto-dependency badge
-	if !strings.Contains(view, "auto-dependency") {
-		t.Error("view should contain 'auto-dependency' badge for auto-added components")
+// TestRenderReviewShowsStrictTDDEnabled verifies that RenderReview output contains
+// "Strict TDD" and "Enabled" when HasSDD=true and StrictTDD=true.
+//
+// Closes #149.
+func TestRenderReviewShowsStrictTDDEnabled(t *testing.T) {
+	payload := planner.ReviewPayload{
+		Agents:  []model.AgentID{model.AgentClaudeCode},
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
+		Components: []planner.ComponentAction{
+			{ID: model.ComponentSDD, Action: "selected"},
+		},
+		HasSDD:    true,
+		StrictTDD: true,
+	}
+
+	out := RenderReview(payload, 0)
+
+	if !strings.Contains(out, "Strict TDD") {
+		t.Errorf("RenderReview missing 'Strict TDD'; output:\n%s", out)
+	}
+	if !strings.Contains(out, "Enabled") {
+		t.Errorf("RenderReview missing 'Enabled' for StrictTDD=true; output:\n%s", out)
 	}
 }
 
-func TestReview_EnterOnInstall_EmitsConfirmedMsg(t *testing.T) {
-	m := NewReviewModel(makeFullReviewPayload())
-	// cursor defaults to 0 (Install)
-
-	newModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	_ = newModel
-
-	if cmd == nil {
-		t.Fatal("expected a cmd from enter on Install")
+// TestRenderReviewShowsStrictTDDDisabled verifies that RenderReview output contains
+// "Strict TDD" and "Disabled" when HasSDD=true and StrictTDD=false.
+//
+// Closes #149.
+func TestRenderReviewShowsStrictTDDDisabled(t *testing.T) {
+	payload := planner.ReviewPayload{
+		Agents:  []model.AgentID{model.AgentClaudeCode},
+		Persona: model.PersonaModism,
+		Preset:  model.PresetFullModism,
+		Components: []planner.ComponentAction{
+			{ID: model.ComponentSDD, Action: "selected"},
+		},
+		HasSDD:    true,
+		StrictTDD: false,
 	}
-	msg := cmd()
-	if _, ok := msg.(ReviewConfirmedMsg); !ok {
-		t.Fatalf("expected ReviewConfirmedMsg, got %T", msg)
+
+	out := RenderReview(payload, 0)
+
+	if !strings.Contains(out, "Strict TDD") {
+		t.Errorf("RenderReview missing 'Strict TDD'; output:\n%s", out)
 	}
-}
-
-func TestReview_EnterOnBack_EmitsBackMsg(t *testing.T) {
-	m := NewReviewModel(makeFullReviewPayload())
-	// move cursor to Back (index 1)
-	newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	m = newModel.(ReviewModel)
-
-	newModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	_ = newModel
-
-	if cmd == nil {
-		t.Fatal("expected a cmd from enter on Back")
-	}
-	msg := cmd()
-	if _, ok := msg.(ReviewBackMsg); !ok {
-		t.Fatalf("expected ReviewBackMsg, got %T", msg)
+	if !strings.Contains(out, "Disabled") {
+		t.Errorf("RenderReview missing 'Disabled' for StrictTDD=false; output:\n%s", out)
 	}
 }
 
-func TestReview_EscEmitsBackMsg(t *testing.T) {
-	m := NewReviewModel(makeFullReviewPayload())
-
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	if cmd == nil {
-		t.Fatal("expected a cmd from esc")
-	}
-	msg := cmd()
-	if _, ok := msg.(ReviewBackMsg); !ok {
-		t.Fatalf("expected ReviewBackMsg from esc, got %T", msg)
-	}
-}
-
-func TestReview_JKCursorMovement(t *testing.T) {
-	m := NewReviewModel(makeFullReviewPayload())
-
-	if m.cursor != 0 {
-		t.Fatalf("initial cursor should be 0, got %d", m.cursor)
+// TestRenderReviewHidesStrictTDDWhenNoSDD verifies that when HasSDD=false,
+// "Strict TDD" does not appear in the review output.
+//
+// Closes #149.
+func TestRenderReviewHidesStrictTDDWhenNoSDD(t *testing.T) {
+	payload := planner.ReviewPayload{
+		Agents:    []model.AgentID{model.AgentClaudeCode},
+		Persona:   model.PersonaModism,
+		Preset:    model.PresetFullModism,
+		HasSDD:    false,
+		StrictTDD: true,
 	}
 
-	newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	m = newModel.(ReviewModel)
-	if m.cursor != 1 {
-		t.Fatalf("cursor after j should be 1, got %d", m.cursor)
-	}
+	out := RenderReview(payload, 0)
 
-	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-	m = newModel.(ReviewModel)
-	if m.cursor != 0 {
-		t.Fatalf("cursor after k should be 0, got %d", m.cursor)
+	if strings.Contains(out, "Strict TDD") {
+		t.Errorf("RenderReview should NOT show 'Strict TDD' when HasSDD=false; output:\n%s", out)
 	}
 }
 
-// TestReview_SDDModeRendered verifies that SDDMode is shown when HasSDD is true
-// and SDDMode is set.
-func TestReview_SDDModeRendered(t *testing.T) {
-	payload := makeFullReviewPayload()
-	payload.SDDMode = "multi"
-	m := NewReviewModel(payload)
-	view := m.View()
-
-	if !strings.Contains(view, "SDD Mode: multi") {
-		t.Errorf("view should contain 'SDD Mode: multi', got:\n%s", view)
-	}
-}
-
-// TestReview_SDDModeNotRenderedWhenHasSDDFalse verifies SDDMode line is absent
-// when HasSDD is false.
-func TestReview_SDDModeNotRenderedWhenHasSDDFalse(t *testing.T) {
-	payload := makeFullReviewPayload()
-	payload.HasSDD = false
-	payload.SDDMode = "multi"
-	m := NewReviewModel(payload)
-	view := m.View()
-
-	if strings.Contains(view, "SDD Mode: multi") {
-		t.Errorf("view should NOT contain 'SDD Mode: multi' when HasSDD=false")
-	}
-}
-
-func TestReview_CursorDoesNotWrapBeyondBounds(t *testing.T) {
-	m := NewReviewModel(makeFullReviewPayload())
-
-	// cursor is 0; pressing k should stay at 0
-	newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-	m = newModel.(ReviewModel)
-	if m.cursor != 0 {
-		t.Errorf("cursor should stay at 0 after k from 0, got %d", m.cursor)
+func TestRenderReviewClarifiesCustomPersonaAndPreset(t *testing.T) {
+	payload := planner.ReviewPayload{
+		Agents:  []model.AgentID{model.AgentClaudeCode},
+		Persona: model.PersonaCustom,
+		Preset:  model.PresetCustom,
 	}
 
-	// move to 1; pressing j should stay at 1
-	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	m = newModel.(ReviewModel)
-	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	m = newModel.(ReviewModel)
-	if m.cursor != 1 {
-		t.Errorf("cursor should stay at 1 after j from 1, got %d", m.cursor)
+	out := RenderReview(payload, 0)
+
+	if !strings.Contains(out, "keep existing persona unmanaged") {
+		t.Fatalf("RenderReview missing custom persona clarification; output:\n%s", out)
+	}
+	if !strings.Contains(out, "choose components and skills manually") {
+		t.Fatalf("RenderReview missing custom preset clarification; output:\n%s", out)
+	}
+	if strings.Contains(out, "Persona  custom") {
+		t.Fatalf("RenderReview should not show raw custom persona label; output:\n%s", out)
+	}
+	if strings.Contains(out, "Preset  custom") {
+		t.Fatalf("RenderReview should not show raw custom preset label; output:\n%s", out)
 	}
 }

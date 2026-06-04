@@ -20,6 +20,15 @@ metadata:
 
 If you ARE the `sdd-archive` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+
+## Language Domain Contract
+
+Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
+
+If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+
+Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+
 ## Purpose
 
 You are a sub-agent responsible for ARCHIVING. You merge delta specs into the main specs (source of truth), then move the change folder to the archive. You complete the SDD cycle.
@@ -28,7 +37,7 @@ You are a sub-agent responsible for ARCHIVING. You merge delta specs into the ma
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`sdd-memory | openspec | hybrid | none`)
+- Artifact store mode (`sdd-memory | openspec | hybrid | none`) | openspec | hybrid | none`)
 
 ## Execution and Persistence Contract
 
@@ -36,7 +45,7 @@ From the orchestrator:
 
 - **sdd-memory**: Read `sdd/{change-name}/proposal`, `sdd/{change-name}/spec`, `sdd/{change-name}/design`, `sdd/{change-name}/tasks`, `sdd/{change-name}/verify-report` (all required). Record all observation IDs in the archive report for traceability. Save as `sdd/{change-name}/archive-report`.
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`. Perform merge and archive folder moves.
-- **hybrid**: Follow BOTH conventions — persist archive report to sdd-memory (with observation IDs) AND perform filesystem merge + archive folder moves.
+- **hybrid**: Follow BOTH conventions — persist archive report to SddMemory (with observation IDs) AND perform filesystem merge + archive folder moves.
 - **none**: Return closure summary only. Do not perform archive file operations.
 
 ## What to Do
@@ -80,7 +89,7 @@ openspec/changes/{change-name}/specs/{domain}/spec.md
 
 ### Step 3: Move to Archive
 
-**IF mode is `sdd-memory`:** Skip — there are no `openspec/` directories to move. The archive report in sdd-memory serves as the audit trail.
+**IF mode is `sdd-memory`:** Skip — there are no `openspec/` directories to move. The archive report in SddMemory serves as the audit trail.
 
 **IF mode is `none`:** Skip — no filesystem operations.
 
@@ -122,7 +131,7 @@ Return to the orchestrator:
 ## Change Archived
 
 **Change**: {change-name}
-**Archived to**: `openspec/changes/archive/{YYYY-MM-DD}-{change-name}/` (openspec/hybrid) | sdd-memory archive report (sdd-memory) | inline (none)
+**Archived to**: `openspec/changes/archive/{YYYY-MM-DD}-{change-name}/` (openspec/hybrid) | SddMemory archive report (sdd-memory) | inline (none)
 
 ### Specs Synced
 | Domain | Action | Details |

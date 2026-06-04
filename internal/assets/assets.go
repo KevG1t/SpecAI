@@ -1,10 +1,6 @@
 package assets
 
-import (
-	"embed"
-
-	"github.com/KevG1t/SpecAI/internal/model"
-)
+import "embed"
 
 //go:embed all:claude all:opencode all:generic all:skills all:gemini all:codex all:antigravity all:windsurf all:cursor all:kimi all:qwen all:kiro
 var FS embed.FS
@@ -25,16 +21,4 @@ func Read(path string) (string, error) {
 		return "", err
 	}
 	return string(data), nil
-}
-
-// SDDCommandsAssetDir returns the embedded slash-command asset directory for an
-// agent. Claude uses Claude-native frontmatter under claude/commands; agents
-// without a dedicated command set fall back to the OpenCode-compatible assets.
-func SDDCommandsAssetDir(agent model.AgentID) string {
-	switch agent {
-	case model.AgentClaudeCode:
-		return "claude/commands"
-	default:
-		return "opencode/commands"
-	}
 }

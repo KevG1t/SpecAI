@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/components/sddmemory"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/update"
+	"github.com/KevG1t/specai/internal/components/sddmemory"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/update"
 )
 
-// sddmemoryDownloadFn is the function used to download the sdd-memory binary.
+// sddMemoryDownloadFn is the function used to download the sdd-memory binary.
 // Package-level var for testability — swapped in tests to avoid real network calls.
-var sddmemoryDownloadFn = sddmemory.DownloadLatestBinary
+var sddMemoryDownloadFn = sddmemory.DownloadLatestBinary
 
 // execCommand is a package-level var declared in executor.go (same package).
 
@@ -42,7 +42,6 @@ const maxScriptSize = 1 * 1024 * 1024 // 1 MB
 // for the given platform profile.
 //
 // Strategy routing:
-//   - brew profile → brewUpgrade (regardless of tool's declared method)
 //   - go-install method + apt/pacman/other → goInstallUpgrade
 //   - binary method + linux/darwin → binaryUpgrade
 //   - binary method + windows → manualFallback (Phase 1: self-replace deferred)
@@ -54,8 +53,6 @@ func runStrategy(ctx context.Context, r update.UpdateResult, profile system.Plat
 	method := effectiveMethod(r.Tool, profile)
 
 	switch method {
-	case update.InstallBrew:
-		return brewUpgrade(ctx, r.Tool.Name)
 	case update.InstallGoInstall:
 		return goInstallUpgrade(ctx, r.Tool, r.LatestVersion)
 	case update.InstallBinary:
@@ -274,34 +271,6 @@ func openCodePluginRegisteredPendingHint(pkg string) string {
 	return fmt.Sprintf("OpenCode plugin %s is registered in ~/.config/opencode/tui.json but is not materialized in node_modules yet. Restart or reload OpenCode to materialize it; if it remains pending, check OpenCode logs for package or peer dependency errors before retrying upgrade.", pkg)
 }
 
-// brewUpgrade runs `brew update` (non-fatal) then `brew upgrade <toolName>`.
-//
-// brew update refreshes the local formula cache so that Homebrew is aware of
-// new versions published since the user last ran it. If update fails (e.g. no
-// network), the upgrade is still attempted using the existing cache — a stale
-// cache is better than no upgrade at all.
-func brewUpgrade(ctx context.Context, toolName string) error {
-	// Ensure the KevG1t homebrew tap is present before upgrading.
-	// Non-fatal: brew tap is a no-op when already present; if it fails for any other
-	// reason, the subsequent brew upgrade will surface the real error.
-	tapCmd := execCommand("brew", "tap", "KevG1t/homebrew-tap")
-	tapCmd.Stdin = nil
-	_ = tapCmd.Run()
-
-	// Update Homebrew formula cache before upgrading.
-	// Non-fatal: if update fails (e.g. no network), attempt upgrade with existing cache.
-	updateCmd := execCommand("brew", "update")
-	updateCmd.Stdin = nil
-	_ = updateCmd.Run() // ignore error intentionally
-
-	upgradeCmd := execCommand("brew", "upgrade", toolName)
-	upgradeCmd.Stdin = nil
-	if out, err := upgradeCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("brew upgrade %s: %w (output: %s)", toolName, err, string(out))
-	}
-	return nil
-}
-
 // goInstallUpgrade runs `go install <importPath>@v<version>`.
 func goInstallUpgrade(ctx context.Context, tool update.ToolInfo, latestVersion string) error {
 	if tool.GoImportPath == "" {
@@ -328,7 +297,7 @@ func binaryUpgrade(ctx context.Context, r update.UpdateResult, profile system.Pl
 	// sdd-memory: always use its dedicated binary downloader regardless of platform
 	// (except brew, which is handled by effectiveMethod before we get here).
 	if r.Tool.Name == "sdd-memory" {
-		return sddmemoryBinaryUpgrade(profile)
+		return sddMemoryBinaryUpgrade(profile)
 	}
 
 	if profile.OS == "windows" {
@@ -348,11 +317,11 @@ func binaryUpgrade(ctx context.Context, r update.UpdateResult, profile system.Pl
 	return downloadAndReplace(ctx, r, profile)
 }
 
-// sddmemoryBinaryUpgrade downloads the latest sdd-memory binary using its dedicated
+// sddMemoryBinaryUpgrade downloads the latest sdd-memory binary using its dedicated
 // cross-platform downloader and adds the install directory to PATH.
 // On Windows the PATH change is also persisted to the user registry via PowerShell.
-func sddmemoryBinaryUpgrade(profile system.PlatformProfile) error {
-	binaryPath, err := sddmemoryDownloadFn(profile)
+func sddMemoryBinaryUpgrade(profile system.PlatformProfile) error {
+	binaryPath, err := sddMemoryDownloadFn(profile)
 	if err != nil {
 		return fmt.Errorf("download sdd-memory binary: %w", err)
 	}

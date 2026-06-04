@@ -17,12 +17,21 @@ To run any SDD phase:
    - legacy workspace fallback: `.agent/skills/{phase}/SKILL.md`
    - global Antigravity: `~/.gemini/antigravity-cli/skills/{phase}/SKILL.md`
    - shared Gemini fallback: `~/.gemini/skills/{phase}/SKILL.md`
-2. **Define the phase subagent**: call `define_subagent` with a stable phase name such as `{phase}`, pass the complete `SKILL.md` content as the `system_prompt`, and set `enable_mcp_tools: true` so phase agents can use configured MCP tools such as sdd-memory.
+2. **Define the phase subagent**: call `define_subagent` with a stable phase name such as `{phase}`, pass the complete `SKILL.md` content as the `system_prompt`, and set `enable_mcp_tools: true` so phase agents can use configured MCP tools such as SddMemory.
 3. **Invoke the phase subagent**: call `invoke_subagent` with the dynamically defined subagent name and a compact task containing approved scope, artifact references, constraints, validation expectations, and expected result shape.
 4. **Synthesize**: read the child result, update DAG/state when applicable, summarize only decisions/outcomes/risks, and ask for approval when interactive mode or review workload guards require it.
 5. **Nesting depth limit**: dynamic delegation MUST NOT exceed 10 levels deep.
 
 Do not execute SDD phase work in the orchestrator thread except for trivial routing, artifact lookup, user clarification, and synthesis. Phase subagents own phase-specific reading, writing, testing, and artifact production.
+
+
+### Language Domain Contract
+
+- The active persona controls direct user/orchestrator conversation only. Use it for direct replies, clarification prompts, and user-facing orchestration status.
+- Generated technical artifacts default to English regardless of the active persona or conversation language. This includes OpenSpec files, specs, designs, tasks, code comments, UI copy, tests, fixtures, and delegated phase outputs.
+- If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+- Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+- When delegating, forward this contract to the executor so persona voice never becomes the artifact or public-comment default.
 
 ### Delegation Rules
 
@@ -98,7 +107,7 @@ Meta-commands (type directly — orchestrator handles them, will not appear in a
 
 Before executing ANY SDD command (`/sdd-new`, `/sdd-ff`, `/sdd-continue`, `/sdd-explore`, `/sdd-apply`, `/sdd-verify`, `/sdd-archive`), check if `sdd-init` has been run for this project:
 
-1. Search sdd-memory: `mem_search(query: "sdd-init/{project}", project: "{project}")`
+1. Search SddMemory: `mem_search(query: "sdd-init/{project}", project: "{project}")`
 2. If found → init was done, proceed normally
 3. If NOT found → invoke the `sdd-init` phase subagent FIRST, THEN proceed with the requested command
 
@@ -251,7 +260,7 @@ SDD phases run in dynamically defined phase subagents. The orchestrator provides
 | `sdd-verify` | spec + tasks + **apply-progress** | `verify-report` |
 | `sdd-archive` | all artifacts | `archive-report` |
 
-For phases with required dependencies, retrieve artifact references from sdd-memory using topic keys before invoking the phase. Pass artifact references (topic keys), NOT full content. The phase subagent retrieves full content only when actively working on that phase — do not inline entire specs or designs into the orchestrator conversation. Do NOT rely on conversation history alone — conversation context is lossy across sessions.
+For phases with required dependencies, retrieve artifact references from SddMemory using topic keys before invoking the phase. Pass artifact references (topic keys), NOT full content. The phase subagent retrieves full content only when actively working on that phase — do not inline entire specs or designs into the orchestrator conversation. Do NOT rely on conversation history alone — conversation context is lossy across sessions.
 
 #### Strict TDD Forwarding (MANDATORY)
 
@@ -282,7 +291,7 @@ When executing general (non-SDD) work:
 2. If you make important discoveries, decisions, or fix bugs, save them to sdd-memory via `mem_save`
 3. Do NOT rely solely on conversation history — persist important findings to sdd-memory for cross-session durability
 
-## sdd-memory Topic Key Format
+## SddMemory Topic Key Format
 
 | Artifact | Topic Key |
 |----------|-----------|
@@ -305,7 +314,7 @@ Retrieve full content via two steps:
 
 Convention files under `~/.gemini/antigravity-cli/skills/_shared/` (global), `.agents/skills/_shared/` (workspace), or legacy `.agent/skills/_shared/` (workspace fallback): `sdd-memory-convention.md`, `persistence-contract.md`, `openspec-convention.md`.
 
-DAG state is tracked in sdd-memory under `sdd/{change-name}/state`. Update it after each phase completes so `/sdd-continue` knows which phase to run next.
+DAG state is tracked in SddMemory under `sdd/{change-name}/state`. Update it after each phase completes so `/sdd-continue` knows which phase to run next.
 
 ## Recovery Rule
 

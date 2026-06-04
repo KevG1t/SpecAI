@@ -9,18 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/backup"
-	"github.com/KevG1t/SpecAI/internal/components/mcp"
-	"github.com/KevG1t/SpecAI/internal/components/permissions"
-	"github.com/KevG1t/SpecAI/internal/components/persona"
-	"github.com/KevG1t/SpecAI/internal/components/sdd"
-	sddmemory "github.com/KevG1t/SpecAI/internal/components/sddmemory"
-	"github.com/KevG1t/SpecAI/internal/components/skills"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/pipeline"
-	"github.com/KevG1t/SpecAI/internal/state"
-	"github.com/KevG1t/SpecAI/internal/verify"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/backup"
+	"github.com/KevG1t/specai/internal/components/mcp"
+	"github.com/KevG1t/specai/internal/components/permissions"
+	"github.com/KevG1t/specai/internal/components/persona"
+	"github.com/KevG1t/specai/internal/components/sdd"
+	"github.com/KevG1t/specai/internal/components/sddmemory"
+	"github.com/KevG1t/specai/internal/components/skills"
+	"github.com/KevG1t/specai/internal/components/theme"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/pipeline"
+	"github.com/KevG1t/specai/internal/state"
+	"github.com/KevG1t/specai/internal/verify"
 )
 
 // SyncFlags holds parsed CLI flags for the sync command.
@@ -267,7 +268,7 @@ func parseModelSpec(spec string) (model.ModelAssignment, error) {
 
 // BuildSyncSelection builds a model.Selection for the sync command.
 //
-// Default sync scope: SDD, SDDMemory, Context7, Skills, Persona.
+// Default sync scope: SDD, SddMemory, Context7, Skills, Persona.
 // Excluded by default: Permissions, Theme (no markers; managed via JSON
 // overlays where user customization cannot be safely diff-merged).
 // Permissions and Theme can be opted-in via flags.
@@ -280,7 +281,7 @@ func parseModelSpec(spec string) (model.ModelAssignment, error) {
 // This is the reusable managed-asset sync contract. A future `upgrade --sync`
 // flow can call this function to get the same managed-only selection semantics.
 func BuildSyncSelection(flags SyncFlags, agentIDs []model.AgentID) model.Selection {
-	// Order matters: Persona must run BEFORE SDD/SDDMemory/MCP because those
+	// Order matters: Persona must run BEFORE SDD/SddMemory/MCP because those
 	// components inject content with substrings (e.g. "## Personality",
 	// "Senior Architect") that overlap with persona's legacy-block fingerprints.
 	// Running persona last would cause its StripLegacyPersonaBlock pass to
@@ -288,7 +289,7 @@ func BuildSyncSelection(flags SyncFlags, agentIDs []model.AgentID) model.Selecti
 	components := []model.ComponentID{
 		model.ComponentPersona,
 		model.ComponentSDD,
-		model.ComponentSDDMemory,
+		model.ComponentSddMemory,
 		model.ComponentContext7,
 		model.ComponentSkills,
 	}
@@ -315,13 +316,13 @@ func BuildSyncSelection(flags SyncFlags, agentIDs []model.AgentID) model.Selecti
 		StrictTDD:          flags.StrictTDD,
 		Skills:             skillIDs,
 		Profiles:           flags.Profiles,
-		// Preset is set to full so selectedSkillIDs() returns the
+		// Preset is set to full-modism so selectedSkillIDs() returns the
 		// correct default skill set when no explicit skills are provided.
-		Preset: model.PresetFull,
+		Preset: model.PresetFullModism,
 		// Persona is left as zero-value here. RunSync resolves it from
 		// state.json (the user's installed choice); only when state has no
 		// recorded persona — i.e. an old install — does it fall back to
-		// PersonaArgentina. This avoids regenerating a persona on
+		// PersonaModism. This avoids regenerating a Modism persona on
 		// top of a user who installed neutral.
 	}
 }
@@ -438,7 +439,9 @@ func (r *syncRuntime) stagePlan() pipeline.StagePlan {
 }
 
 // syncBackupTargets returns the file paths that need to be backed up
-// before sync executes.
+// before sync executes. Uses syncComponentPaths so that the backup/verify
+// contract matches the actual files sync touches (which differ from install
+// for ComponentPersona — see syncComponentPaths).
 func syncBackupTargets(homeDir, workspaceDir string, selection model.Selection, adapters []agents.Adapter) []string {
 	paths := map[string]struct{}{}
 	for _, component := range selection.Components {
@@ -455,6 +458,13 @@ func syncBackupTargets(homeDir, workspaceDir string, selection model.Selection, 
 }
 
 // syncComponentPaths declares the file paths sync writes for a given component.
+//
+// For most components the contract is identical to install (componentPaths).
+// ComponentPersona is the exception: sync calls persona.InjectForSync which
+// skips the OpenCode/Kilocode agent definition in opencode.json (those JSON
+// merges remain install-only because they conflict with SDD's writes to the
+// same file). Sync therefore must NOT declare those JSON paths or the post-sync
+// verification will look for files sync never promised to write.
 func syncComponentPaths(homeDir string, selection model.Selection, adapters []agents.Adapter, component model.ComponentID) []string {
 	return syncComponentPathsWithWorkspace(homeDir, "", selection, adapters, component)
 }
@@ -466,7 +476,14 @@ func syncComponentPathsWithWorkspace(homeDir, workspaceDir string, selection mod
 	return componentPathsWithWorkspace(homeDir, workspaceDir, selection, adapters, component)
 }
 
-// syncPersonaPathsWithWorkspace returns the file paths that ComponentPersona writes during sync.
+// syncPersonaPaths returns the file paths that ComponentPersona writes during
+// sync. Mirrors persona.InjectForSync:
+//   - Step 1: SystemPromptFile (the marker-bound markdown block — CLAUDE.md /
+//     AGENTS.md / equivalent).
+//   - Step 3: Modism output-style overlay (only when the agent supports it).
+//
+// Step 2 (OpenCode/Kilocode agent definition in opencode.json) is install-only
+// and intentionally NOT declared here.
 func syncPersonaPaths(homeDir string, selection model.Selection, adapters []agents.Adapter) []string {
 	return syncPersonaPathsWithWorkspace(homeDir, "", selection, adapters)
 }
@@ -488,8 +505,8 @@ func syncPersonaPathsWithWorkspace(homeDir, workspaceDir string, selection model
 		if adapter.SystemPromptStrategy() != model.StrategyJinjaModules {
 			paths = append(paths, adapter.SystemPromptFile(targetDir))
 		}
-		if isArgentinaConversationPersona(selection.Persona) && adapter.SupportsOutputStyles() {
-			paths = append(paths, adapter.OutputStyleDir(targetDir)+"/argentina.md")
+		if isModismPersona(selection.Persona) && adapter.SupportsOutputStyles() {
+			paths = append(paths, adapter.OutputStyleDir(targetDir)+"/modism.md")
 			if p := adapter.SettingsPath(targetDir); p != "" {
 				paths = append(paths, p)
 			}
@@ -524,7 +541,7 @@ func (s componentSyncStep) Run() error {
 	adapters := resolveAdapters(s.agents)
 
 	switch s.component {
-	case model.ComponentSDDMemory:
+	case model.ComponentSddMemory:
 		// Sync: inject MCP config + system prompt protocol only.
 		// NO binary install. NO sdd-memory setup.
 		for _, adapter := range adapters {
@@ -635,7 +652,7 @@ func (s componentSyncStep) Run() error {
 	case model.ComponentPersona:
 		// Sync regenerates the persona block between
 		// <!-- specai:persona --> markers and (when supported) refreshes
-		// the Argentina output-style overlay. We deliberately skip the
+		// the Modism output-style overlay. We deliberately skip the
 		// OpenCode/Kilocode agent definition in opencode.json — that JSON
 		// merge conflicts with SDD's writes to the same settings file and
 		// remains an install-only concern.
@@ -649,11 +666,19 @@ func (s componentSyncStep) Run() error {
 		}
 		return nil
 
-	case model.ComponentTheme, model.ComponentClaudeTheme:
-		// Not yet implemented in SpecAI — no-op.
+	case model.ComponentTheme:
+		// Opt-in only — reached when --include-theme is set.
+		for _, adapter := range adapters {
+			res, err := theme.Inject(s.homeDir, adapter)
+			if err != nil {
+				return fmt.Errorf("sync theme for %q: %w", adapter.Agent(), err)
+			}
+			s.countChanged(boolToInt(res.Changed), res.Files...)
+		}
 		return nil
 
 	default:
+		// Persona and any unknown components are out of sync scope.
 		return fmt.Errorf("component %q is not supported in sync runtime", s.component)
 	}
 }
@@ -705,6 +730,8 @@ func RunSyncWithSelection(homeDir string, selection model.Selection) (SyncResult
 	}
 
 	// No-op path: no agents were discovered or provided.
+	// Per spec: "No managed assets to sync — system completes without modifying
+	// unrelated files and reports that no managed sync actions were needed."
 	if len(agentIDs) == 0 {
 		result.NoOp = true
 		return result, nil
@@ -725,10 +752,15 @@ func RunSyncWithSelection(homeDir string, selection model.Selection) (SyncResult
 	}
 
 	// Capture how many managed assets were actually changed.
-	// Deduplicate paths — multiple components may touch the same file.
+	// Deduplicate paths — multiple components may touch the same file
+	// (e.g. SddMemory and Context7 both merge into settings.json).
 	result.ChangedFiles = dedupPaths(rt.changedFiles)
 	result.FilesChanged = len(result.ChangedFiles)
 
+	// True no-op: agents were discovered but all managed assets were already
+	// current — no file was written or updated. Per spec scenario:
+	// "No managed assets to sync — system completes without modifying files
+	// and reports that no managed sync actions were needed."
 	if result.FilesChanged == 0 {
 		result.NoOp = true
 	}
@@ -798,9 +830,9 @@ func RunSync(args []string) (SyncResult, error) {
 		}
 	}
 	// Backward-compat fallback: state files written before persona persistence
-	// have no Persona field. Default to Argentina so sync still has a target.
+	// have no Persona field. Default to Modism so sync still has a target.
 	if selection.Persona == "" {
-		selection.Persona = model.PersonaArgentina
+		selection.Persona = model.PersonaModism
 	}
 
 	if flags.DryRun {
@@ -831,6 +863,14 @@ func RunSync(args []string) (SyncResult, error) {
 }
 
 // RenderSyncReport renders a human-readable summary of a sync execution.
+//
+// Unlike verify.RenderReport (which shows verification check statuses), this
+// function reports the managed sync actions that were executed — matching the
+// spec requirement to surface "what was done" rather than "what was checked".
+//
+// No-op cases:
+//   - No agents were discovered or specified (NoOp=true, Agents empty).
+//   - All managed assets were already current (NoOp=true, FilesChanged=0).
 func RenderSyncReport(result SyncResult) string {
 	var b strings.Builder
 
@@ -872,6 +912,9 @@ func RenderSyncReport(result SyncResult) string {
 		fmt.Fprintf(&b, "Managed components synced: %s\n", strings.Join(compParts, ", "))
 	}
 
+	// Report actual files changed — not the count of successful pipeline steps.
+	// FilesChanged is 0 only when all assets were already current (no-op path
+	// above handles that case). A non-zero value here reflects real writes.
 	fmt.Fprintf(&b, "Sync actions executed: %d files changed\n", result.FilesChanged)
 
 	if len(result.ChangedFiles) > 0 {

@@ -11,7 +11,7 @@ func TestScenarioReadyWhenAllChecksPass(t *testing.T) {
 	checks := []Check{
 		{
 			ID:          "sdd-memory-health",
-			Description: "SDD Memory health endpoint responds",
+			Description: "SddMemory health endpoint responds",
 			Run: func(context.Context) error {
 				return nil
 			},

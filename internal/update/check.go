@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 // CheckAll runs update checks for all registered tools concurrently.

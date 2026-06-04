@@ -13,12 +13,11 @@ import (
 
 // Package-level vars for testability (swap in tests via t.Cleanup).
 var (
-	execCommand    = exec.Command
-	lookPath       = exec.LookPath
-	userHomeDir    = os.UserHomeDir
-	osStat         = os.Stat
-	osGetenv       = os.Getenv
-	powershellPath = "powershell" // overridable in tests
+	execCommand = exec.Command
+	lookPath    = exec.LookPath
+	userHomeDir = os.UserHomeDir
+	osStat      = os.Stat
+	osGetenv    = os.Getenv
 )
 
 // versionRegexp extracts a semver-like version from command output.
@@ -64,13 +63,10 @@ func detectInstalledVersion(ctx context.Context, tool ToolInfo, currentBuildVers
 	detectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	// On Windows, exec.Command (CreateProcess) cannot execute a .ps1 script
-	// directly — it is not an executable image. Wrap via powershell -File so
-	// the OS can launch the PowerShell host and pass the script to it.
-	// Outside Windows, .ps1 files don't exist in fallback paths, so this
-	// branch is unreachable in practice on Linux/macOS.
-	execBinary, execArgs := buildExecCmd(binary, tool.DetectCmd[1:])
-	cmd := execCommand(execBinary, execArgs...)
+	cmd := execCommand(binary, tool.DetectCmd[1:]...)
+	// Detach from the controlling console so this probe cannot clobber the
+	// Bubbletea TUI's raw-mode input on Windows (frozen welcome screen bug).
+	configureBackgroundCmd(cmd)
 
 	// Kill the subprocess when the context fires. We use a goroutine because
 	// the testable execCommand var returns a plain *exec.Cmd (not CommandContext).
@@ -112,25 +108,6 @@ func findFallbackBinary(tool ToolInfo) string {
 	return ""
 }
 
-// buildExecCmd returns the executable name and arguments to use when running a
-// version-detect command. On Windows, PowerShell scripts (.ps1) cannot be
-// passed as argv[0] to CreateProcess — they must be launched via the
-// PowerShell host. For a .ps1 binary we therefore rewrite:
-//
-//	("C:\Users\...\tool.exe", ["--version"])
-//	→ ("C:\Users\...\tool.exe", ["--version"])
-//
-// For all other binaries (real PE executables on Windows, any file on
-// Linux/macOS), the arguments are returned unchanged.
-func buildExecCmd(binary string, remainingArgs []string) (string, []string) {
-	if strings.EqualFold(filepath.Ext(binary), ".ps1") {
-		args := make([]string, 0, 3+len(remainingArgs))
-		args = append(args, "-NoProfile", "-File", binary)
-		args = append(args, remainingArgs...)
-		return powershellPath, args
-	}
-	return binary, remainingArgs
-}
 
 func detectNpmPackageVersion(pkg string) string {
 	version, _ := detectOpenCodePluginPackage(pkg)

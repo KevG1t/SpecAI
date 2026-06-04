@@ -3,7 +3,7 @@ package agents
 import (
 	"os"
 
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 // InstalledAgent pairs an agent ID with its resolved config root directory.

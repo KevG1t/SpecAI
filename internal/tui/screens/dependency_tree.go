@@ -1,275 +1,165 @@
 package screens
 
 import (
+	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/catalog"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/planner"
-	"github.com/KevG1t/SpecAI/internal/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/KevG1t/specai/internal/catalog"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/planner"
+	"github.com/KevG1t/specai/internal/tui/styles"
+	"github.com/KevG1t/specai/internal/versions"
 )
 
-// DependencyTreeConfirmedMsg is emitted when the user confirms the component selection.
-type DependencyTreeConfirmedMsg struct {
-	Components []model.ComponentID
+func DependencyTreeOptions() []string {
+	return []string{"Continue", "Back"}
 }
 
-// ResolveFunc is the injectable resolver function used by DependencyTreeModel.
-type ResolveFunc func(selection model.Selection) (planner.ResolvedPlan, error)
-
-// ComponentEntry holds display state for one component row.
-type ComponentEntry struct {
-	ID      model.ComponentID
-	Label   string
-	Badge   string // "included" | "auto"
-	Checked bool   // only meaningful for Custom preset
+// AllComponents returns the full list of available components for the custom picker.
+func AllComponents() []catalog.Component {
+	return catalog.MVPComponents()
 }
 
-// DependencyTreeModel is a standalone BubbleTea model for the dependency tree screen.
-type DependencyTreeModel struct {
-	components   []ComponentEntry
-	preset       model.PresetID
-	resolverFunc ResolveFunc
-	baseAgents   []model.AgentID
-	cursor       int
-	resolved     planner.ResolvedPlan
+// RenderDependencyTree shows the install plan. For custom presets, it shows
+// toggleable checkboxes; for other presets it shows a read-only ordered list.
+func RenderDependencyTree(plan planner.ResolvedPlan, selection model.Selection, cursor int) string {
+	if selection.Preset == model.PresetCustom {
+		return renderCustomPicker(selection, cursor)
+	}
+
+	return renderPresetPlan(plan, selection, cursor)
 }
 
-// NewDependencyTreeModel constructs a DependencyTreeModel.
-// For non-Custom presets the resolved plan drives the display.
-// For Custom preset the model starts from the full MVP component list, all unchecked.
-func NewDependencyTreeModel(
-	preset model.PresetID,
-	resolved planner.ResolvedPlan,
-	agents []model.AgentID,
-	resolverFunc ResolveFunc,
-) DependencyTreeModel {
-	m := DependencyTreeModel{
-		preset:       preset,
-		resolverFunc: resolverFunc,
-		baseAgents:   agents,
-		resolved:     resolved,
-	}
-
-	if preset == model.PresetCustom {
-		// Start from the full MVP catalog, all unchecked.
-		mvp := catalog.MVPComponents()
-		entries := make([]ComponentEntry, len(mvp))
-		for i, c := range mvp {
-			entries[i] = ComponentEntry{
-				ID:    c.ID,
-				Label: c.Name,
-			}
-		}
-		m.components = entries
-	} else {
-		// Non-custom: build from the resolved plan.
-		m.components = buildEntriesFromResolved(resolved)
-	}
-
-	return m
-}
-
-// buildEntriesFromResolved converts a ResolvedPlan into ComponentEntry slices.
-func buildEntriesFromResolved(resolved planner.ResolvedPlan) []ComponentEntry {
-	autoSet := make(map[model.ComponentID]struct{}, len(resolved.AddedDependencies))
-	for _, dep := range resolved.AddedDependencies {
-		autoSet[dep] = struct{}{}
-	}
-
-	entries := make([]ComponentEntry, len(resolved.OrderedComponents))
-	for i, id := range resolved.OrderedComponents {
-		badge := "included"
-		if _, isAuto := autoSet[id]; isAuto {
-			badge = "auto"
-		}
-		entries[i] = ComponentEntry{
-			ID:      id,
-			Label:   string(id),
-			Badge:   badge,
-			Checked: true,
-		}
-	}
-	return entries
-}
-
-// Init returns nil — no async initialization needed.
-func (m DependencyTreeModel) Init() tea.Cmd { return nil }
-
-// Update handles navigation and confirmation.
-func (m DependencyTreeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "j", "down":
-			if m.cursor < len(m.components)-1 {
-				m.cursor++
-			}
-		case "k", "up":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case " ":
-			if m.preset == model.PresetCustom {
-				m = m.toggleCustom(m.cursor)
-			}
-		case "enter":
-			components := m.confirmedComponents()
-			return m, func() tea.Msg {
-				return DependencyTreeConfirmedMsg{Components: components}
-			}
-		case "esc":
-			return m, func() tea.Msg { return BackMsg{} }
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		}
-	}
-	return m, nil
-}
-
-// toggleCustom handles a space-bar press in Custom preset mode.
-func (m DependencyTreeModel) toggleCustom(idx int) DependencyTreeModel {
-	if idx < 0 || idx >= len(m.components) {
-		return m
-	}
-
-	entry := m.components[idx]
-
-	// Cannot manually uncheck an auto-dependency.
-	if entry.Badge == "auto" {
-		return m
-	}
-
-	// Toggle the checked state.
-	m.components = cloneEntries(m.components)
-	m.components[idx].Checked = !m.components[idx].Checked
-
-	// Re-resolve to enforce dependency constraints.
-	m = m.reResolve()
-	return m
-}
-
-// reResolve runs the resolver with the current custom checked state and updates
-// auto-dependency badges in the component list.
-func (m DependencyTreeModel) reResolve() DependencyTreeModel {
-	if m.resolverFunc == nil {
-		return m
-	}
-
-	checked := make([]model.ComponentID, 0, len(m.components))
-	for _, e := range m.components {
-		if e.Checked && e.Badge != "auto" {
-			checked = append(checked, e.ID)
-		}
-	}
-
-	sel := model.Selection{
-		Agents:     m.baseAgents,
-		Components: checked,
-	}
-
-	resolved, err := m.resolverFunc(sel)
-	if err != nil {
-		// On resolver error, keep existing state.
-		return m
-	}
-
-	m.resolved = resolved
-
-	// Rebuild the auto-dep set from the new resolved plan.
-	autoSet := make(map[model.ComponentID]struct{}, len(resolved.AddedDependencies))
-	for _, dep := range resolved.AddedDependencies {
-		autoSet[dep] = struct{}{}
-	}
-
-	// Rebuild the resolved-present set.
-	resolvedSet := make(map[model.ComponentID]struct{}, len(resolved.OrderedComponents))
-	for _, id := range resolved.OrderedComponents {
-		resolvedSet[id] = struct{}{}
-	}
-
-	entries := cloneEntries(m.components)
-	for i := range entries {
-		id := entries[i].ID
-		if _, isAuto := autoSet[id]; isAuto {
-			entries[i].Badge = "auto"
-			entries[i].Checked = true
-		} else if _, inResolved := resolvedSet[id]; inResolved {
-			entries[i].Badge = ""
-			entries[i].Checked = true
-		} else {
-			// Not in resolved plan — clear auto badge if it had one.
-			if entries[i].Badge == "auto" {
-				entries[i].Badge = ""
-				entries[i].Checked = false
-			}
-		}
-	}
-	m.components = entries
-	return m
-}
-
-// confirmedComponents returns the ordered component IDs for the confirmation message.
-func (m DependencyTreeModel) confirmedComponents() []model.ComponentID {
-	if m.preset != model.PresetCustom {
-		return append([]model.ComponentID(nil), m.resolved.OrderedComponents...)
-	}
-	out := make([]model.ComponentID, 0, len(m.components))
-	for _, e := range m.components {
-		if e.Checked {
-			out = append(out, e.ID)
-		}
-	}
-	return out
-}
-
-// cloneEntries returns a deep copy of a ComponentEntry slice.
-func cloneEntries(src []ComponentEntry) []ComponentEntry {
-	out := make([]ComponentEntry, len(src))
-	copy(out, src)
-	return out
-}
-
-// View renders the dependency tree screen.
-func (m DependencyTreeModel) View() string {
+func renderPresetPlan(plan planner.ResolvedPlan, selection model.Selection, cursor int) string {
 	var b strings.Builder
 
-	b.WriteString(styles.TitleStyle.Render("Component Dependencies"))
+	b.WriteString(styles.TitleStyle.Render("Install Plan"))
 	b.WriteString("\n\n")
 
-	if m.preset == model.PresetCustom {
-		b.WriteString(styles.SubtextStyle.Render("Select components. Auto-dependencies are locked and cannot be deselected."))
-		b.WriteString("\n\n")
-
-		for idx, entry := range m.components {
-			label := string(entry.ID)
-			if entry.Badge == "auto" {
-				label += " " + styles.SubtextStyle.Render("[auto]")
-			}
-			b.WriteString(renderCheckbox(label, entry.Checked, idx == m.cursor))
+	if len(plan.OrderedComponents) == 0 {
+		if !hasPiAgentInInstallPlan(plan, selection) {
+			b.WriteString(styles.WarningStyle.Render("No components selected yet."))
+			b.WriteString("\n")
 		}
+		b.WriteString("\n\n")
 	} else {
-		b.WriteString(styles.SubtextStyle.Render("Components that will be installed:"))
-		b.WriteString("\n\n")
+		b.WriteString(styles.HeadingStyle.Render("Components to install"))
+		b.WriteString("\n")
 
-		for idx, entry := range m.components {
-			badge := styles.SubtextStyle.Render("[" + entry.Badge + "]")
-			line := "  " + string(entry.ID) + " " + badge
+		autoSet := make(map[model.ComponentID]struct{}, len(plan.AddedDependencies))
+		for _, auto := range plan.AddedDependencies {
+			autoSet[auto] = struct{}{}
+		}
 
-			if idx == m.cursor {
-				b.WriteString(styles.SelectedStyle.Render(styles.Cursor+string(entry.ID)+" "+badge) + "\n")
-			} else {
-				b.WriteString(line + "\n")
+		descMap := componentDescriptions()
+
+		for idx, component := range plan.OrderedComponents {
+			num := styles.SubtextStyle.Render(fmt.Sprintf("%d.", idx+1))
+			name := styles.UnselectedStyle.Render(string(component))
+			note := styles.SuccessStyle.Render("included")
+			if _, isAuto := autoSet[component]; isAuto {
+				note = styles.WarningStyle.Render("auto-dependency")
+			}
+			b.WriteString(fmt.Sprintf("  %s %s %s\n", num, name, note))
+			if desc, ok := descMap[component]; ok {
+				b.WriteString(styles.SubtextStyle.Render(fmt.Sprintf("     %s", desc)) + "\n")
 			}
 		}
+		b.WriteString("\n")
+	}
+
+	if hasPiAgentInInstallPlan(plan, selection) {
+		b.WriteString(renderPiInstallPlan())
+		b.WriteString("\n")
+	}
+
+	b.WriteString(renderOptions(DependencyTreeOptions(), cursor))
+	b.WriteString("\n")
+	b.WriteString(styles.HelpStyle.Render("j/k: navigate • enter: select • esc: back"))
+
+	return b.String()
+}
+
+func hasPiAgentInInstallPlan(plan planner.ResolvedPlan, selection model.Selection) bool {
+	agents := selection.Agents
+	if len(agents) == 0 {
+		agents = plan.Agents
+	}
+
+	for _, agent := range agents {
+		if agent == model.AgentPi {
+			return true
+		}
+	}
+	return false
+}
+
+func piInstallCommands() []string {
+	return []string{
+		"pi install npm:specai-pi",
+		"pi install npm:sdd-memory-kevg1t",
+		"pi install npm:pi-mcp-adapter",
+		fmt.Sprintf("npm exec --yes --package sdd-memory-kevg1t@%s -- pi-sdd-memory init", versions.SDDMemory),
+		"pi install npm:pi-subagents",
+		"pi install npm:pi-intercom",
+		"pi install npm:@juicesharp/rpiv-ask-user-question",
+		"pi install npm:pi-web-access",
+		"pi install npm:pi-lens",
+		"pi install npm:@juicesharp/rpiv-todo",
+		"pi install npm:pi-btw",
+	}
+}
+
+func renderPiInstallPlan() string {
+	var b strings.Builder
+	b.WriteString(styles.SuccessStyle.Render("Pi agent support will be installed."))
+	b.WriteString("\n")
+	b.WriteString(styles.SubtextStyle.Render("  • SddMemory component will be installed/provisioned."))
+	b.WriteString("\n")
+	b.WriteString(styles.SubtextStyle.Render("  • Pi package stack will be installed:"))
+	b.WriteString("\n")
+	for _, command := range piInstallCommands() {
+		b.WriteString(styles.SubtextStyle.Render(fmt.Sprintf("    - %s", command)))
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func renderCustomPicker(selection model.Selection, cursor int) string {
+	var b strings.Builder
+
+	b.WriteString(styles.TitleStyle.Render("Select Components"))
+	b.WriteString("\n\n")
+	b.WriteString(styles.SubtextStyle.Render("Toggle components with enter or space."))
+	b.WriteString("\n\n")
+
+	allComps := AllComponents()
+	selectedSet := make(map[model.ComponentID]struct{}, len(selection.Components))
+	for _, c := range selection.Components {
+		selectedSet[c] = struct{}{}
+	}
+
+	for idx, comp := range allComps {
+		_, checked := selectedSet[comp.ID]
+		focused := idx == cursor
+		b.WriteString(renderCheckbox(string(comp.ID), checked, focused))
+		b.WriteString(styles.SubtextStyle.Render("    "+comp.Description) + "\n")
 	}
 
 	b.WriteString("\n")
-	b.WriteString(styles.HelpStyle.Render("j/k: navigate • enter: confirm"))
-	if m.preset == model.PresetCustom {
-		b.WriteString(styles.HelpStyle.Render(" • space: toggle • esc: back"))
-	}
+	actionOffset := cursor - len(allComps)
+	b.WriteString(renderOptions(DependencyTreeOptions(), actionOffset))
+	b.WriteString("\n")
+	b.WriteString(styles.HelpStyle.Render("j/k: navigate • space/enter: toggle • esc: back"))
 
 	return b.String()
+}
+
+func componentDescriptions() map[model.ComponentID]string {
+	comps := catalog.MVPComponents()
+	m := make(map[model.ComponentID]string, len(comps))
+	for _, c := range comps {
+		m[c.ID] = c.Description
+	}
+	return m
 }

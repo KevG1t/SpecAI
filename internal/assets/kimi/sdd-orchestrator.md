@@ -6,6 +6,15 @@ Bind this to the dedicated `sdd-orchestrator` agent or rule only. Do NOT apply i
 
 You are a COORDINATOR, not an executor. Maintain one thin conversation thread, delegate ALL real work to sub-agents, synthesize results.
 
+
+### Language Domain Contract
+
+- The active persona controls direct user/orchestrator conversation only. Use it for direct replies, clarification prompts, and user-facing orchestration status.
+- Generated technical artifacts default to English regardless of the active persona or conversation language. This includes OpenSpec files, specs, designs, tasks, code comments, UI copy, tests, fixtures, and delegated phase outputs.
+- If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
+- Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
+- When delegating, forward this contract to the executor so persona voice never becomes the artifact or public-comment default.
+
 ### Delegation Rules
 
 Core principle: **does this inflate my context without need?** If yes → delegate. If no → do it inline.
@@ -85,7 +94,7 @@ Do NOT invent custom `/sdd-*` command files. On Kimi, user-facing entrypoints ar
 
 Before executing ANY SDD command (`/sdd-new`, `/sdd-ff`, `/sdd-continue`, `/skill:sdd-init`, `/skill:sdd-explore`, `/skill:sdd-propose`, `/skill:sdd-spec`, `/skill:sdd-design`, `/skill:sdd-tasks`, `/skill:sdd-apply`, `/skill:sdd-verify`, `/skill:sdd-archive`, `/skill:sdd-onboard`), check if `sdd-init` has been run for this project:
 
-1. Search sdd-memory: `mem_search(query: "sdd-init/{project}", project: "{project}")`
+1. Search SddMemory: `mem_search(query: "sdd-init/{project}", project: "{project}")`
 2. If found → init was done, proceed normally
 3. If NOT found → run `sdd-init` FIRST by launching the `sdd-init` custom agent, THEN proceed with the requested command
 
@@ -196,7 +205,7 @@ Sub-agents get a fresh context with NO memory. The orchestrator controls context
 | `sdd-verify` | spec + tasks | `verify-report` |
 | `sdd-archive` | all artifacts | `archive-report` |
 
-### sdd-memory Topic Key Format
+### SddMemory Topic Key Format
 
 | Artifact | Topic Key |
 |----------|-----------|

@@ -1,7 +1,8 @@
 package skills
 
-import "github.com/KevG1t/SpecAI/internal/model"
+import "github.com/KevG1t/specai/internal/model"
 
+// sddSkills are the SDD orchestrator skills — always included.
 var sddSkills = []model.SkillID{
 	model.SkillSDDInit,
 	model.SkillSDDExplore,
@@ -16,6 +17,7 @@ var sddSkills = []model.SkillID{
 	model.SkillJudgmentDay,
 }
 
+// foundationSkills are baseline learning skills for the "recommended" tier.
 var foundationSkills = []model.SkillID{
 	model.SkillGoTesting,
 	model.SkillCreator,
@@ -29,50 +31,44 @@ var foundationSkills = []model.SkillID{
 	model.SkillWorkUnitCommits,
 }
 
-// codingP0Skills are PRD Section 6.5 P0 coding skills — included in all non-custom presets.
-var codingP0Skills = []model.SkillID{
-	model.SkillTypeScript,
-	model.SkillClaudeDevPlatform,
-}
-
-// codingP1Skills are PRD Section 6.5 P1 coding skills — included in Full preset only.
-var codingP1Skills = []model.SkillID{
-	model.SkillReact19,
-	model.SkillNextjs15,
-	model.SkillTailwind4,
-	model.SkillZod4,
-	model.SkillAiSdk5,
-	model.SkillPlaywright,
-	model.SkillPytest,
-}
-
-var presetSkills = buildPresetSkills()
-
-func buildPresetSkills() map[model.PresetID][]model.SkillID {
-	minimal := append(append([]model.SkillID{}, sddSkills...), codingP0Skills...)
-	ecosystemOnly := append(append(append([]model.SkillID{}, sddSkills...), foundationSkills...), codingP0Skills...)
-	full := append(append(append(append([]model.SkillID{}, sddSkills...), foundationSkills...), codingP0Skills...), codingP1Skills...)
-	return map[model.PresetID][]model.SkillID{
-		model.PresetMinimal:       minimal,
-		model.PresetEcosystemOnly: ecosystemOnly,
-		model.PresetFull:          full,
-		model.PresetCustom:        nil,
-	}
-}
-
+// SkillsForPreset returns which skills should be installed for a given preset.
+//
+//   - "minimal" / PresetMinimal:       SDD skills only
+//   - "ecosystem-only" / PresetEcosystemOnly: SDD + common framework skills
+//   - "full-modism" / PresetFullModism: all available skills
+//   - "custom" / PresetCustom:         empty (caller should provide explicit list)
 func SkillsForPreset(preset model.PresetID) []model.SkillID {
-	src := presetSkills[preset]
-	if src == nil {
+	switch preset {
+	case model.PresetMinimal:
+		return copySkills(sddSkills)
+	case model.PresetEcosystemOnly:
+		return copySkills(append(sddSkills, foundationSkills...))
+	case model.PresetFullModism:
+		all := make([]model.SkillID, 0, len(sddSkills)+len(foundationSkills))
+		all = append(all, sddSkills...)
+		all = append(all, foundationSkills...)
+		return all
+	case model.PresetCustom:
 		return nil
+	default:
+		// Unknown preset — default to full.
+		all := make([]model.SkillID, 0, len(sddSkills)+len(foundationSkills))
+		all = append(all, sddSkills...)
+		all = append(all, foundationSkills...)
+		return all
 	}
-	return append([]model.SkillID(nil), src...)
 }
 
+// AllSkillIDs returns every known skill ID.
 func AllSkillIDs() []model.SkillID {
-	all := make([]model.SkillID, 0, len(sddSkills)+len(foundationSkills)+len(codingP0Skills)+len(codingP1Skills))
+	all := make([]model.SkillID, 0, len(sddSkills)+len(foundationSkills))
 	all = append(all, sddSkills...)
 	all = append(all, foundationSkills...)
-	all = append(all, codingP0Skills...)
-	all = append(all, codingP1Skills...)
 	return all
+}
+
+func copySkills(src []model.SkillID) []model.SkillID {
+	dst := make([]model.SkillID, len(src))
+	copy(dst, src)
+	return dst
 }

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type InjectionResult struct {
@@ -28,164 +28,26 @@ func Inject(homeDir string, adapter agents.Adapter) (InjectionResult, error) {
 	case model.StrategyMCPConfigFile:
 		return injectMCPConfigFile(homeDir, adapter)
 	case model.StrategyTOMLFile:
+		// Context7 injection is not supported for TOML-based agents (Codex).
+		// Codex receives Context7 through its agents.md system prompt, not via MCP config.
 		return InjectionResult{}, nil
 	default:
 		return InjectionResult{}, fmt.Errorf("mcp injector does not support MCP strategy %d for agent %q", adapter.MCPStrategy(), adapter.Agent())
 	}
 }
 
-// InjectNotion injects the Notion MCP server entry for the given adapter.
-// Returns an InjectionResult and the auth guidance string (empty if not injected).
-func InjectNotion(homeDir string, adapter agents.Adapter) (InjectionResult, string, error) {
-	if !adapter.SupportsMCP() {
-		return InjectionResult{}, "", nil
-	}
-
-	var (
-		result InjectionResult
-		err    error
-		path   string
-	)
-
-	switch adapter.MCPStrategy() {
-	case model.StrategySeparateMCPFiles:
-		path = adapter.MCPConfigPath(homeDir, "notion")
-		writeResult, wErr := filemerge.WriteFileAtomic(path, DefaultNotionServerJSON(), 0o644)
-		if wErr != nil {
-			return InjectionResult{}, "", wErr
-		}
-		result = InjectionResult{Changed: writeResult.Changed, Files: []string{path}}
-	case model.StrategyMergeIntoSettings:
-		path = adapter.SettingsPath(homeDir)
-		if path == "" {
-			return InjectionResult{}, "", nil
-		}
-		overlay := notionOverlayForAgent(adapter)
-		settingsWrite, wErr := mergeJSONFile(path, overlay)
-		if wErr != nil {
-			return InjectionResult{}, "", wErr
-		}
-		result = InjectionResult{Changed: settingsWrite.Changed, Files: []string{path}}
-	case model.StrategyMCPConfigFile:
-		path = adapter.MCPConfigPath(homeDir, "notion")
-		if path == "" {
-			return InjectionResult{}, "", nil
-		}
-		overlay := notionOverlayForAgent(adapter)
-		settingsWrite, wErr := mergeJSONFile(path, overlay)
-		if wErr != nil {
-			return InjectionResult{}, "", wErr
-		}
-		result = InjectionResult{Changed: settingsWrite.Changed, Files: []string{path}}
-	case model.StrategyTOMLFile:
-		return InjectionResult{}, "", nil
-	default:
-		return InjectionResult{}, "", fmt.Errorf("mcp injector: unsupported strategy %d for notion injection on %q", adapter.MCPStrategy(), adapter.Agent())
-	}
-
-	guidance := ""
-	if result.Changed && path != "" {
-		guidance = NotionAuthGuidance(path)
-	}
-	return result, guidance, err
-}
-
-// InjectJira injects the Jira MCP server entry for the given adapter.
-// Returns an InjectionResult, the auth guidance string, and whether uvx was used.
-// If neither uvx nor npm is available, injection is silently skipped.
-func InjectJira(homeDir string, adapter agents.Adapter) (InjectionResult, string, error) {
-	if !adapter.SupportsMCP() {
-		return InjectionResult{}, "", nil
-	}
-
-	var (
-		result InjectionResult
-		path   string
-	)
-	usedUvx := UvxAvailable()
-
-	switch adapter.MCPStrategy() {
-	case model.StrategySeparateMCPFiles:
-		path = adapter.MCPConfigPath(homeDir, "jira")
-		writeResult, wErr := filemerge.WriteFileAtomic(path, DefaultJiraServerJSON(), 0o644)
-		if wErr != nil {
-			return InjectionResult{}, "", wErr
-		}
-		result = InjectionResult{Changed: writeResult.Changed, Files: []string{path}}
-	case model.StrategyMergeIntoSettings:
-		path = adapter.SettingsPath(homeDir)
-		if path == "" {
-			return InjectionResult{}, "", nil
-		}
-		overlay := jiraOverlayForAgent(adapter)
-		settingsWrite, wErr := mergeJSONFile(path, overlay)
-		if wErr != nil {
-			return InjectionResult{}, "", wErr
-		}
-		result = InjectionResult{Changed: settingsWrite.Changed, Files: []string{path}}
-	case model.StrategyMCPConfigFile:
-		path = adapter.MCPConfigPath(homeDir, "jira")
-		if path == "" {
-			return InjectionResult{}, "", nil
-		}
-		overlay := jiraOverlayForAgent(adapter)
-		settingsWrite, wErr := mergeJSONFile(path, overlay)
-		if wErr != nil {
-			return InjectionResult{}, "", wErr
-		}
-		result = InjectionResult{Changed: settingsWrite.Changed, Files: []string{path}}
-	case model.StrategyTOMLFile:
-		return InjectionResult{}, "", nil
-	default:
-		return InjectionResult{}, "", fmt.Errorf("mcp injector: unsupported strategy %d for jira injection on %q", adapter.MCPStrategy(), adapter.Agent())
-	}
-
-	guidance := ""
-	if result.Changed && path != "" {
-		guidance = JiraAuthGuidance(path, usedUvx)
-	}
-	return result, guidance, nil
-}
-
-func notionOverlayForAgent(adapter agents.Adapter) []byte {
-	switch adapter.Agent() {
-	case model.AgentOpenCode, model.AgentKilocode:
-		return OpenCodeNotionOverlayJSON()
-	case model.AgentOpenClaw:
-		return OpenClawNotionOverlayJSON()
-	case model.AgentVSCodeCopilot, model.AgentWindsurf:
-		return VSCodeNotionOverlayJSON()
-	case model.AgentAntigravity:
-		return AntigravityNotionOverlayJSON()
-	case model.AgentKimi:
-		return KimiNotionOverlayJSON()
-	default:
-		return DefaultNotionOverlayJSON()
-	}
-}
-
-func jiraOverlayForAgent(adapter agents.Adapter) []byte {
-	switch adapter.Agent() {
-	case model.AgentOpenCode, model.AgentKilocode:
-		return OpenCodeJiraOverlayJSON()
-	case model.AgentOpenClaw:
-		return OpenClawJiraOverlayJSON()
-	case model.AgentVSCodeCopilot, model.AgentWindsurf:
-		return VSCodeJiraOverlayJSON()
-	default:
-		return DefaultJiraOverlayJSON()
-	}
-}
-
+// injectSeparateFile writes a standalone JSON file per MCP server (Claude Code pattern).
 func injectSeparateFile(homeDir string, adapter agents.Adapter) (InjectionResult, error) {
 	path := adapter.MCPConfigPath(homeDir, "context7")
 	writeResult, err := filemerge.WriteFileAtomic(path, DefaultContext7ServerJSON(), 0o644)
 	if err != nil {
 		return InjectionResult{}, err
 	}
+
 	return InjectionResult{Changed: writeResult.Changed, Files: []string{path}}, nil
 }
 
+// injectMergeIntoSettings merges MCP servers into a config file (OpenCode opencode.json, Gemini settings.json).
 func injectMergeIntoSettings(homeDir string, adapter agents.Adapter) (InjectionResult, error) {
 	settingsPath := adapter.SettingsPath(homeDir)
 	if settingsPath == "" {
@@ -275,6 +137,7 @@ func migrateOpenClawLegacyMCPServers(baseJSON []byte) ([]byte, error) {
 	return append(migrated, '\n'), nil
 }
 
+// injectMCPConfigFile writes to a dedicated mcp.json config file (Cursor pattern).
 func injectMCPConfigFile(homeDir string, adapter agents.Adapter) (InjectionResult, error) {
 	path := adapter.MCPConfigPath(homeDir, "context7")
 	if path == "" {
@@ -292,6 +155,7 @@ func injectMCPConfigFile(homeDir string, adapter agents.Adapter) (InjectionResul
 		overlay = KimiContext7OverlayJSON()
 	}
 
+	// For mcp.json pattern, merge the server config as a named entry.
 	settingsWrite, err := mergeJSONFile(path, overlay)
 	if err != nil {
 		return InjectionResult{}, err
@@ -322,5 +186,6 @@ var osReadFile = func(path string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("read json file %q: %w", path, err)
 	}
+
 	return content, nil
 }

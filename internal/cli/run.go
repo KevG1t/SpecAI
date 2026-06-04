@@ -11,25 +11,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/agents/kimi"
-	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/backup"
-	"github.com/KevG1t/SpecAI/internal/components/mcp"
-	"github.com/KevG1t/SpecAI/internal/components/opencodeplugin"
-	"github.com/KevG1t/SpecAI/internal/components/permissions"
-	"github.com/KevG1t/SpecAI/internal/components/persona"
-	"github.com/KevG1t/SpecAI/internal/components/sdd"
-	sddmemory "github.com/KevG1t/SpecAI/internal/components/sddmemory"
-	"github.com/KevG1t/SpecAI/internal/components/skills"
-	"github.com/KevG1t/SpecAI/internal/components/theme"
-	"github.com/KevG1t/SpecAI/internal/installcmd"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/pipeline"
-	"github.com/KevG1t/SpecAI/internal/planner"
-	"github.com/KevG1t/SpecAI/internal/state"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/verify"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/agents/kimi"
+	"github.com/KevG1t/specai/internal/assets"
+	"github.com/KevG1t/specai/internal/backup"
+	"github.com/KevG1t/specai/internal/components/mcp"
+	"github.com/KevG1t/specai/internal/components/permissions"
+	"github.com/KevG1t/specai/internal/components/persona"
+	"github.com/KevG1t/specai/internal/components/sdd"
+	"github.com/KevG1t/specai/internal/components/sddmemory"
+	"github.com/KevG1t/specai/internal/components/skills"
+	"github.com/KevG1t/specai/internal/components/theme"
+	"github.com/KevG1t/specai/internal/installcmd"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/pipeline"
+	"github.com/KevG1t/specai/internal/planner"
+	"github.com/KevG1t/specai/internal/state"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/verify"
 )
 
 type InstallResult struct {
@@ -51,9 +50,14 @@ var (
 	cmdLookPath         = exec.LookPath
 	streamCommandOutput = true
 
-	// sddmemoryDownloadFn is the function used to download the sdd-memory binary on non-brew platforms.
+	// sddMemoryDownloadFn is the function used to download the sdd-memory binary on non-brew platforms.
 	// Package-level var for testability — tests can replace this to avoid real HTTP calls.
-	sddmemoryDownloadFn = sddmemory.DownloadLatestBinary
+	sddMemoryDownloadFn = sddmemory.DownloadLatestBinary
+
+	// sddMemoryVerifyVersionFn runs the "sdd-memory version" health probe.
+	// Package-level var for testability — tests replace it so verification does
+	// not invoke the real sdd-memory binary (which can hang).
+	sddMemoryVerifyVersionFn = sddmemory.VerifyVersion
 
 	// AppVersion is the specai version that will be written into backup manifests.
 	// It is set by app.go before any CLI operation so that every backup created during
@@ -185,7 +189,7 @@ func withPostInstallNotes(report verify.Report, resolved planner.ResolvedPlan) v
 // direct binary download to /usr/local/bin or ~/.local/bin, this note helps
 // users who may need to add the install directory to their PATH.
 func withGoInstallPathNote(report verify.Report, resolved planner.ResolvedPlan) verify.Report {
-	if !hasComponent(resolved.OrderedComponents, model.ComponentSDDMemory) {
+	if !hasComponent(resolved.OrderedComponents, model.ComponentSddMemory) {
 		return report
 	}
 	if resolved.PlatformDecision.PackageManager == "brew" {
@@ -196,7 +200,7 @@ func withGoInstallPathNote(report verify.Report, resolved planner.ResolvedPlan) 
 		return report
 	}
 	report.FinalNote = report.FinalNote + fmt.Sprintf(
-		"\n\nThe sdd-memory binary was installed to %s.\nAdd it to your PATH: %s",
+		"\n\nThe sdd-memory binary was installed to %s via `go install`.\nAdd it to your PATH: %s",
 		binDir,
 		sddMemoryPathGuidance(os.Getenv("SHELL")),
 	)
@@ -307,7 +311,7 @@ func (r *installRuntime) stagePlan() pipeline.StagePlan {
 	apply = append(apply, rollbackRestoreStep{id: "apply:rollback-restore", state: r.state})
 
 	// Before installing components, ensure modular agents have their system prompt hub.
-	// This ensures that SDD or SDDMemory can inject their modules even if Persona is skipped.
+	// This ensures that SDD or SddMemory can inject their modules even if Persona is skipped.
 	for _, agent := range r.resolved.Agents {
 		if agent == model.AgentKimi {
 			apply = append(apply, kimiSystemPromptHubStep{id: "agent:kimi-prompt-hub", homeDir: r.homeDir})
@@ -315,13 +319,8 @@ func (r *installRuntime) stagePlan() pipeline.StagePlan {
 	}
 
 	for _, agent := range r.resolved.Agents {
-		apply = append(apply, agentInstallStep{id: "agent:" + string(agent), agent: agent, homeDir: r.homeDir, profile: r.profile})
-	}
 
-	if containsAgent(r.resolved.Agents, model.AgentOpenCode) {
-		for _, plugin := range r.selection.OpenCodePlugins {
-			apply = append(apply, openCodePluginInstallStep{id: "opencode-plugin:" + string(plugin), plugin: plugin, homeDir: r.homeDir})
-		}
+		apply = append(apply, agentInstallStep{id: "agent:" + string(agent), agent: agent, homeDir: r.homeDir, profile: r.profile})
 	}
 
 	for _, component := range r.resolved.OrderedComponents {
@@ -442,19 +441,6 @@ type agentInstallStep struct {
 	profile system.PlatformProfile
 }
 
-type openCodePluginInstallStep struct {
-	id      string
-	plugin  model.OpenCodeCommunityPluginID
-	homeDir string
-}
-
-func (s openCodePluginInstallStep) ID() string { return s.id }
-
-func (s openCodePluginInstallStep) Run() error {
-	_, err := opencodeplugin.Install(s.homeDir, s.plugin)
-	return err
-}
-
 func (s agentInstallStep) ID() string {
 	return s.id
 }
@@ -537,9 +523,9 @@ func (s componentApplyStep) Run() error {
 	adapters := resolveAdapters(s.agents)
 
 	switch s.component {
-	case model.ComponentSDDMemory:
+	case model.ComponentSddMemory:
 		if _, err := cmdLookPath("sdd-memory"); err != nil {
-			// SDDMemory not on PATH — install it.
+			// SddMemory not on PATH — install it.
 			if s.profile.PackageManager == "brew" {
 				// macOS (or Linux with Homebrew): use brew tap + brew install.
 				commands, err := sddmemory.InstallCommand(s.profile)
@@ -552,12 +538,12 @@ func (s componentApplyStep) Run() error {
 			} else {
 				// Linux / Windows: download the pre-built binary from GitHub Releases.
 				// No Go required — sdd-memory ships pre-built binaries.
-				binaryPath, err := sddmemoryDownloadFn(s.profile)
+				binaryPath, err := sddMemoryDownloadFn(s.profile)
 				if err != nil {
 					return fmt.Errorf("download sdd-memory binary: %w", err)
 				}
 				// Add the install directory to PATH so subsequent commands
-				// (sdd-memory setup, sddmemory.Inject → resolveSDDMemoryCommand) can find it.
+				// (sdd-memory setup, sddmemory.Inject → resolveSddMemoryCommand) can find it.
 				// On Windows this also persists the change to the user registry via PowerShell.
 				binDir := filepath.Dir(binaryPath)
 				if err := system.AddToUserPath(binDir); err != nil {
@@ -653,33 +639,6 @@ func (s componentApplyStep) Run() error {
 		for _, adapter := range adapters {
 			if _, err := theme.InjectClaudeTheme(s.homeDir, adapter); err != nil {
 				return fmt.Errorf("inject Claude theme for %q: %w", adapter.Agent(), err)
-			}
-		}
-		return nil
-	case model.ComponentOpenCodeArgentinaLogo:
-		if _, err := opencodeplugin.Install(s.homeDir, model.OpenCodePluginArgentinaLogo); err != nil {
-			return fmt.Errorf("install Argentina Logo plugin: %w", err)
-		}
-		return nil
-	case model.ComponentNotion:
-		for _, adapter := range adapters {
-			_, guidance, err := mcp.InjectNotion(s.homeDir, adapter)
-			if err != nil {
-				return fmt.Errorf("inject notion for %q: %w", adapter.Agent(), err)
-			}
-			if guidance != "" {
-				fmt.Fprintln(os.Stderr, guidance)
-			}
-		}
-		return nil
-	case model.ComponentJira:
-		for _, adapter := range adapters {
-			_, guidance, err := mcp.InjectJira(s.homeDir, adapter)
-			if err != nil {
-				return fmt.Errorf("inject jira for %q: %w", adapter.Agent(), err)
-			}
-			if guidance != "" {
-				fmt.Fprintln(os.Stderr, guidance)
 			}
 		}
 		return nil
@@ -835,11 +794,16 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 	for _, adapter := range adapters {
 		targetDir := componentPathDirScoped(homeDir, workspaceDir, scope, adapter, component)
 		switch component {
-		case model.ComponentSDDMemory:
+		case model.ComponentSddMemory:
 			switch adapter.MCPStrategy() {
 			case model.StrategySeparateMCPFiles:
 				paths = append(paths, adapter.MCPConfigPath(targetDir, "sdd-memory"))
 			case model.StrategyMergeIntoSettings:
+				// MCP settings are always merged into the global config file, not the
+				// workspace-scoped directory. For OpenClaw, SettingsPath(targetDir)
+				// would yield <workspace>/.openclaw/openclaw.json, but sdd-memory injection
+				// writes to the canonical ~/.openclaw/openclaw.json (homeDir). Use
+				// homeDir here so the verification path matches the actual write target.
 				if p := adapter.SettingsPath(homeDir); p != "" {
 					paths = append(paths, p)
 				}
@@ -879,6 +843,11 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 					filepath.Join(homeDir, ".config", "opencode", "plugins", "background-agents.ts"),
 					filepath.Join(homeDir, ".config", "opencode", "plugins", "model-variants.ts"),
 				)
+				// Shared prompt files in ~/.config/opencode/prompts/sdd/ — back these up
+				// so a sync does not silently overwrite user-customized prompt content.
+				// These files are only written for multi-mode (SDDModeMulti), so we only
+				// include them in the path list when that mode is active. This prevents
+				// false-negative verification failures in single/empty mode syncs.
 				if selection.SDDMode == model.SDDModeMulti {
 					promptDir := sdd.SharedPromptDir(homeDir)
 					for _, phase := range sdd.SharedPromptPhases() {
@@ -931,7 +900,7 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 					paths = append(paths, p)
 				}
 			case model.StrategyTOMLFile:
-				// Codex uses TOML for SDDMemory but Context7 is not injected via TOML.
+				// Codex uses TOML for SddMemory but Context7 is not injected via TOML.
 				// No path to report — Context7 injection is skipped for TOML agents.
 			}
 		case model.ComponentPersona:
@@ -945,9 +914,9 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 			if adapter.SupportsSystemPrompt() && adapter.SystemPromptStrategy() != model.StrategyJinjaModules {
 				paths = append(paths, adapter.SystemPromptFile(targetDir))
 			}
-			if isArgentinaConversationPersona(selection.Persona) {
+			if isModismPersona(selection.Persona) {
 				if adapter.SupportsOutputStyles() {
-					paths = append(paths, adapter.OutputStyleDir(targetDir)+"/argentina.md")
+					paths = append(paths, adapter.OutputStyleDir(targetDir)+"/modism.md")
 					if p := adapter.SettingsPath(targetDir); p != "" {
 						paths = append(paths, p)
 					}
@@ -958,18 +927,13 @@ func componentPathsWithWorkspaceScoped(homeDir, workspaceDir string, scope Insta
 				paths = append(paths, p)
 			}
 		case model.ComponentTheme:
-			for _, adapter := range adapters {
-				if p := adapter.SettingsPath(homeDir); p != "" {
-					paths = append(paths, p)
-				}
+			if p := adapter.SettingsPath(homeDir); p != "" {
+				paths = append(paths, p)
 			}
 		case model.ComponentClaudeTheme:
-			paths = append(paths, filepath.Join(homeDir, ".claude", "themes", "specai.json"))
-		case model.ComponentOpenCodeArgentinaLogo:
-			paths = append(paths,
-				filepath.Join(homeDir, ".config", "opencode", "tui-plugins", "argentina-logo.tsx"),
-				filepath.Join(homeDir, ".config", "opencode", "tui.json"),
-			)
+			if adapter.Agent() == model.AgentClaudeCode {
+				paths = append(paths, filepath.Join(homeDir, ".claude", "themes", "modism.json"))
+			}
 		}
 	}
 
@@ -1045,7 +1009,7 @@ func componentPathDir(homeDir, workspaceDir string, adapter agents.Adapter, comp
 
 func componentPathDirScoped(homeDir, workspaceDir string, scope InstallScope, adapter agents.Adapter, component model.ComponentID) string {
 	switch component {
-	case model.ComponentSDDMemory, model.ComponentSDD, model.ComponentPersona, model.ComponentSkills:
+	case model.ComponentSddMemory, model.ComponentSDD, model.ComponentPersona, model.ComponentSkills:
 		return componentInjectionDirScoped(homeDir, workspaceDir, scope, adapter)
 	default:
 		return homeDir
@@ -1106,7 +1070,7 @@ func runPostApplyVerification(homeDir, workspaceDir string, scope InstallScope, 
 		})
 	}
 
-	if hasComponent(resolved.OrderedComponents, model.ComponentSDDMemory) {
+	if hasComponent(resolved.OrderedComponents, model.ComponentSddMemory) {
 		checks = append(checks, sddMemoryHealthChecks()...)
 	}
 	checks = append(checks, antigravityCollisionCheck(resolved.Agents)...)
@@ -1149,12 +1113,12 @@ func sddMemoryHealthChecks() []verify.Check {
 			ID:          "verify:sdd-memory:version",
 			Description: "sdd-memory version returns valid output",
 			Soft:        true,
-			Run: func(context.Context) error {
+			Run: func(ctx context.Context) error {
 				if err := sddmemory.VerifyInstalled(); err != nil {
 					// Binary not on PATH — skip version check gracefully.
 					return nil
 				}
-				_, err := sddmemory.VerifyVersion()
+				_, err := sddMemoryVerifyVersionFn(ctx)
 				return err
 			},
 		},
@@ -1162,7 +1126,10 @@ func sddMemoryHealthChecks() []verify.Check {
 }
 
 // antigravityCollisionCheck returns a soft verify check that warns the user
-// when Antigravity and Gemini CLI are selected together.
+// when Antigravity and Gemini CLI are selected together. These agents
+// intentionally share ~/.gemini/GEMINI.md because Antigravity uses a
+// Gemini-compatible prompt surface; the last synced SDD orchestrator owns the
+// shared specai:sdd-orchestrator section.
 func antigravityCollisionCheck(agents []model.AgentID) []verify.Check {
 	hasAntigravitySurface := false
 	hasGemini := false

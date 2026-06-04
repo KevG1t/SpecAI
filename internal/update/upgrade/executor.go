@@ -3,9 +3,9 @@
 // isolated from install, pipeline, planner, and config-sync code paths.
 //
 // Import boundary: this package MUST NOT import:
-//   - github.com/KevG1t/SpecAI/internal/pipeline
-//   - github.com/KevG1t/SpecAI/internal/planner
-//   - github.com/KevG1t/SpecAI/internal/cli
+//   - github.com/KevG1t/specai/internal/pipeline
+//   - github.com/KevG1t/specai/internal/planner
+//   - github.com/KevG1t/specai/internal/cli
 package upgrade
 
 import (
@@ -20,15 +20,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KevG1t/SpecAI/internal/agents"
-	"github.com/KevG1t/SpecAI/internal/assets"
-	"github.com/KevG1t/SpecAI/internal/backup"
-	"github.com/KevG1t/SpecAI/internal/components/sdd"
-	"github.com/KevG1t/SpecAI/internal/components/skills"
-	"github.com/KevG1t/SpecAI/internal/model"
-	"github.com/KevG1t/SpecAI/internal/state"
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/update"
+	"github.com/KevG1t/specai/internal/agents"
+	"github.com/KevG1t/specai/internal/assets"
+	"github.com/KevG1t/specai/internal/backup"
+	"github.com/KevG1t/specai/internal/components/sdd"
+	"github.com/KevG1t/specai/internal/components/skills"
+	"github.com/KevG1t/specai/internal/model"
+	"github.com/KevG1t/specai/internal/state"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/update"
 )
 
 // Package-level vars for testability — same pattern as internal/update/detect.go.
@@ -215,7 +215,7 @@ func managedAgentBackupPaths(homeDir string, adapter agents.Adapter, diagnostics
 	}
 
 	if adapter.SupportsOutputStyles() {
-		add(filepath.Join(adapter.OutputStyleDir(homeDir), "argentina.md"))
+		add(filepath.Join(adapter.OutputStyleDir(homeDir), "modism.md"))
 	}
 
 	if adapter.SupportsSlashCommands() {
@@ -236,12 +236,10 @@ func managedAgentBackupPaths(homeDir string, adapter agents.Adapter, diagnostics
 
 	switch adapter.Agent() {
 	case model.AgentClaudeCode:
-		add(filepath.Join(homeDir, ".claude", "themes", "argentina.json"))
+		add(filepath.Join(homeDir, ".claude", "themes", "modism.json"))
 	case model.AgentOpenCode:
 		add(
 			filepath.Join(homeDir, ".config", "opencode", "plugins", "background-agents.ts"),
-			filepath.Join(homeDir, ".config", "opencode", "tui-plugins", "argentina-logo.tsx"),
-			filepath.Join(homeDir, ".config", "opencode", "tui.json"),
 		)
 		for _, phase := range sdd.SharedPromptPhases() {
 			add(filepath.Join(sdd.SharedPromptDir(homeDir), phase+".md"))
@@ -577,19 +575,15 @@ func executeOne(ctx context.Context, r update.UpdateResult, profile system.Platf
 }
 
 // effectiveMethod resolves the actual upgrade strategy for a tool on a given platform.
-// Priority order matches the documented install hierarchy: brew → go-install → binary.
+// Priority order: go-install (when Go is available and GoImportPath is set) → binary.
 //
 //  1. OpenCode plugins are always handled by their own method — never overridden.
-//  2. Brew-managed platforms always use brew regardless of the tool's declared method.
-//  3. When Go is available on PATH and the tool has a GoImportPath, go-install is
+//  2. When Go is available on PATH and the tool has a GoImportPath, go-install is
 //     preferred over a direct binary download.
-//  4. Otherwise the tool's declared InstallMethod is used as-is.
+//  3. Otherwise the tool's declared InstallMethod is used as-is.
 func effectiveMethod(tool update.ToolInfo, profile system.PlatformProfile) update.InstallMethod {
 	if tool.InstallMethod == update.InstallOpenCodePlugin {
 		return update.InstallOpenCodePlugin
-	}
-	if profile.PackageManager == "brew" {
-		return update.InstallBrew
 	}
 	if profile.GoAvailable && tool.GoImportPath != "" {
 		return update.InstallGoInstall

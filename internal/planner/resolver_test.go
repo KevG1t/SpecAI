@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 func TestResolverAddsMissingDependenciesInOrder(t *testing.T) {
@@ -24,11 +24,11 @@ func TestResolverAddsMissingDependenciesInOrder(t *testing.T) {
 		t.Fatalf("Resolve() agents = %v", plan.Agents)
 	}
 
-	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD, model.ComponentSkills}) {
+	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD, model.ComponentSkills}) {
 		t.Fatalf("Resolve() ordered components = %v", plan.OrderedComponents)
 	}
 
-	if !reflect.DeepEqual(plan.AddedDependencies, []model.ComponentID{model.ComponentSDDMemory, model.ComponentSDD}) {
+	if !reflect.DeepEqual(plan.AddedDependencies, []model.ComponentID{model.ComponentSddMemory, model.ComponentSDD}) {
 		t.Fatalf("Resolve() added dependencies = %v", plan.AddedDependencies)
 	}
 }
@@ -45,11 +45,11 @@ func TestResolverPersonaOrderedBeforeSddMemoryAndSDDWhenSelected(t *testing.T) {
 		t.Fatalf("Resolve() returned error: %v", err)
 	}
 
-	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentPersona, model.ComponentSDDMemory, model.ComponentSDD}) {
+	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentPersona, model.ComponentSddMemory, model.ComponentSDD}) {
 		t.Fatalf("Resolve() ordered components = %v", plan.OrderedComponents)
 	}
 
-	if !reflect.DeepEqual(plan.AddedDependencies, []model.ComponentID{model.ComponentSDDMemory}) {
+	if !reflect.DeepEqual(plan.AddedDependencies, []model.ComponentID{model.ComponentSddMemory}) {
 		t.Fatalf("Resolve() added dependencies = %v", plan.AddedDependencies)
 	}
 }
@@ -58,7 +58,7 @@ func TestResolverSddMemoryOnlyDoesNotForcePersona(t *testing.T) {
 	resolver := NewResolver(MVPGraph())
 
 	selection := model.Selection{
-		Components: []model.ComponentID{model.ComponentSDDMemory},
+		Components: []model.ComponentID{model.ComponentSddMemory},
 	}
 
 	plan, err := resolver.Resolve(selection)
@@ -66,7 +66,7 @@ func TestResolverSddMemoryOnlyDoesNotForcePersona(t *testing.T) {
 		t.Fatalf("Resolve() returned error: %v", err)
 	}
 
-	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentSDDMemory}) {
+	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentSddMemory}) {
 		t.Fatalf("Resolve() ordered components = %v", plan.OrderedComponents)
 	}
 
@@ -98,7 +98,7 @@ func TestResolverPersonaAndSddMemoryWithoutSDD(t *testing.T) {
 	resolver := NewResolver(MVPGraph())
 
 	selection := model.Selection{
-		Components: []model.ComponentID{model.ComponentPersona, model.ComponentSDDMemory},
+		Components: []model.ComponentID{model.ComponentPersona, model.ComponentSddMemory},
 	}
 
 	plan, err := resolver.Resolve(selection)
@@ -106,7 +106,7 @@ func TestResolverPersonaAndSddMemoryWithoutSDD(t *testing.T) {
 		t.Fatalf("Resolve() returned error: %v", err)
 	}
 
-	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentPersona, model.ComponentSDDMemory}) {
+	if !reflect.DeepEqual(plan.OrderedComponents, []model.ComponentID{model.ComponentPersona, model.ComponentSddMemory}) {
 		t.Fatalf("Resolve() ordered components = %v, want [persona, sdd-memory]", plan.OrderedComponents)
 	}
 

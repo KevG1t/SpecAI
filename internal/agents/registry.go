@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/KevG1t/SpecAI/internal/model"
+	"github.com/KevG1t/specai/internal/model"
 )
 
 type Registry struct {

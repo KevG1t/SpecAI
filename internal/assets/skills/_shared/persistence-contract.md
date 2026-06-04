@@ -6,7 +6,7 @@ The orchestrator passes `artifact_store.mode` with one of: `sdd-memory | openspe
 
 The orchestrator ASKs the user which mode they want when `/sdd-new`, `/sdd-ff`, or `/sdd-continue` is invoked for the first time in a session. The choice is cached for the session.
 
-Default (if user doesn't specify): if sdd-memory is available → `sdd-memory`. Otherwise → `none`.
+Default (if user doesn't specify): if SddMemory is available → `sdd-memory`. Otherwise → `none`.
 
 ## Mode Roles
 
@@ -28,26 +28,26 @@ Default (if user doesn't specify): if sdd-memory is available → `sdd-memory`. 
 
 ### `sdd-memory` mode limitation
 
-sdd-memory uses `topic_key`-based upserts. Re-running a phase for the same change **overwrites** the previous version — no revision history is kept. The archive phase saves a summary report, not the full artifact folder. For iteration history or team collaboration, use `openspec` or `hybrid`.
+SddMemory uses `topic_key`-based upserts. Re-running a phase for the same change **overwrites** the previous version — no revision history is kept. The archive phase saves a summary report, not the full artifact folder. For iteration history or team collaboration, use `openspec` or `hybrid`.
 
 ## Behavior Per Mode
 
 | Mode | Read from | Write to | Project files |
 |------|-----------|----------|---------------|
-| `sdd-memory` | sdd-memory | sdd-memory | Never |
+| `sdd-memory` | SddMemory | SddMemory | Never |
 | `openspec` | Filesystem | Filesystem | Yes |
-| `hybrid` | sdd-memory (primary) + Filesystem (fallback) | Both | Yes |
+| `hybrid` | SddMemory (primary) + Filesystem (fallback) | Both | Yes |
 | `none` | Orchestrator prompt context | Nowhere | Never |
 
 ### Hybrid Mode
 
-Persists every artifact to BOTH sdd-memory and OpenSpec simultaneously:
-- sdd-memory: cross-session recovery, compaction survival, deterministic search
+Persists every artifact to BOTH SddMemory and OpenSpec simultaneously:
+- SddMemory: cross-session recovery, compaction survival, deterministic search
 - OpenSpec: human-readable files, version-controllable artifacts
 
-Write to sdd-memory (per `sdd-memory-convention.md`) AND to filesystem (per `openspec-convention.md`) for every artifact.
+Write to SddMemory (per `sdd-memory-convention.md`) AND to filesystem (per `openspec-convention.md`) for every artifact.
 
-Read priority: sdd-memory first; fall back to filesystem if sdd-memory returns no results.
+Read priority: SddMemory first; fall back to filesystem if SddMemory returns no results.
 Write behavior: both writes MUST succeed for the operation to be complete.
 Token cost warning: hybrid consumes MORE tokens per operation. Use only when you need both cross-session persistence AND local file artifacts.
 
@@ -59,17 +59,17 @@ The orchestrator persists DAG state after each phase transition to enable SDD re
 |------|--------------|---------------|
 | `sdd-memory` | `mem_save(topic_key: "sdd/{change-name}/state", capture_prompt: false*)` | `mem_search("sdd/*/state")` → `mem_get_observation(id)` |
 | `openspec` | Write `openspec/changes/{change-name}/state.yaml` | Read `openspec/changes/{change-name}/state.yaml` |
-| `hybrid` | Both: `mem_save` AND write `state.yaml` | sdd-memory first; filesystem fallback |
+| `hybrid` | Both: `mem_save` AND write `state.yaml` | SddMemory first; filesystem fallback |
 | `none` | Not possible — warn user | Not possible |
 
-*For state automated artifacts, set `capture_prompt: false` when the sdd-memory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+*For state automated artifacts, set `capture_prompt: false` when the SddMemory tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
 
 ## Common Rules
 
 - `none` → do NOT create or modify any project files; return results inline only
-- `sdd-memory` → do NOT write any project files; persist to sdd-memory and return observation IDs
+- `sdd-memory` → do NOT write any project files; persist to SddMemory and return observation IDs
 - `openspec` → write files ONLY to paths defined in `openspec-convention.md`
-- `hybrid` → persist to BOTH sdd-memory AND filesystem; follow both conventions
+- `hybrid` → persist to BOTH SddMemory AND filesystem; follow both conventions
 - NEVER force `openspec/` creation unless orchestrator explicitly passed `openspec` or `hybrid`
 - If unsure which mode to use, default to `none`
 
@@ -100,7 +100,7 @@ Do NOT return without saving what you learned. This is how the team builds persi
 
 SDD (with dependencies):
 ```
-Artifact store mode: {sdd-memory|openspec|hybrid|none}
+Artifact store mode (`sdd-memory | openspec | hybrid | none`)|openspec|hybrid|none}
 Read these artifacts before starting (search returns truncated previews):
   mem_search(query: "sdd/{change-name}/{type}", project: "{project}") → get ID
   mem_get_observation(id: {id}) → full content (REQUIRED)
@@ -120,7 +120,7 @@ If you return without calling mem_save, the next phase CANNOT find your artifact
 
 SDD (no dependencies):
 ```
-Artifact store mode: {sdd-memory|openspec|hybrid|none}
+Artifact store mode (`sdd-memory | openspec | hybrid | none`)|openspec|hybrid|none}
 
 PERSISTENCE (MANDATORY — do NOT skip):
 After completing your work, you MUST call:
@@ -135,7 +135,7 @@ After completing your work, you MUST call:
 If you return without calling mem_save, the next phase CANNOT find your artifact and the pipeline BREAKS.
 ```
 
-For SDD artifacts, `capture_prompt: false` is explicit and mandatory when the sdd-memory tool schema supports it. sdd-memory v1.15.3 defaults `capture_prompt` to true for normal human/proactive saves, but automated pipeline artifacts must not capture the user's prompt. Do not infer this from `type` because SDD artifacts and real human architecture decisions both use `architecture`. If an older schema rejects or does not expose `capture_prompt`, omit it rather than failing.
+For SDD artifacts, `capture_prompt: false` is explicit and mandatory when the SddMemory tool schema supports it. SddMemory v1.15.3 defaults `capture_prompt` to true for normal human/proactive saves, but automated pipeline artifacts must not capture the user's prompt. Do not infer this from `type` because SDD artifacts and real human architecture decisions both use `architecture`. If an older schema rejects or does not expose `capture_prompt`, omit it rather than failing.
 
 ## Sub-Agent Response Ordering
 

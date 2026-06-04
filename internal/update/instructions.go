@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/system"
+	"github.com/KevG1t/specai/internal/system"
 )
 
 // updateHint returns a platform-specific instruction string for updating the given tool.
@@ -32,7 +32,7 @@ func openCodeRegisteredNotMaterializedHint(tool ToolInfo) string {
 func specAIHint(profile system.PlatformProfile) string {
 	switch profile.OS {
 	case "darwin":
-		return "brew upgrade specai"
+		return "npm install -g spec-ai"
 	case "linux":
 		return "curl -fsSL https://raw.githubusercontent.com/KevG1t/SpecAI/main/scripts/install.sh | bash"
 	case "windows":
@@ -43,11 +43,6 @@ func specAIHint(profile system.PlatformProfile) string {
 }
 
 func sddMemoryHint(profile system.PlatformProfile) string {
-	switch profile.PackageManager {
-	case "brew":
-		return "brew upgrade sdd-memory"
-	default:
-		return "specai upgrade (downloads pre-built binary)"
-	}
+	return "specai upgrade (downloads pre-built binary)"
 }
 

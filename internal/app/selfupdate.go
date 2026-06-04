@@ -14,9 +14,9 @@ import (
 
 	"github.com/mattn/go-isatty"
 
-	"github.com/KevG1t/SpecAI/internal/system"
-	"github.com/KevG1t/SpecAI/internal/update"
-	"github.com/KevG1t/SpecAI/internal/update/upgrade"
+	"github.com/KevG1t/specai/internal/system"
+	"github.com/KevG1t/specai/internal/update"
+	"github.com/KevG1t/specai/internal/update/upgrade"
 )
 
 // lookPathFn is a package-level var for testability.
@@ -148,8 +148,10 @@ func selfUpdate(ctx context.Context, version string, profile system.PlatformProf
 	//
 	// Use exec.LookPath("specai") rather than os.Executable() because
 	// on Homebrew, os.Executable() resolves to the versioned Cellar path
-	// which still points to the OLD binary after upgrade. The PATH symlink
-	// is updated by Homebrew to the new version, so LookPath gives us the correct binary.
+	// (e.g. /opt/homebrew/Cellar/specai/1.8.5/bin/specai) which
+	// still points to the OLD binary after upgrade. The PATH symlink
+	// (/opt/homebrew/bin/specai) is updated by Homebrew to the new
+	// version, so LookPath gives us the correct binary.
 	executable, err := lookPathFn("specai")
 	if err != nil {
 		// Fallback to os.Executable() if LookPath fails.

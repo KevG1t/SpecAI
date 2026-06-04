@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/KevG1t/SpecAI/internal/components/filemerge"
+	"github.com/KevG1t/specai/internal/components/filemerge"
 )
 
 type jsonPath []string
