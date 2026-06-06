@@ -5,10 +5,9 @@ import (
 	"strings"
 )
 
-// UpsertCodexSddMemoryBlock removes any existing [mcp_servers.sdd-memory] or
-// legacy [mcp_servers.engram] block from the given TOML content and appends a
-// fresh block with the canonical sdd-memory MCP entry. All other sections are
-// preserved.
+// UpsertCodexSddMemoryBlock removes any existing [mcp_servers.sdd-memory] block
+// from the given TOML content and appends a fresh block with the canonical
+// sdd-memory MCP entry. All other sections are preserved.
 //
 // sddMemoryCmd is the command string to use (e.g. an absolute path like
 // "/usr/local/bin/sdd-memory"). If sddMemoryCmd is empty, it falls back to "sdd-memory".
@@ -30,8 +29,7 @@ func UpsertCodexSddMemoryBlock(content, sddMemoryCmd string) string {
 	var kept []string
 	for i := 0; i < len(lines); {
 		trimmed := strings.TrimSpace(lines[i])
-		isSddMemorySection := trimmed == "[mcp_servers.sdd-memory]" || trimmed == "[mcp_servers.engram]"
-		if isSddMemorySection {
+		if trimmed == "[mcp_servers.sdd-memory]" {
 			// Skip the old block header and all its key-value lines.
 			i++
 			for i < len(lines) {
