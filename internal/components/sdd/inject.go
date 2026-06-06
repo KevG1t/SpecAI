@@ -758,12 +758,6 @@ func inlineOpenCodeSDDPrompts(overlayBytes []byte, homeDir, settingsPath string,
 			return nil, err
 		}
 		if existingPrompt == "" {
-			existingPrompt, err = readOpenCodeAgentPrompt(settingsPath, "gentle-orchestrator")
-			if err != nil {
-				return nil, err
-			}
-		}
-		if existingPrompt == "" {
 			existingPrompt, err = readOpenCodeAgentPrompt(settingsPath, "sdd-orchestrator")
 			if err != nil {
 				return nil, err
@@ -1314,8 +1308,8 @@ func openCodeSettingsHasShare(settingsPath string) bool {
 // base OpenCode SDD conductor agents. The base SDD coordinator is now the
 // specai-orchestrator primary agent; named profile agents such as
 // sdd-orchestrator-cheap intentionally remain untouched because they are
-// generated profile-specific coordinators. The old OpenCode "gentle-orchestrator"
-// and "specai" agent keys (from pre-SpecAI installer versions) are revoked and
+// generated profile-specific coordinators. The old OpenCode "specai"
+// agent keys (from pre-SpecAI installer versions) are revoked and
 // removed during sync; if they clearly contain the old SDD conductor prompt and
 // no specai-orchestrator exists yet, the prompt is migrated before the revoked
 // key is deleted.
@@ -1339,17 +1333,10 @@ func migrateLegacyOpenCodeSDDOrchestrator(baseJSON []byte) ([]byte, error) {
 	}
 
 	legacy, hasLegacy := agentsMap["sdd-orchestrator"]
-	revokedGentleOrchestrator, hasGentleOrchestrator := agentsMap["gentle-orchestrator"]
 	revokedLegacy, hasRevokedLegacy := agentsMap["specai"]
 	legacyLooksLikeConductor := hasRevokedLegacy && looksLikeOpenCodeSDDConductor(revokedLegacy)
-	gentleOrchestratorLooksLikeConductor := hasGentleOrchestrator && looksLikeOpenCodeSDDConductor(revokedGentleOrchestrator)
-	if !hasLegacy && !hasRevokedLegacy && !hasGentleOrchestrator {
+	if !hasLegacy && !hasRevokedLegacy {
 		return baseJSON, nil
-	}
-	// Prefer gentle-orchestrator as source if no sdd-orchestrator migration source exists.
-	if !hasLegacy && gentleOrchestratorLooksLikeConductor {
-		legacy = revokedGentleOrchestrator
-		hasLegacy = true
 	}
 	if !hasLegacy && legacyLooksLikeConductor {
 		legacy = revokedLegacy
@@ -1360,7 +1347,6 @@ func migrateLegacyOpenCodeSDDOrchestrator(baseJSON []byte) ([]byte, error) {
 		agentsMap["specai-orchestrator"] = legacy
 	}
 	delete(agentsMap, "sdd-orchestrator")
-	delete(agentsMap, "gentle-orchestrator")
 	if hasRevokedLegacy {
 		delete(agentsMap, "specai")
 	}
@@ -1948,8 +1934,8 @@ func injectModelAssignments(overlayBytes []byte, assignments map[string]model.Mo
 }
 
 // normalizeOpenCodeSDDModelAssignments accepts the historical
-// sdd-orchestrator and gentle-orchestrator assignment keys as input aliases,
-// but writes them to the current base coordinator key: specai-orchestrator.
+// sdd-orchestrator assignment key as an input alias,
+// but writes it to the current base coordinator key: specai-orchestrator.
 // Named profile keys remain unchanged.
 func normalizeOpenCodeSDDModelAssignments(assignments map[string]model.ModelAssignment) map[string]model.ModelAssignment {
 	if len(assignments) == 0 {
@@ -1961,15 +1947,12 @@ func normalizeOpenCodeSDDModelAssignments(assignments map[string]model.ModelAssi
 	// Accept any legacy key as a migration source.
 	legacyAssignment, hasLegacy := assignments["sdd-orchestrator"]
 	if !hasLegacy {
-		legacyAssignment, hasLegacy = assignments["gentle-orchestrator"]
-	}
-	if !hasLegacy {
 		return assignments
 	}
 
 	normalized := make(map[string]model.ModelAssignment, len(assignments))
 	for key, assignment := range assignments {
-		if key == "sdd-orchestrator" || key == "gentle-orchestrator" {
+		if key == "sdd-orchestrator" {
 			continue
 		}
 		normalized[key] = assignment

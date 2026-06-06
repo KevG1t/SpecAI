@@ -355,9 +355,6 @@ func TestInjectOpenCodeWritesCommandFiles(t *testing.T) {
 	if strings.Contains(settingsText, `"sdd-orchestrator"`) {
 		t.Fatal("opencode.json should not install legacy sdd-orchestrator agent")
 	}
-	if strings.Contains(settingsText, `"gentle-orchestrator"`) {
-		t.Fatal("opencode.json should not contain legacy gentle-orchestrator agent")
-	}
 
 	sharedPath := filepath.Join(home, ".config", "opencode", "skills", "_shared", "persistence-contract.md")
 	if _, err := os.Stat(sharedPath); err != nil {
@@ -940,9 +937,6 @@ func TestInjectOpenCodeMigratesLegacyAgentsKey(t *testing.T) {
 	}
 	if _, ok := agentMap["sdd-orchestrator"]; ok {
 		t.Fatal("legacy sdd-orchestrator agent should not remain after merge")
-	}
-	if _, ok := agentMap["gentle-orchestrator"]; ok {
-		t.Fatal("legacy gentle-orchestrator agent should not remain after merge")
 	}
 }
 
@@ -1862,9 +1856,6 @@ func TestInjectOpenCodeSingleToMultiSwitch(t *testing.T) {
 	}
 	if _, ok := agentMap["sdd-orchestrator"]; ok {
 		t.Fatal("legacy sdd-orchestrator should not remain after switch to multi")
-	}
-	if _, ok := agentMap["gentle-orchestrator"]; ok {
-		t.Fatal("legacy gentle-orchestrator should not remain after switch to multi")
 	}
 	if _, ok := agentMap["sdd-apply"]; !ok {
 		t.Fatal("missing sdd-apply after switch to multi")
@@ -3776,7 +3767,7 @@ func TestInjectCodexWritesSDDOrchestratorAndSkills(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v", extractedSkillPath, err)
 	}
-	if !strings.HasPrefix(string(extractedSkill), "---\n") {
+	if !strings.HasPrefix(string(extractedSkill), "---\n") && !strings.HasPrefix(string(extractedSkill), "---\r\n") {
 		t.Fatalf("Codex SDD skill must start with YAML frontmatter delimiter, got prefix %q", string(extractedSkill[:min(len(extractedSkill), 16)]))
 	}
 
@@ -3877,9 +3868,6 @@ func TestInjectOpenCodeMultiModeWithPreExistingMinimalConfig(t *testing.T) {
 	}
 	if _, ok := agentMap["sdd-orchestrator"]; ok {
 		t.Fatal("legacy sdd-orchestrator should be removed after merge with pre-existing config")
-	}
-	if _, ok := agentMap["gentle-orchestrator"]; ok {
-		t.Fatal("legacy gentle-orchestrator should be removed after merge with pre-existing config")
 	}
 	if _, ok := agentMap["sdd-apply"]; !ok {
 		t.Fatal("missing sdd-apply after merge with pre-existing config — post-check regression")
@@ -4020,9 +4008,6 @@ func TestInjectOpenCodeMultiModeAssignsSpecAIOrchestratorModelFromLegacyOrchestr
 	if _, exists := agentMap["sdd-orchestrator"]; exists {
 		t.Fatal("legacy sdd-orchestrator agent should not be installed")
 	}
-	if _, exists := agentMap["gentle-orchestrator"]; exists {
-		t.Fatal("legacy gentle-orchestrator agent should not be installed")
-	}
 
 	// specai-orchestrator must receive the historical sdd-orchestrator assignment.
 	specaiOrchestratorAgent, ok := agentMap["specai-orchestrator"].(map[string]any)
@@ -4078,9 +4063,6 @@ func TestInjectOpenCodeMultiModeInstallsSpecAIOrchestratorWithModel(t *testing.T
 	}
 	if _, exists := agentMap["sdd-orchestrator"]; exists {
 		t.Fatal("legacy sdd-orchestrator agent should not be installed")
-	}
-	if _, exists := agentMap["gentle-orchestrator"]; exists {
-		t.Fatal("legacy gentle-orchestrator agent should not be installed")
 	}
 }
 
