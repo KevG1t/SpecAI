@@ -672,9 +672,9 @@ func TestCheckSingleTool_SDDMemoryUsesBinaryReleaseChannel(t *testing.T) {
 	}
 	execCommand = func(name string, args ...string) *exec.Cmd {
 		if name == "sdd-memory" {
-			return exec.Command("echo", "sdd-memory 1.15.13")
+			return mockCmd("echo", "sdd-memory 1.15.13")
 		}
-		return exec.Command("false")
+		return mockCmd("false")
 	}
 
 	result := checkSingleTool(context.Background(), Tools[1], "dev", system.PlatformProfile{OS: "darwin", PackageManager: "brew", Supported: true})

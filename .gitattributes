@@ -1,0 +1,7 @@
+# Force LF line endings for all text files
+* text=auto
+
+# Ensure consistent line endings for golden files and markdown
+*.golden text eol=lf
+*.md text eol=lf
+*.json text eol=lf

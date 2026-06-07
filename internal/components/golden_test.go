@@ -895,11 +895,13 @@ func assertGolden(t *testing.T, name string, actual []byte) {
 	t.Helper()
 	goldenPath := filepath.Join(goldenDir(t), name)
 
+	actualStr := strings.ReplaceAll(string(actual), "\r\n", "\n")
+
 	if *update {
 		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
 			t.Fatalf("MkdirAll for golden dir: %v", err)
 		}
-		if err := os.WriteFile(goldenPath, actual, 0o644); err != nil {
+		if err := os.WriteFile(goldenPath, []byte(actualStr), 0o644); err != nil {
 			t.Fatalf("WriteFile(%q) error = %v", goldenPath, err)
 		}
 		t.Logf("updated golden file: %s", goldenPath)
@@ -910,10 +912,11 @@ func assertGolden(t *testing.T, name string, actual []byte) {
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v\n\nRun with -update to generate golden files:\n  go test ./internal/components/ -run %s -update", goldenPath, err, t.Name())
 	}
+	expectedStr := strings.ReplaceAll(string(expected), "\r\n", "\n")
 
-	if string(actual) != string(expected) {
+	if actualStr != expectedStr {
 		// Show first difference for easier debugging.
-		diffIdx := firstDiffIndex(string(expected), string(actual))
+		diffIdx := firstDiffIndex(expectedStr, actualStr)
 		context := 80
 		start := diffIdx - context
 		if start < 0 {
@@ -922,8 +925,8 @@ func assertGolden(t *testing.T, name string, actual []byte) {
 
 		t.Fatalf("golden mismatch for %s (first diff at byte %d)\n\nexpected[%d:%d]:\n%s\n\nactual[%d:%d]:\n%s\n\nRun with -update to regenerate:\n  go test ./internal/components/ -run %s -update",
 			name, diffIdx,
-			start, min(diffIdx+context, len(string(expected))), string(expected)[start:min(diffIdx+context, len(string(expected)))],
-			start, min(diffIdx+context, len(string(actual))), string(actual)[start:min(diffIdx+context, len(string(actual)))],
+			start, min(diffIdx+context, len(expectedStr)), expectedStr[start:min(diffIdx+context, len(expectedStr))],
+			start, min(diffIdx+context, len(actualStr)), actualStr[start:min(diffIdx+context, len(actualStr))],
 			t.Name(),
 		)
 	}
